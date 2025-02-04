@@ -39,19 +39,30 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
   const toggleWatchlist = async () => {
     try {
       if (inWatchlist) {
-        // Send DELETE request with product ID
-        await apiRequest("DELETE", `/api/watchlist/${product.id}`);
-        // Invalidate both watchlist and products queries to ensure UI updates
+        console.log(`Attempting to delete product ${product.id} from watchlist`);
+
+        const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
+        const result = await response.json();
+
+        console.log('Delete response:', result);
+
+        // Force refetch instead of just invalidating
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
-          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+          queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+          queryClient.refetchQueries({ queryKey: ["/api/products"] })
         ]);
+
+        console.log('Queries refetched after deletion');
       } else {
-        await apiRequest("POST", "/api/watchlist", { productId: product.id });
-        // Invalidate queries after adding to watchlist
+        console.log(`Attempting to add product ${product.id} to watchlist`);
+
+        await apiRequest("POST", "/api/watchlist", { 
+          productId: product.id 
+        });
+
         await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
-          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+          queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+          queryClient.refetchQueries({ queryKey: ["/api/products"] })
         ]);
       }
 

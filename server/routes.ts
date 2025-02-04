@@ -274,6 +274,27 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(400).json({ error: "Invalid product ID" });
       }
 
+      console.log(`Attempting to delete watchlist item for product ${productId} and user ${req.user!.id}`);
+
+      // First verify the item exists
+      const [existingItem] = await db.select()
+        .from(watchlist)
+        .where(
+          and(
+            eq(watchlist.productId, productId),
+            eq(watchlist.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (!existingItem) {
+        console.log(`No watchlist item found for product ${productId} and user ${req.user!.id}`);
+        return res.status(404).json({ error: "Watchlist item not found" });
+      }
+
+      console.log(`Found watchlist item to delete:`, existingItem);
+
+      // Perform the deletion
       const result = await db.delete(watchlist)
         .where(
           and(
@@ -283,8 +304,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         )
         .returning();
 
+      console.log(`Deletion result:`, result);
+
       if (!result.length) {
-        return res.status(404).json({ error: "Watchlist item not found" });
+        return res.status(404).json({ error: "Failed to delete watchlist item" });
       }
 
       res.status(200).json({ message: "Item removed from watchlist", deletedItem: result[0] });

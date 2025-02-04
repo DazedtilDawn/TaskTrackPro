@@ -88,7 +88,6 @@ export default function SmartListingModal({
       // Add debounce delay
       await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Start analysis with progress updates
       const analysis = await generateSmartListing(files);
 
       if (signal.aborted) throw new Error('Analysis cancelled');

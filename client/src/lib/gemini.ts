@@ -52,29 +52,85 @@ async function initializeGemini() {
   return genAI;
 }
 
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src); // Clean up
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      // Calculate new dimensions while maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+      const MAX_DIMENSION = 800; // Reduced from 1200 to 800 for smaller file size
+
+      if (width > height && width > MAX_DIMENSION) {
+        height = Math.round((height * MAX_DIMENSION) / width);
+        width = MAX_DIMENSION;
+      } else if (height > MAX_DIMENSION) {
+        width = Math.round((width * MAX_DIMENSION) / height);
+        height = MAX_DIMENSION;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Use better image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Draw image with white background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Convert to blob with reduced quality
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Failed to compress image'));
+            return;
+          }
+          resolve(blob);
+        },
+        'image/jpeg',
+        0.7  // Reduced quality to 70% for smaller file size
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('Failed to load image for compression'));
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+}
+
 async function fileToBase64(file: File): Promise<string> {
+  const compressedBlob = await compressImage(file);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      try {
-        if (!reader.result) {
-          reject(new Error("Failed to read file"));
-          return;
-        }
-
-        const base64Data = (reader.result as string).split(",")[1];
-        if (!base64Data) {
-          reject(new Error("Failed to extract base64 data from file"));
-          return;
-        }
-        resolve(base64Data);
-      } catch (error) {
-        console.error("Error processing file:", error);
-        reject(new Error("Failed to process image file"));
+      if (!reader.result) {
+        reject(new Error("Failed to read file"));
+        return;
       }
+      const base64Data = (reader.result as string).split(",")[1];
+      if (!base64Data) {
+        reject(new Error("Failed to extract base64 data"));
+        return;
+      }
+      resolve(base64Data);
     };
     reader.onerror = () => reject(new Error("Failed to read file"));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(compressedBlob);
   });
 }
 
@@ -87,7 +143,10 @@ export async function generateSmartListing(
 
   try {
     console.log('Processing image files...');
-    const imagePromises = files.map(async (file) => {
+    // Process one image at a time to reduce memory usage
+    const processedImages: string[] = [];
+
+    for (const file of files) {
       // Validate file
       if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
         throw new Error(`Invalid file type: ${file.type}. Only JPEG, PNG, and WebP are supported.`);
@@ -95,16 +154,22 @@ export async function generateSmartListing(
       if (file.size > 4 * 1024 * 1024) {
         throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
       }
-      return fileToBase64(file);
-    });
 
-    const images = await Promise.all(imagePromises);
+      // Add delay between processing each image
+      if (processedImages.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      const base64Data = await fileToBase64(file);
+      processedImages.push(base64Data);
+    }
+
     console.log('Images processed successfully');
 
     const response = await apiRequest(
       "POST",
       "/api/analyze-images",
-      { images }
+      { images: processedImages }
     );
 
     const analysis = await response.json();
@@ -122,68 +187,6 @@ export async function generateSmartListing(
       : new Error("Failed to generate smart listing");
   }
 }
-
-async function compressImage(file: File): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      URL.revokeObjectURL(img.src); // Clean up
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      if (!ctx) {
-        reject(new Error('Could not get canvas context'));
-        return;
-      }
-
-      // Calculate new dimensions while maintaining aspect ratio
-      let width = img.width;
-      let height = img.height;
-      const MAX_DIMENSION = 1200;
-
-      if (width > height && width > MAX_DIMENSION) {
-        height = Math.round((height * MAX_DIMENSION) / width);
-        width = MAX_DIMENSION;
-      } else if (height > MAX_DIMENSION) {
-        width = Math.round((width * MAX_DIMENSION) / height);
-        height = MAX_DIMENSION;
-      }
-
-      canvas.width = width;
-      canvas.height = height;
-
-      // Use better image smoothing
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-
-      // Draw image with white background to handle transparency
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, width, height);
-      ctx.drawImage(img, 0, 0, width, height);
-
-      // Convert to blob with quality adjustment
-      canvas.toBlob(
-        (blob) => {
-          if (!blob) {
-            reject(new Error('Failed to compress image'));
-            return;
-          }
-          resolve(blob);
-        },
-        'image/jpeg',
-        0.8  // 80% quality
-      );
-    };
-
-    img.onerror = () => {
-      URL.revokeObjectURL(img.src);
-      reject(new Error('Failed to load image for compression'));
-    };
-
-    img.src = URL.createObjectURL(file);
-  });
-}
-
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
   const genAI = await initializeGemini();

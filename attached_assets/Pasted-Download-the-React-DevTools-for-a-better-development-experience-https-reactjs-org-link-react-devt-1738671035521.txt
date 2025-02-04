@@ -1,0 +1,181 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+queryClient.ts:32 Fetch finished loading: GET "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/user".
+(anonymous) @ queryClient.ts:32
+fetchFn @ @tanstack_react-query.js?v=26ddf103:840
+run @ @tanstack_react-query.js?v=26ddf103:494
+start @ @tanstack_react-query.js?v=26ddf103:536
+fetch @ @tanstack_react-query.js?v=26ddf103:926
+executeFetch_fn @ @tanstack_react-query.js?v=26ddf103:2211
+onSubscribe @ @tanstack_react-query.js?v=26ddf103:1898
+subscribe @ @tanstack_react-query.js?v=26ddf103:24
+(anonymous) @ @tanstack_react-query.js?v=26ddf103:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=26ddf103:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19432
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=26ddf103:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18718
+workLoop @ chunk-RPCDYKBN.js?v=26ddf103:197
+flushWork @ chunk-RPCDYKBN.js?v=26ddf103:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=26ddf103:384
+queryClient.ts:32 Fetch finished loading: GET "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/products".
+(anonymous) @ queryClient.ts:32
+fetchFn @ @tanstack_react-query.js?v=26ddf103:840
+run @ @tanstack_react-query.js?v=26ddf103:494
+start @ @tanstack_react-query.js?v=26ddf103:536
+fetch @ @tanstack_react-query.js?v=26ddf103:926
+executeFetch_fn @ @tanstack_react-query.js?v=26ddf103:2211
+onSubscribe @ @tanstack_react-query.js?v=26ddf103:1898
+subscribe @ @tanstack_react-query.js?v=26ddf103:24
+(anonymous) @ @tanstack_react-query.js?v=26ddf103:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=26ddf103:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19416
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+(anonymous) @ chunk-RPCDYKBN.js?v=26ddf103:18627
+setTimeout
+scheduleFn @ @tanstack_react-query.js?v=26ddf103:555
+flush @ @tanstack_react-query.js?v=26ddf103:569
+batch @ @tanstack_react-query.js?v=26ddf103:587
+dispatch_fn @ @tanstack_react-query.js?v=26ddf103:996
+setData @ @tanstack_react-query.js?v=26ddf103:696
+onSuccess @ @tanstack_react-query.js?v=26ddf103:897
+resolve @ @tanstack_react-query.js?v=26ddf103:456
+Promise.then
+run @ @tanstack_react-query.js?v=26ddf103:498
+start @ @tanstack_react-query.js?v=26ddf103:536
+fetch @ @tanstack_react-query.js?v=26ddf103:926
+executeFetch_fn @ @tanstack_react-query.js?v=26ddf103:2211
+onSubscribe @ @tanstack_react-query.js?v=26ddf103:1898
+subscribe @ @tanstack_react-query.js?v=26ddf103:24
+(anonymous) @ @tanstack_react-query.js?v=26ddf103:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=26ddf103:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19432
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=26ddf103:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18718
+workLoop @ chunk-RPCDYKBN.js?v=26ddf103:197
+flushWork @ chunk-RPCDYKBN.js?v=26ddf103:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=26ddf103:384
+queryClient.ts:32 Fetch finished loading: GET "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/watchlist".
+(anonymous) @ queryClient.ts:32
+fetchFn @ @tanstack_react-query.js?v=26ddf103:840
+run @ @tanstack_react-query.js?v=26ddf103:494
+start @ @tanstack_react-query.js?v=26ddf103:536
+fetch @ @tanstack_react-query.js?v=26ddf103:926
+executeFetch_fn @ @tanstack_react-query.js?v=26ddf103:2211
+onSubscribe @ @tanstack_react-query.js?v=26ddf103:1898
+subscribe @ @tanstack_react-query.js?v=26ddf103:24
+(anonymous) @ @tanstack_react-query.js?v=26ddf103:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=26ddf103:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19416
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+(anonymous) @ chunk-RPCDYKBN.js?v=26ddf103:18627
+setTimeout
+scheduleFn @ @tanstack_react-query.js?v=26ddf103:555
+flush @ @tanstack_react-query.js?v=26ddf103:569
+batch @ @tanstack_react-query.js?v=26ddf103:587
+dispatch_fn @ @tanstack_react-query.js?v=26ddf103:996
+setData @ @tanstack_react-query.js?v=26ddf103:696
+onSuccess @ @tanstack_react-query.js?v=26ddf103:897
+resolve @ @tanstack_react-query.js?v=26ddf103:456
+Promise.then
+run @ @tanstack_react-query.js?v=26ddf103:498
+start @ @tanstack_react-query.js?v=26ddf103:536
+fetch @ @tanstack_react-query.js?v=26ddf103:926
+executeFetch_fn @ @tanstack_react-query.js?v=26ddf103:2211
+onSubscribe @ @tanstack_react-query.js?v=26ddf103:1898
+subscribe @ @tanstack_react-query.js?v=26ddf103:24
+(anonymous) @ @tanstack_react-query.js?v=26ddf103:3022
+subscribeToStore @ chunk-RPCDYKBN.js?v=26ddf103:11984
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19432
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=26ddf103:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18718
+workLoop @ chunk-RPCDYKBN.js?v=26ddf103:197
+flushWork @ chunk-RPCDYKBN.js?v=26ddf103:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=26ddf103:384
+smart-listing-modal.tsx:99 SmartListingModal: Modal state changed {open: false, filesCount: 0}
+@radix-ui_react-dialog.js?v=26ddf103:336 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ @radix-ui_react-dialog.js?v=26ddf103:336
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19416
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+(anonymous) @ chunk-RPCDYKBN.js?v=26ddf103:18627Understand this warningAI
+smart-listing-modal.tsx:99 SmartListingModal: Modal state changed {open: false, filesCount: 0}
+smart-listing-modal.tsx:99 SmartListingModal: Modal state changed {open: true, filesCount: 1}
+smart-listing-modal.tsx:101 SmartListingModal: Scheduling analysis
+@radix-ui_react-dialog.js?v=26ddf103:336 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ @radix-ui_react-dialog.js?v=26ddf103:336
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=26ddf103:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=26ddf103:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=26ddf103:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=26ddf103:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=26ddf103:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=26ddf103:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=26ddf103:19447
+commitRootImpl @ chunk-RPCDYKBN.js?v=26ddf103:19416
+commitRoot @ chunk-RPCDYKBN.js?v=26ddf103:19277
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=26ddf103:18895
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=26ddf103:9119
+flushSync @ chunk-RPCDYKBN.js?v=26ddf103:18959
+finishEventHandler @ chunk-RPCDYKBN.js?v=26ddf103:3569
+batchedUpdates @ chunk-RPCDYKBN.js?v=26ddf103:3582
+dispatchEventForPluginEventSystem @ chunk-RPCDYKBN.js?v=26ddf103:7173
+dispatchEventWithEnableCapturePhaseSelectiveHydrationWithoutDiscreteEventReplay @ chunk-RPCDYKBN.js?v=26ddf103:5478
+dispatchEvent @ chunk-RPCDYKBN.js?v=26ddf103:5472
+dispatchDiscreteEvent @ chunk-RPCDYKBN.js?v=26ddf103:5449Understand this warningAI
+smart-listing-modal.tsx:47 SmartListingModal: Starting analysis process
+smart-listing-modal.tsx:48 Files to analyze: 1
+smart-listing-modal.tsx:51 Analysis locked or component unmounted

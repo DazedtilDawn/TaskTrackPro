@@ -26,46 +26,62 @@ export default function SmartListingModal({
   // Refs for managing analysis state
   const mounted = useRef(true);
   const analysisLock = useRef<boolean>(false);
-  const abortController = useRef<AbortController | null>(null);
   const analysisTimeout = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup function
   const cleanup = useCallback(() => {
+    console.log('SmartListingModal: Cleanup triggered');
     if (analysisTimeout.current) {
       clearTimeout(analysisTimeout.current);
       analysisTimeout.current = null;
     }
-    if (abortController.current) {
-      abortController.current.abort();
-      abortController.current = null;
-    }
     analysisLock.current = false;
+    setLoading(false);
+    setProgress(0);
+    setError(null);
   }, []);
 
   // Analysis function
   const runAnalysis = useCallback(async () => {
-    console.log('SmartListingModal: Starting analysis process');
-    console.log('Files to analyze:', files.length);
+    console.log('SmartListingModal: Starting analysis process', {
+      mounted: mounted.current,
+      locked: analysisLock.current,
+      filesCount: files.length
+    });
 
-    if (analysisLock.current || !mounted.current) {
-      console.log('Analysis locked or component unmounted');
+    if (!mounted.current) {
+      console.log('SmartListingModal: Component not mounted, aborting');
+      return;
+    }
+
+    if (analysisLock.current) {
+      console.log('SmartListingModal: Analysis already in progress');
       return;
     }
 
     try {
-      cleanup();
       analysisLock.current = true;
-      abortController.current = new AbortController();
-
       setLoading(true);
       setError(null);
-      setProgress(0);
+      setProgress(10);
 
       console.log('SmartListingModal: Calling generateSmartListing');
+
+      // Progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 10, 90));
+      }, 2000);
+
       const analysis = await generateSmartListing(files);
+
+      clearInterval(progressInterval);
+
       console.log('SmartListingModal: Analysis completed successfully');
 
-      if (!mounted.current) return;
+      if (!mounted.current) {
+        console.log('SmartListingModal: Component unmounted during analysis');
+        return;
+      }
 
       setProgress(100);
       onAnalysisComplete(analysis);
@@ -93,20 +109,29 @@ export default function SmartListingModal({
       }
       analysisLock.current = false;
     }
-  }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
+  }, [files, onAnalysisComplete, onOpenChange, toast]);
 
   useEffect(() => {
-    console.log('SmartListingModal: Modal state changed', { open, filesCount: files.length });
-    if (open && files.length > 0 && !analysisLock.current) {
+    console.log('SmartListingModal: Modal state changed', { 
+      open, 
+      filesCount: files.length,
+      isLocked: analysisLock.current,
+      isLoading: loading 
+    });
+
+    if (open && files.length > 0 && !analysisLock.current && !loading) {
       console.log('SmartListingModal: Scheduling analysis');
-      analysisTimeout.current = setTimeout(runAnalysis, 1000);
+      analysisTimeout.current = setTimeout(() => {
+        console.log('SmartListingModal: Analysis timeout triggered');
+        runAnalysis();
+      }, 1000);
     }
 
     return () => {
       mounted.current = false;
       cleanup();
     };
-  }, [open, files, runAnalysis, cleanup]);
+  }, [open, files, runAnalysis, cleanup, loading]);
 
   useEffect(() => {
     if (open && files.length === 0) {

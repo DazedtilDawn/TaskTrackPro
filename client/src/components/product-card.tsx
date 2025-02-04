@@ -49,26 +49,22 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         throw new Error(result.error);
       }
 
-      // Log navigation attempt
-      console.log("Attempting navigation to /orders");
-
-      // Navigate immediately after successful API call
-      setTimeout(() => {
-        console.log("Executing navigation to /orders");
-        setLocation("/orders");
-      }, 0);
-
-      // Force refetch to update the UI after navigation
+      // Invalidate queries to mark them as stale
       await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["/api/products"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/orders"] })
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/orders"] })
       ]);
 
+      // Show success toast
       toast({
         title: "Product marked as sold",
         description: product.name,
       });
+
+      // Log and navigate after invalidation
+      console.log("Navigating to /orders after query invalidation");
+      setLocation("/orders");
 
     } catch (error) {
       console.error('Error marking product as sold:', error);

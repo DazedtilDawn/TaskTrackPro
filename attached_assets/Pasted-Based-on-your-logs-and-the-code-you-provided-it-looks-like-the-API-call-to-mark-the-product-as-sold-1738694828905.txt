@@ -1,0 +1,74 @@
+Based on your logs and the code you provided, it looks like the API call to mark the product as sold is working (the POST to `/api/orders` returns a success message), but when you navigate to the Orders page nothing appears. Here are a few things to check and try:
+
+1. **React Query Stale Data Issue:**  
+   In your query client you set a very long (infinite) staleTime:
+   ```ts
+   staleTime: Infinity,
+   ```
+   This means that once data is cached it won’t be refetched automatically—even if you call refetchQueries (depending on how React Query “sees” the query’s freshness). In your markAsSold function you are doing:
+   ```tsx
+   await Promise.all([
+     queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+     queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+     queryClient.refetchQueries({ queryKey: ["/api/orders"] }),
+   ]);
+   ```
+   However, if the orders query is still considered “fresh,” the refetch might not actually update the cached data. Since you navigate immediately (even via a setTimeout), the Orders page mounts with the stale (empty) data.
+
+2. **Navigation Timing:**  
+   You call `setLocation("/orders")` almost immediately (inside a zero‑delay setTimeout) before the refetchQueries promise resolves. Because your Orders page’s useQuery uses the same query key (`["/api/orders"]`), if the data isn’t invalidated or refetched on mount (due to staleTime: Infinity), the Orders page will see the old cache.
+
+### Suggested Fixes
+
+- **Invalidate Instead of Refetch:**  
+  Instead of refetching, try invalidating the orders query so that when the Orders page mounts it marks it stale and then fetches fresh data. For example, change your markAsSold function to something like:
+
+  ```tsx
+  const markAsSold = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/orders", {
+        productId: product.id,
+      });
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      
+      // Invalidate queries so that orders (and other data) are refreshed
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/orders"] }),
+      ]);
+      
+      toast({
+        title: "Product marked as sold",
+        description: product.name,
+      });
+      
+      // Navigate after invalidation has occurred
+      setLocation("/orders");
+    } catch (error) {
+      console.error("Error marking product as sold:", error);
+      toast({
+        title: "Error",
+        description: "Failed to mark product as sold",
+        variant: "destructive",
+      });
+    }
+  };
+  ```
+
+- **Adjust the staleTime or Force a Refetch:**  
+  If you prefer to keep refetching, you could pass an option to force refetch even if the data is fresh (for example, using the `exact` flag or forcing refetch in your GET query function). Alternatively, lowering the staleTime for your orders query might also help.
+
+- **Delay Navigation:**  
+  You might consider waiting until the orders query has finished updating before navigating. For instance, move the `setLocation("/orders")` to run after the invalidation/refetch promises resolve (as shown in the code above).
+
+### Why This Might Be Happening
+
+Because your query client is configured with `staleTime: Infinity`, once the orders data is loaded it will be considered fresh indefinitely. Even though you attempt to refetch the queries after marking as sold, the Orders page (which uses the same query key) might mount and continue using the cached data if it hasn’t been marked as stale or invalidated. This would cause the Orders page to remain empty even though the POST request was successful.
+
+Give one (or a combination) of these changes a try and see if the Orders page then shows your newly created order.
+
+Let me know if you have any questions or if this helps resolve the issue!

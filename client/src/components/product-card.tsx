@@ -53,20 +53,17 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         throw new Error(result.error);
       }
 
-      // Invalidate queries to mark them as stale
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/orders"] })
       ]);
 
-      // Show success toast
       toast({
         title: "Product marked as sold",
         description: product.name,
       });
 
-      // Log and navigate after invalidation
       console.log("Navigating to /orders after query invalidation");
       setLocation("/orders");
 
@@ -92,7 +89,6 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
           throw new Error(result.error);
         }
 
-        // Force refetch instead of just invalidating
         await Promise.all([
           queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
           queryClient.refetchQueries({ queryKey: ["/api/products"] })
@@ -135,7 +131,6 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
       const response = await apiRequest("DELETE", `/api/products/${product.id}`);
       const result = await response.json();
 
-      // Force refetch both queries to ensure UI is updated
       await Promise.all([
         queryClient.refetchQueries({ queryKey: ["/api/products"] }),
         queryClient.refetchQueries({ queryKey: ["/api/watchlist"] })
@@ -280,12 +275,19 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
 
         <p className="text-muted-foreground text-sm mb-4">{product.description}</p>
 
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-start">
           <div className="space-y-1">
-            <span className="text-lg font-semibold">${currentPrice}</span>
+            <div className="flex flex-col">
+              <span className="text-lg font-semibold">${currentPrice}</span>
+              {product.buyPrice && (
+                <span className="text-sm text-muted-foreground">
+                  Paid: ${product.buyPrice}
+                </span>
+              )}
+            </div>
             {product.ebayPrice && (
               <div className="text-sm text-muted-foreground">
-                eBay: ${product.ebayPrice.toString()}
+                eBay: ${product.ebayPrice}
               </div>
             )}
           </div>

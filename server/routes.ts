@@ -214,6 +214,53 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Add DELETE endpoint for products after the POST endpoint
+  app.delete("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const productId = parseInt(req.params.id);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+
+      // Verify the product exists and belongs to the user
+      const [existingProduct] = await db.select()
+        .from(products)
+        .where(
+          and(
+            eq(products.id, productId),
+            eq(products.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (!existingProduct) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Remove from any watchlists first (foreign key constraint)
+      await db.delete(watchlist)
+        .where(eq(watchlist.productId, productId));
+
+      // Delete the product
+      const [deletedProduct] = await db.delete(products)
+        .where(eq(products.id, productId))
+        .returning();
+
+      res.json({
+        message: "Product deleted successfully",
+        deletedProduct
+      });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      res.status(500).json({ 
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
 
   // Mark product as sold endpoint
   app.post("/api/orders", async (req, res) => {

@@ -1,0 +1,79 @@
+Below is a concise analysis and remediation plan for the current error:
+
+---
+
+### Issue: Duplicate SKU Constraint Violation on Product Creation
+
+**1) Root Cause & Component Interaction**  
+The error message:  
+```
+500: {"error":"Failed to create product","details":"duplicate key value violates unique constraint \"products_sku_unique\""}
+```  
+indicates that when creating a product, the SKU field is being set in such a way that it violates the unique constraint defined in the database schema. In your product schema, the SKU is declared as unique:
+
+```ts
+sku: text("sku").unique(),
+```
+
+In the product form (client/src/components/product-form.tsx), the code appends the SKU field like this:
+```tsx
+formData.append('sku', data.sku?.trim() || '');
+```
+When the SKU value is empty (or not provided), this code always appends an empty string (`""`). Since empty strings are valid values in SQL (and are considered equal), subsequent products with no SKU will conflict with one another.
+
+**2) Likely Issue & Narrowed Solution**  
+*Issue:*  
+Empty SKU values are being sent as `""` (empty string) rather than being omitted (or set to null). This results in multiple products having the same SKU value (i.e. an empty string), which triggers the duplicate key error.
+
+*Solution:*  
+Modify the client-side form submission so that if the SKU is empty after trimming, the SKU field is omitted from the form data (or explicitly set to null). This ensures that products without a SKU don’t conflict with one another under the unique constraint.
+
+**3) Detailed Integration Plan**
+
+- **Implementation:**
+  - **Client Side:**  
+    In `client/src/components/product-form.tsx`, update the code that appends the SKU field. Replace:
+    ```tsx
+    formData.append('sku', data.sku?.trim() || '');
+    ```
+    with:
+    ```tsx
+    const sku = data.sku?.trim();
+    if (sku) {
+      formData.append('sku', sku);
+    }
+    ```
+    This change prevents an empty string from being sent. (Alternatively, you could send `null` if your backend expects that.)
+
+  - **Backend Side (Optional):**  
+    Ensure that your API endpoint (in `server/routes.ts` under the POST `/api/products` handler) correctly handles missing SKU values. For example, if the SKU isn’t provided in `req.body`, the backend can default it to `null` rather than an empty string:
+    ```ts
+    const productData = {
+      name: name.trim(),
+      description: description || null,
+      price: price ? parseFloat(price) : null,
+      quantity: quantity ? parseInt(quantity) : 0,
+      imageUrl,
+      userId: req.user.id,
+      sku: req.body.sku && req.body.sku.trim() ? req.body.sku.trim() : null,
+      // ... other fields
+    };
+    ```
+
+- **Testing:**
+  - **Local Verification:**  
+    Create a new product without entering a SKU. Verify that the product is saved without error and that the SKU field is `null` (or omitted) in the database.
+  - **Regression Testing:**  
+    Test products with an explicitly provided SKU to ensure that valid SKU values are stored and that duplicates (when a user enters the same SKU) are correctly rejected.
+  - **AI Autofill Verification:**  
+    Since product details are autofilled via the AI process, confirm that if the SKU is not generated (or is empty), the form now omits it and does not trigger the duplicate key error.
+
+- **Deployment:**
+  - Commit these changes to a feature branch.
+  - Deploy to a staging environment and run end-to-end tests (including through the AI autofill flow) to verify that product creation works correctly.
+  - Once verified, merge the changes to the main branch and deploy to production.
+  - Monitor error logs post-deployment to ensure the issue is resolved.
+
+---
+
+By omitting empty SKU values from the submission, you prevent duplicate empty strings from conflicting with the unique constraint, ensuring that product creation succeeds even when the SKU isn’t provided by the AI autofill.

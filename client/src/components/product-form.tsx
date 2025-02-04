@@ -118,33 +118,28 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       }
 
       if (isWatchlistItem) {
-        // Create watchlist item with required fields
-        const watchlistData = {
-          name: trimmedName,
-          description: data.description,
-          price: data.price,
-          sku: data.sku,
-          imageUrl: data.imageUrl,
-          aiAnalysis: data.aiAnalysis,
-          brand: data.brand,
-          category: data.category,
-          condition: data.condition,
-          weight: data.weight,
-          dimensions: data.dimensions,
-          ebayPrice: data.ebayPrice,
-        };
-
-        console.log('Creating watchlist item:', watchlistData);
-
-        // Create new product first if no existing product is selected
+        // Create a new product first if no existing product is selected
         if (!product) {
           const formData = new FormData();
-          Object.entries(watchlistData).forEach(([key, value]) => {
-            if (value !== null && value !== undefined) {
-              formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
-            }
-          });
+          formData.append('name', trimmedName);
+          formData.append('description', data.description?.trim() || '');
+          // Only append SKU if it's not empty after trimming
+          const sku = data.sku?.trim();
+          if (sku) {
+            formData.append('sku', sku);
+          }
+          formData.append('price', data.price ? String(data.price) : '');
+          formData.append('quantity', '0'); // Watchlist items have 0 quantity
+          formData.append('condition', data.condition);
+          formData.append('brand', data.brand?.trim() || '');
+          formData.append('category', data.category?.trim() || '');
 
+          if (data.aiAnalysis) {
+            formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
+          }
+          if (data.ebayPrice) {
+            formData.append('ebayPrice', String(data.ebayPrice));
+          }
           if (imageFiles.length > 0) {
             formData.append('image', imageFiles[0]);
           }
@@ -172,14 +167,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         const formData = new FormData();
         formData.append('name', trimmedName);
         formData.append('description', data.description?.trim() || '');
-        formData.append('sku', data.sku?.trim() || '');
+        // Only append SKU if it's not empty after trimming
+        const sku = data.sku?.trim();
+        if (sku) {
+          formData.append('sku', sku);
+        }
         formData.append('price', data.price ? String(data.price) : '');
         formData.append('quantity', String(data.quantity));
         formData.append('condition', data.condition);
         formData.append('brand', data.brand?.trim() || '');
         formData.append('category', data.category?.trim() || '');
-        formData.append('weight', data.weight ? String(data.weight) : '');
-        formData.append('dimensions', data.dimensions?.trim() || '');
 
         if (data.aiAnalysis) {
           formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
@@ -187,7 +184,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         if (data.ebayPrice) {
           formData.append('ebayPrice', String(data.ebayPrice));
         }
-
         if (imageFiles.length > 0) {
           formData.append('image', imageFiles[0]);
         }

@@ -109,6 +109,12 @@ export default function SmartListingModal({
     }
   }, [open, files.length, onOpenChange, toast]);
 
+  const dialogDescription = loading 
+    ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''}`
+    : error 
+    ? "Analysis encountered an error. Please try again."
+    : "AI-powered analysis for optimizing your product listings";
+
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       if (!newOpen) {
@@ -116,16 +122,24 @@ export default function SmartListingModal({
       }
       onOpenChange(newOpen);
     }}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent 
+        className="max-w-2xl"
+        aria-describedby="dialog-description"
+      >
         <DialogHeader>
           <DialogTitle>Smart Listing Analysis</DialogTitle>
-          <DialogDescription>
-            Analyzing your product images using AI to generate optimized listings
+          <DialogDescription id="dialog-description">
+            {dialogDescription}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-8" role="status" aria-live="polite">
+            <div 
+              className="flex flex-col items-center justify-center py-8" 
+              role="status" 
+              aria-live="polite"
+              aria-busy="true"
+            >
               <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
                 <div 
                   className="bg-primary h-2.5 rounded-full transition-all duration-300" 
@@ -148,7 +162,11 @@ export default function SmartListingModal({
             </div>
           )}
           {error && !loading && (
-            <div className="text-center space-y-4" role="alert">
+            <div 
+              className="text-center space-y-4" 
+              role="alert"
+              aria-live="assertive"
+            >
               <p className="text-destructive whitespace-pre-line">{error}</p>
               <Button
                 variant="outline"

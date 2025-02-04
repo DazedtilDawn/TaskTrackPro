@@ -22,12 +22,23 @@ import { type SelectOrder, type SelectProduct } from "@db/schema";
 import { Loader2 } from "lucide-react";
 
 interface OrderWithItems extends SelectOrder {
-  items?: { product: SelectProduct; quantity: number }[];
+  items?: Array<{
+    product: SelectProduct;
+    quantity: number;
+    price: number;
+  }>;
 }
 
 export default function Orders() {
-  const { data: orders = [], isLoading, error } = useQuery<OrderWithItems[]>({
+  const { data: orders, isLoading, error } = useQuery<OrderWithItems[]>({
     queryKey: ["/api/orders"],
+    retry: 1,
+    onError: (err) => {
+      console.error("Error fetching orders:", err);
+    },
+    onSuccess: (data) => {
+      console.log("Orders data received:", data);
+    }
   });
 
   const formatDate = (date: Date | string | null) => {
@@ -56,56 +67,53 @@ export default function Orders() {
               ) : error ? (
                 <div className="text-center text-destructive py-8">
                   <p>Error loading orders</p>
+                  <p className="text-sm text-muted-foreground">{(error as Error).message}</p>
                 </div>
-              ) : (
-                <>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Items</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
+              ) : orders?.length ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {orders.map((order) => (
+                      <TableRow key={order.id}>
+                        <TableCell className="font-medium">#{order.id}</TableCell>
+                        <TableCell>
+                          {formatDate(order.createdAt)}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              order.status === "completed"
+                                ? "default"
+                                : order.status === "pending"
+                                ? "secondary"
+                                : "destructive"
+                            }
+                          >
+                            {order.status || 'pending'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {order.items ? `${order.items.length} items` : '1 item'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          ${Number(order.total || 0).toFixed(2)}
+                        </TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {orders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-medium">#{order.id}</TableCell>
-                          <TableCell>
-                            {formatDate(order.createdAt)}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                order.status === "completed"
-                                  ? "default"
-                                  : order.status === "pending"
-                                  ? "secondary"
-                                  : "destructive"
-                              }
-                            >
-                              {order.status || 'pending'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {order.items ? `${order.items.length} items` : '1 item'}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            ${Number(order.total || 0).toFixed(2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-
-                  {orders.length === 0 && (
-                    <div className="text-center text-muted-foreground py-8">
-                      <p>No orders found</p>
-                    </div>
-                  )}
-                </>
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="text-center text-muted-foreground py-8">
+                  <p>No orders found</p>
+                </div>
               )}
             </CardContent>
           </Card>

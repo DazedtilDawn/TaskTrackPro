@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import {ScrollArea} from "@/components/ui/scroll-area"; // Assuming ScrollArea is imported from here. Adjust if needed.
 
 interface ProductCardProps {
   product: SelectProduct;
@@ -89,9 +90,9 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
     )}>
       {product.imageUrl && (
         <div className="relative">
-          <img 
-            src={product.imageUrl} 
-            alt={product.name} 
+          <img
+            src={product.imageUrl}
+            alt={product.name}
             className="w-full h-48 object-cover"
           />
           {hasAnalysis && (
@@ -102,8 +103,8 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
               isPricedRight && "bg-green-500/90 text-green-50"
             )}>
               {isUnderpriced ? 'Underpriced' :
-               isOverpriced ? 'Overpriced' :
-               'Optimal Price'}
+                isOverpriced ? 'Overpriced' :
+                  'Optimal Price'}
             </div>
           )}
         </div>
@@ -114,81 +115,83 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
           {hasAnalysis && aiAnalysis && (
             <Popover>
               <PopoverTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   className="h-8 w-8 transition-transform hover:scale-110"
                 >
                   <Sparkles className="h-4 w-4 text-primary" />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-80 p-0 overflow-hidden">
-                <div className="p-4 space-y-4">
-                  <div className="flex items-center justify-between border-b pb-2">
-                    <h4 className="font-medium text-lg">Market Analysis</h4>
-                    <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">Market Demand</span>
-                        <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
-                      </div>
-                      <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
-                      <div className="flex items-center gap-2">
-                        <BarChart className="h-4 w-4 text-muted-foreground" />
-                        <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
-                      </div>
+              <PopoverContent className="w-80 p-0">
+                <ScrollArea className="h-[400px]">
+                  <div className="p-4 space-y-4">
+                    <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
+                      <h4 className="font-medium text-lg">Market Analysis</h4>
+                      <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
                     </div>
 
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-2">
-                        <Tag className="h-4 w-4" />
-                        <h5 className="font-medium">Price Analysis</h5>
+                    <div className="space-y-4">
+                      <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">Market Demand</span>
+                          <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
+                        </div>
+                        <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
+                        <div className="flex items-center gap-2">
+                          <BarChart className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
+                        </div>
                       </div>
 
-                      <div className="pl-4 space-y-2">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm text-muted-foreground">Current Price:</span>
-                          <span className={cn(
-                            "text-lg font-semibold",
-                            isUnderpriced && "text-yellow-600",
-                            isOverpriced && "text-red-600",
-                            isPricedRight && "text-green-600"
-                          )}>
-                            ${currentPrice}
-                          </span>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                          <Tag className="h-4 w-4" />
+                          <h5 className="font-medium">Price Analysis</h5>
                         </div>
-                        <div className="flex flex-col gap-1">
-                          <span className="text-sm text-muted-foreground">Suggested Range:</span>
-                          <div className="flex items-baseline gap-2">
-                            <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
-                            <span className="text-muted-foreground">-</span>
-                            <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+
+                        <div className="pl-4 space-y-2">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm text-muted-foreground">Current Price:</span>
+                            <span className={cn(
+                              "text-lg font-semibold",
+                              isUnderpriced && "text-yellow-600",
+                              isOverpriced && "text-red-600",
+                              isPricedRight && "text-green-600"
+                            )}>
+                              ${currentPrice}
+                            </span>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-sm text-muted-foreground">Suggested Range:</span>
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
+                              <span className="text-muted-foreground">-</span>
+                              <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="border-t pt-3">
-                      <div className="flex items-center gap-2 mb-2">
-                        <TrendingUp className="h-4 w-4" />
-                        <h5 className="font-medium">Optimization Tips</h5>
+                      <div className="border-t pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <TrendingUp className="h-4 w-4" />
+                          <h5 className="font-medium">Optimization Tips</h5>
+                        </div>
+                        <ul className="space-y-2">
+                          {aiAnalysis.suggestions.map((suggestion: string, index: number) => (
+                            <li
+                              key={index}
+                              className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
+                            >
+                              {suggestion}
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <ul className="space-y-2">
-                        {aiAnalysis.suggestions.slice(0, 3).map((suggestion: string, index: number) => (
-                          <li 
-                            key={index} 
-                            className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
-                          >
-                            {suggestion}
-                          </li>
-                        ))}
-                      </ul>
                     </div>
                   </div>
-                </div>
+                </ScrollArea>
               </PopoverContent>
             </Popover>
           )}
@@ -211,17 +214,17 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
 
       <CardFooter className="p-4 pt-0 flex justify-between">
         <div className="flex gap-2">
-          <Button 
-            size="icon" 
-            variant="ghost" 
+          <Button
+            size="icon"
+            variant="ghost"
             onClick={() => onEdit(product)}
             className="hover:scale-105 transition-transform"
           >
             <Edit className="h-4 w-4" />
           </Button>
-          <Button 
-            size="icon" 
-            variant="ghost" 
+          <Button
+            size="icon"
+            variant="ghost"
             onClick={deleteProduct}
             className="hover:scale-105 transition-transform"
           >

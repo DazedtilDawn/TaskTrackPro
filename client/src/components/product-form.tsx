@@ -17,7 +17,7 @@ import SmartListingModal from "@/components/smart-listing-modal";
 import { Progress } from "@/components/ui/progress";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { DialogContent } from "@/components/ui/dialog";
+import { DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
@@ -105,19 +105,29 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
   const onSubmit = async (data: ProductFormData) => {
     try {
+      const trimmedName = data.name.trim();
+      if (!trimmedName) {
+        form.setError("name", {
+          type: "manual",
+          message: "Product name cannot be empty"
+        });
+        return;
+      }
+
       const formData = new FormData();
 
-      // Add all form fields
-      formData.append('name', data.name);
-      formData.append('description', data.description || '');
-      formData.append('sku', data.sku || '');
+      // Add all form fields with proper trimming
+      formData.append('name', trimmedName);
+      formData.append('description', data.description?.trim() || '');
+      formData.append('sku', data.sku?.trim() || '');
       formData.append('price', data.price ? String(data.price) : '');
       formData.append('quantity', String(data.quantity));
       formData.append('condition', data.condition);
-      formData.append('brand', data.brand || '');
-      formData.append('category', data.category || '');
+      formData.append('brand', data.brand?.trim() || '');
+      formData.append('category', data.category?.trim() || '');
       formData.append('weight', data.weight ? String(data.weight) : '');
-      formData.append('dimensions', data.dimensions || '');
+      formData.append('dimensions', data.dimensions?.trim() || '');
+
       if (data.aiAnalysis) {
         formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
       }
@@ -139,7 +149,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
         title: product ? "Product updated" : "Product created",
-        description: data.name,
+        description: trimmedName,
       });
       onComplete();
     } catch (error) {
@@ -246,20 +256,25 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   };
 
   return (
-    <DialogContent className="max-w-2xl overflow-hidden" aria-describedby="product-form-description">
-      <div id="product-form-description" className="sr-only">
-        Add or edit product details, including name, description, pricing, and inventory information.
-      </div>
+    <DialogContent className="max-w-2xl overflow-hidden">
+      <DialogHeader>
+        <h2 className="text-2xl font-semibold tracking-tight">
+          {product ? "Edit Product" : "Add New Product"}
+        </h2>
+        <DialogDescription>
+          Enter product details and use AI analysis for optimal pricing. Required fields are marked with an asterisk (*).
+        </DialogDescription>
+      </DialogHeader>
       <ScrollArea className="max-h-[80vh]">
         <div className="p-6">
           <div className="space-y-6">
             <div>
-              <h2 className="text-2xl font-semibold tracking-tight">
+              {/* <h2 className="text-2xl font-semibold tracking-tight">
                 {product ? "Edit Product" : "Add New Product"}
-              </h2>
-              <p className="text-sm text-muted-foreground">
+              </h2> */}
+              {/* <p className="text-sm text-muted-foreground">
                 Enter product details and use AI analysis for optimal pricing
-              </p>
+              </p> */}
             </div>
 
             <TooltipProvider>

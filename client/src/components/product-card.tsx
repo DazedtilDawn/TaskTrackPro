@@ -5,7 +5,7 @@ import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import ConvertWatchlistDialog from "./convert-watchlist-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -42,7 +42,8 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
 
-  const markAsSold = async () => {
+  const markAsSold = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       const response = await apiRequest("POST", "/api/orders", {
         productId: product.id
@@ -64,9 +65,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         description: product.name,
       });
 
-      console.log("Navigating to /orders after query invalidation");
       setLocation("/orders");
-
     } catch (error) {
       console.error('Error marking product as sold:', error);
       toast({
@@ -75,28 +74,24 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         variant: "destructive",
       });
     }
-  };
+  }, [product.id, product.name, toast, setLocation]);
 
-  const toggleWatchlist = async () => {
+  const toggleWatchlist = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       if (inWatchlist) {
-        console.log(`Attempting to delete product ${product.id} from watchlist`);
         const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
         const result = await response.json();
-        console.log('Delete response:', result);
 
         if (result.error) {
           throw new Error(result.error);
         }
 
         await Promise.all([
-          queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
-          queryClient.refetchQueries({ queryKey: ["/api/products"] })
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
         ]);
-
-        console.log('Queries refetched after deletion');
       } else {
-        console.log(`Attempting to add product ${product.id} to watchlist`);
         const response = await apiRequest("POST", "/api/watchlist", {
           productId: product.id
         });
@@ -107,8 +102,8 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         }
 
         await Promise.all([
-          queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
-          queryClient.refetchQueries({ queryKey: ["/api/products"] })
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
         ]);
       }
 
@@ -124,16 +119,21 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         variant: "destructive",
       });
     }
-  };
+  }, [product.id, product.name, inWatchlist, toast]);
 
-  const deleteProduct = async () => {
+  const deleteProduct = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
     try {
       const response = await apiRequest("DELETE", `/api/products/${product.id}`);
       const result = await response.json();
 
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
       await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["/api/products"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/watchlist"] })
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
       ]);
 
       toast({
@@ -148,7 +148,17 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         variant: "destructive",
       });
     }
-  };
+  }, [product.id, product.name, toast]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onEdit(product);
+  }, [onEdit, product]);
+
+  const handleConvertDialog = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowConvertDialog(true);
+  }, []);
 
   const aiAnalysis = product.aiAnalysis as AIAnalysis | undefined;
   const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
@@ -227,10 +237,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             <Button
               size="icon"
               variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(product);
-              }}
+              onClick={handleEdit}
               className="h-8 w-8 hover:scale-105 transition-transform"
             >
               <Edit className="h-4 w-4" />
@@ -238,10 +245,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             <Button
               size="icon"
               variant="ghost"
-              onClick={(e) => {
-                e.stopPropagation();
-                deleteProduct();
-              }}
+              onClick={deleteProduct}
               className="h-8 w-8 hover:scale-105 transition-transform"
             >
               <Trash2 className="h-4 w-4" />
@@ -250,10 +254,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  markAsSold();
-                }}
+                onClick={markAsSold}
                 className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -263,10 +264,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowConvertDialog(true);
-                }}
+                onClick={handleConvertDialog}
                 className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                 title="Convert to Inventory"
               >
@@ -276,10 +274,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             <Button
               size="icon"
               variant={inWatchlist ? "secondary" : "ghost"}
-              onClick={(e) => {
-                e.stopPropagation();
-                toggleWatchlist();
-              }}
+              onClick={toggleWatchlist}
               className="h-8 w-8 hover:scale-105 transition-transform"
             >
               <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
@@ -474,7 +469,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => onEdit(product)}
+              onClick={handleEdit}
               className="hover:scale-105 transition-transform"
             >
               <Edit className="h-4 w-4" />
@@ -501,7 +496,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => setShowConvertDialog(true)}
+                onClick={handleConvertDialog}
                 className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                 title="Convert to Inventory"
               >

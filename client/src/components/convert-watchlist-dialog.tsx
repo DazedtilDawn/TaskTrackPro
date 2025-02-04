@@ -32,15 +32,20 @@ export default function ConvertWatchlistDialog({
     getValues,
     reset,
     formState: { isSubmitting },
-  } = useForm<ConvertWatchlistFormData>();
+  } = useForm<ConvertWatchlistFormData>({
+    defaultValues: {
+      buyPrice: 0,
+      recommendedSalePrice: Number(product.price) || 0,
+    }
+  });
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateRecommendation = async () => {
     setIsGenerating(true);
     try {
       const buyPrice = Number(getValues("buyPrice"));
-      if (!buyPrice) {
-        throw new Error("Please enter a buy price first");
+      if (!buyPrice || buyPrice <= 0) {
+        throw new Error("Please enter a valid buy price");
       }
 
       const response = await apiRequest("POST", "/api/generate-sale-price", {
@@ -127,7 +132,12 @@ export default function ConvertWatchlistDialog({
             <Input
               type="number"
               step="0.01"
-              {...register("buyPrice", { required: true })}
+              min="0"
+              {...register("buyPrice", { 
+                required: true,
+                min: 0,
+                valueAsNumber: true
+              })}
               className="w-full"
             />
           </div>
@@ -139,7 +149,12 @@ export default function ConvertWatchlistDialog({
               <Input
                 type="number"
                 step="0.01"
-                {...register("recommendedSalePrice", { required: true })}
+                min="0"
+                {...register("recommendedSalePrice", { 
+                  required: true,
+                  min: 0,
+                  valueAsNumber: true
+                })}
                 className="w-full"
               />
             </div>
@@ -147,7 +162,7 @@ export default function ConvertWatchlistDialog({
               type="button"
               variant="outline"
               onClick={generateRecommendation}
-              disabled={isGenerating || !getValues("buyPrice")}
+              disabled={isGenerating || !(Number(getValues("buyPrice")) > 0)}
               className="mt-6"
             >
               {isGenerating ? (
@@ -165,7 +180,10 @@ export default function ConvertWatchlistDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            <Button 
+              type="submit" 
+              disabled={isSubmitting || !(Number(getValues("buyPrice")) > 0)}
+            >
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (

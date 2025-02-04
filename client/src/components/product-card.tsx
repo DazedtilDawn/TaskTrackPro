@@ -232,7 +232,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         )}
 
         {/* Actions */}
-        <div className="flex-shrink-0 invisible group-hover:visible transition-[visibility] duration-100 z-10">
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto">
           <div className="flex items-center gap-1">
             <Button
               size="icon"

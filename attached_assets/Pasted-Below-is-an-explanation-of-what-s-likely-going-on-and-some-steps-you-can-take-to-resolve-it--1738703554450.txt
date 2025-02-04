@@ -1,0 +1,67 @@
+Below is an explanation of what’s likely going on and some steps you can take to resolve it:
+
+---
+
+### What’s Happening
+
+In your “spreadsheet” (table) view, the action buttons (for example, the “mark as sold” button) are rendered inside a container that is initially set as invisible and only becomes visible on hover via the Tailwind class utilities:
+
+```tsx
+<div className="flex-shrink-0 invisible group-hover:visible transition-[visibility] duration-100 z-10">
+  {/* Buttons inside */}
+</div>
+```
+
+Because the element’s CSS uses **invisible/group-hover:visible** (which sets `visibility: hidden` by default and only makes it visible on hover), two things might be happening:
+
+1. **Click loss due to hover state:**  
+   When you hover over the row in table view, the buttons appear. However, as soon as you try to move your pointer to click one of them, your pointer may leave the “group” (the row), which removes the hover state. As a result, the button immediately becomes invisible (or loses its active clickable state) before the click can be registered.
+
+2. **Delayed triggering on view change:**  
+   When you switch to list view, the component re-renders using a different markup (for example, inside a `<Card>` that renders the action buttons visibly by default). In that process, the “click” you intended for the button (or the lingering state) gets processed as the view changes—so you see the action trigger automatically even though you didn’t explicitly click at that moment.
+
+---
+
+### How to Fix It
+
+To fix the issue, you can adjust the visibility and interactivity of the action buttons in the table (spreadsheet) view. Here are a few approaches:
+
+1. **Always Visible Actions:**  
+   If you want the action buttons to be clickable immediately (without relying on hover), remove the `invisible` and `group-hover:visible` classes from the container. For example, change:
+   ```tsx
+   <div className="flex-shrink-0 invisible group-hover:visible transition-[visibility] duration-100 z-10">
+   ```
+   to something like:
+   ```tsx
+   <div className="flex-shrink-0 transition-opacity duration-100 z-10">
+   ```
+   Then, if you’d like a subtle hover effect, you could use opacity (e.g. default opacity-0 and then opacity-100 on hover) but be sure that during the click the element remains interactive.
+
+2. **Using Opacity Instead of Visibility:**  
+   Instead of toggling the CSS **visibility** (which immediately hides the element and may cancel pointer events), you can use:
+   ```tsx
+   <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 z-10">
+   ```
+   This way, the element remains in the layout even when “faded out” and can receive pointer events if needed. (If you don’t want clicks when it’s “invisible,” you might add `pointer-events-none` when opacity is 0 and remove that on hover.)
+
+3. **Ensure Hover Stays Active During Click:**  
+   If you need the hover effect, consider expanding the hoverable area so that moving your mouse from the row to the button does not cancel the hover state. This might involve wrapping the entire row (or a larger container) with the hover trigger.
+
+---
+
+### Next Steps
+
+1. **Test by modifying the CSS:**  
+   Try switching from `invisible group-hover:visible` to using opacity (or even removing the hiding behavior) and see if that allows you to click the buttons reliably in table view.
+
+2. **Check for Event Bubbling:**  
+   Ensure that each button’s onClick (which uses `e.stopPropagation()`) is still working as expected. Sometimes if the container’s events or re-render behavior is interfering, adjusting the element’s CSS can help.
+
+3. **Compare With List View:**  
+   Notice that in list view (or grid view) your markup renders the buttons in a `<CardFooter>` that is always visible. Use that implementation as a reference for how you want the actions to behave in table view.
+
+---
+
+By adjusting how and when the action buttons are visible (and ensuring their clickable area remains active), you should be able to resolve the issue of “nothing happening” when clicking in spreadsheet view as well as prevent unintended action triggers when switching views.
+
+Let me know if you need further help with specific code changes!

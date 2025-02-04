@@ -73,7 +73,7 @@ export function registerRoutes(app: Express): Server {
 5. 5-7 SEO keywords
 6. 3-5 suggestions for listing improvement
 
-Format the response as a JSON object with these exact keys:
+Format the response strictly as a valid JSON object with these exact keys:
 {
   "title": string,
   "description": string,
@@ -88,7 +88,9 @@ Format the response as a JSON object with these exact keys:
   },
   "seoKeywords": string[],
   "suggestions": string[]
-}`;
+}
+
+Important: Ensure the response is valid JSON that can be parsed with JSON.parse(). Do not include any explanatory text outside the JSON object.`;
 
       // Process images as parts
       const parts = images.map((img: any) => ({
@@ -101,18 +103,49 @@ Format the response as a JSON object with these exact keys:
       parts.unshift({ text: prompt });
 
       const result = await model.generateContent({
-        contents: [{ role: "user", parts }]
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40,
+          maxOutputTokens: 8192,
+        }
       });
 
       const response = await result.response;
       const text = response.text();
 
       try {
-        const analysis = JSON.parse(text);
+        // Attempt to extract JSON from the response if it contains additional text
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error('No JSON object found in response');
+        }
+        const jsonStr = jsonMatch[0];
+        const analysis = JSON.parse(jsonStr);
+
+        // Validate required fields
+        const requiredFields = [
+          'title', 
+          'description', 
+          'category', 
+          'marketAnalysis', 
+          'seoKeywords', 
+          'suggestions'
+        ];
+
+        const missingFields = requiredFields.filter(field => !(field in analysis));
+        if (missingFields.length > 0) {
+          throw new Error(`Missing required fields: ${missingFields.join(', ')}`);
+        }
+
         res.json(analysis);
       } catch (parseError) {
-        console.error('Failed to parse analysis:', parseError);
-        res.status(500).json({ error: 'Failed to parse analysis results' });
+        console.error('Failed to parse analysis:', parseError, '\nRaw text:', text);
+        res.status(500).json({ 
+          error: 'Failed to parse analysis results',
+          details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
+        });
       }
     } catch (error) {
       console.error('Image analysis error:', error);
@@ -123,6 +156,40 @@ Format the response as a JSON object with these exact keys:
     }
   });
 
+  // API routes for watchlist
+  app.post("/api/watchlist", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const [item] = await db.insert(watchlist)
+        .values({
+          ...req.body,
+          userId: req.user!.id,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      res.status(201).json(item);
+    } catch (error) {
+      console.error('Error adding to watchlist:', error);
+      res.status(500).json({ error: "Failed to add item to watchlist" });
+    }
+  });
+
+  app.get("/api/watchlist", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const items = await db.select()
+        .from(watchlist)
+        .where(eq(watchlist.userId, req.user!.id))
+        .orderBy(watchlist.createdAt);
+      res.json(items);
+    } catch (error) {
+      console.error('Error fetching watchlist:', error);
+      res.status(500).json({ error: "Failed to fetch watchlist" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

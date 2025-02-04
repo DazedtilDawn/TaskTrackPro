@@ -14,15 +14,18 @@ export default function Header() {
       case '/':
         return 'Dashboard';
       case '/inventory':
-        return 'Inventory Management';
+        return 'Products & Inventory';
       case '/watchlist':
-        return 'Product Watchlist';
+        return 'Price Watchlist';
       case '/orders':
-        return 'Orders';
+        return 'Order Management';
       case '/analytics':
-        return 'Analytics';
+        return 'Analytics & Insights';
       default:
-        return 'Inventory Management';
+        // Extract last part of path for dynamic routes
+        const pathSegments = location.split('/');
+        const lastSegment = pathSegments[pathSegments.length - 1];
+        return lastSegment.charAt(0).toUpperCase() + lastSegment.slice(1);
     }
   };
 
@@ -38,12 +41,12 @@ export default function Header() {
   };
 
   return (
-    <header className="h-16 border-b border-border flex items-center justify-between px-6">
-      <h1 className="text-xl font-semibold">{getPageTitle()}</h1>
+    <header className="h-16 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 flex items-center justify-between px-6">
+      <h1 className="text-xl font-semibold text-primary">{getPageTitle()}</h1>
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
           <User className="h-4 w-4" />
-          <span>{user?.username}</span>
+          <span className="text-sm text-muted-foreground">{user?.username}</span>
         </div>
         <Button variant="ghost" size="icon" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />

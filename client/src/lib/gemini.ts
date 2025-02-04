@@ -1,4 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { apiRequest } from "./queryClient";
 
 let genAI: GoogleGenerativeAI | null = null;
 
@@ -51,34 +52,10 @@ async function initializeGemini() {
   return genAI;
 }
 
-async function fileToGenerativePart(file: File): Promise<{
-  inlineData: { data: string; mimeType: string };
-}> {
+async function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    // Check file size (max 4MB)
-    const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
-    if (file.size > MAX_FILE_SIZE) {
-      reject(new Error(`File size too large. Maximum size is 4MB. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`));
-      return;
-    }
-
-    // Validate file type
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!supportedTypes.includes(file.type)) {
-      reject(new Error(`Invalid file type: ${file.type}. Supported types are: JPEG, PNG, and WebP`));
-      return;
-    }
-
     const reader = new FileReader();
-
-    // Set up a timeout (10 seconds)
-    const timeout = setTimeout(() => {
-      reader.abort();
-      reject(new Error('File reading timed out. Please try again.'));
-    }, 10000);
-
     reader.onloadend = () => {
-      clearTimeout(timeout);
       try {
         if (!reader.result) {
           reject(new Error("Failed to read file"));
@@ -90,45 +67,59 @@ async function fileToGenerativePart(file: File): Promise<{
           reject(new Error("Failed to extract base64 data from file"));
           return;
         }
-
-        // Validate base64 data
-        if (base64Data.length === 0 || !isValidBase64(base64Data)) {
-          reject(new Error("Invalid image data"));
-          return;
-        }
-
-        resolve({
-          inlineData: {
-            data: base64Data,
-            mimeType: file.type,
-          },
-        });
+        resolve(base64Data);
       } catch (error) {
         console.error("Error processing file:", error);
         reject(new Error("Failed to process image file"));
       }
     };
-
-    reader.onerror = () => {
-      clearTimeout(timeout);
-      reject(new Error(`Failed to read file: ${file.name}`));
-    };
-
-    reader.onabort = () => {
-      clearTimeout(timeout);
-      reject(new Error('File reading was aborted'));
-    };
-
+    reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 }
 
-// Helper function to validate base64 data
-function isValidBase64(str: string): boolean {
+export async function generateSmartListing(
+  files: File[]
+): Promise<SmartListingAnalysis> {
+  if (!files.length) {
+    throw new Error("No files provided for analysis");
+  }
+
   try {
-    return btoa(atob(str)) === str;
-  } catch (err) {
-    return false;
+    console.log('Processing image files...');
+    const imagePromises = files.map(async (file) => {
+      // Validate file
+      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+        throw new Error(`Invalid file type: ${file.type}. Only JPEG, PNG, and WebP are supported.`);
+      }
+      if (file.size > 4 * 1024 * 1024) {
+        throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
+      }
+      return fileToBase64(file);
+    });
+
+    const images = await Promise.all(imagePromises);
+    console.log('Images processed successfully');
+
+    const response = await apiRequest(
+      "POST",
+      "/api/analyze-images",
+      { images }
+    );
+
+    const analysis = await response.json();
+    console.log('Analysis completed:', analysis);
+
+    if (!analysis || typeof analysis.error === 'string') {
+      throw new Error(analysis.error || 'Failed to analyze images');
+    }
+
+    return analysis;
+  } catch (error) {
+    console.error("Smart listing generation error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to generate smart listing");
   }
 }
 
@@ -193,107 +184,6 @@ async function compressImage(file: File): Promise<Blob> {
   });
 }
 
-export async function generateSmartListing(
-  files: File[]
-): Promise<SmartListingAnalysis> {
-  if (!files.length) {
-    throw new Error("No files provided for analysis");
-  }
-
-  try {
-    console.log('Initializing Gemini...');
-    const genAI = await initializeGemini();
-    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
-
-    console.log('Processing image files...');
-
-    // Process images sequentially to avoid memory issues
-    const imageParts = [];
-    for (const file of files) {
-      try {
-        // Compress image before processing
-        const compressedBlob = await compressImage(file);
-        const compressedFile = new File([compressedBlob], file.name, {
-          type: 'image/jpeg'
-        });
-
-        // Add small delay between processing each image
-        if (imageParts.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
-
-        const part = await fileToGenerativePart(compressedFile);
-        imageParts.push(part);
-      } catch (error) {
-        console.error(`Error processing file ${file.name}:`, error);
-        throw error;
-      }
-    }
-
-    console.log('Image files processed, count:', imageParts.length);
-
-    const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
-
-1. A compelling product title that would work well for online marketplaces
-2. A detailed, SEO-friendly product description
-3. Product category classification
-4. Market analysis including:
-   - Demand score (0-100)
-   - Competition level (low/medium/high)
-   - Suggested price range (min and max) based on perceived quality and features
-5. 5-7 relevant SEO keywords
-6. 3-5 specific suggestions to improve the listing
-
-Format your response as a JSON object with the following structure:
-{
-  "title": string,
-  "description": string,
-  "category": string,
-  "marketAnalysis": {
-    "demandScore": number,
-    "competitionLevel": string,
-    "priceSuggestion": {
-      "min": number,
-      "max": number
-    }
-  },
-  "seoKeywords": string[],
-  "suggestions": string[]
-}`;
-
-    console.log('Sending request to Gemini...');
-    const result = await model.generateContent([prompt, ...imageParts]);
-    if (!result) {
-      throw new Error("No response received from Gemini API");
-    }
-
-    const response = await result.response;
-    if (!response) {
-      throw new Error("Empty response from Gemini API");
-    }
-
-    const text = response.text();
-    console.log('Raw response from Gemini:', text);
-
-    try {
-      const analysis = JSON.parse(text) as SmartListingAnalysis;
-      console.log('Successfully parsed analysis:', analysis);
-      return analysis;
-    } catch (parseError) {
-      console.error("Failed to parse AI response:", text);
-      throw new Error(
-        parseError instanceof Error
-          ? `Failed to parse AI analysis result: ${parseError.message}`
-          : "Failed to parse AI analysis result"
-      );
-    }
-  } catch (error) {
-    console.error("Smart listing generation error:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to generate smart listing");
-  }
-}
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
   const genAI = await initializeGemini();

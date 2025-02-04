@@ -4,6 +4,7 @@ import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -34,6 +35,48 @@ export function registerRoutes(app: Express): Server {
       .where(eq(products.id, parseInt(req.params.id)))
       .returning();
     res.json(product);
+  });
+
+  // Gemini API endpoint
+  app.post("/api/analyze-images", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      const { images } = req.body;
+      if (!images || !Array.isArray(images)) {
+        return res.status(400).json({ error: "Invalid image data provided" });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "Gemini API key not configured" });
+      }
+
+      const genAI = new GoogleGenerativeAI(apiKey);
+      const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+
+      const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
+1. A compelling product title
+2. A detailed, SEO-friendly product description
+3. Product category classification
+4. Market analysis including:
+   - Demand score (0-100)
+   - Competition level (low/medium/high)
+   - Suggested price range (min and max)
+5. 5-7 relevant SEO keywords
+6. 3-5 specific suggestions to improve the listing`;
+
+      const result = await model.generateContent([prompt, ...images]);
+      const response = await result.response;
+      const analysis = JSON.parse(response.text());
+
+      res.json(analysis);
+    } catch (error) {
+      console.error('Analysis error:', error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to analyze images"
+      });
+    }
   });
 
   // Watchlist

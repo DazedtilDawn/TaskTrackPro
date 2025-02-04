@@ -53,7 +53,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
       const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 1. A compelling product title
@@ -64,13 +64,39 @@ export function registerRoutes(app: Express): Server {
    - Competition level (low/medium/high)
    - Suggested price range (min and max)
 5. 5-7 relevant SEO keywords
-6. 3-5 specific suggestions to improve the listing`;
+6. 3-5 specific suggestions to improve the listing
+
+Format your response as a valid JSON object with the following structure:
+{
+  "title": string,
+  "description": string,
+  "category": string,
+  "marketAnalysis": {
+    "demandScore": number,
+    "competitionLevel": string,
+    "priceSuggestion": {
+      "min": number,
+      "max": number
+    }
+  },
+  "seoKeywords": string[],
+  "suggestions": string[]
+}`;
 
       const result = await model.generateContent([prompt, ...images]);
       const response = await result.response;
-      const analysis = JSON.parse(response.text());
+      const text = response.text();
 
-      res.json(analysis);
+      // Ensure we get valid JSON
+      try {
+        const analysis = JSON.parse(text);
+        res.json(analysis);
+      } catch (parseError) {
+        console.error('Failed to parse Gemini response:', text);
+        res.status(500).json({
+          error: "Failed to parse AI response into valid JSON"
+        });
+      }
     } catch (error) {
       console.error('Analysis error:', error);
       res.status(500).json({

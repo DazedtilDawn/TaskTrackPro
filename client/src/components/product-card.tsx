@@ -279,12 +279,12 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
           <div className="flex items-baseline justify-between">
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground font-medium">
-                Selling Price
+                {inWatchlist ? "Recommended Buy Price" : "Selling Price"}
               </div>
               <div className="text-xl font-semibold text-primary">
                 ${Number(product.price).toFixed(2)}
               </div>
-              {product.buyPrice && (
+              {!inWatchlist && product.buyPrice && (
                 <div className="flex items-baseline gap-2 mt-1">
                   <span className="text-sm text-muted-foreground">Purchase Price:</span>
                   <span className="text-sm font-medium">

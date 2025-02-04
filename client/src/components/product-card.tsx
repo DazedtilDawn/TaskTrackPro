@@ -1,18 +1,15 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart, CheckCircle2 } from "lucide-react";
+import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart, CheckCircle2, ArrowUpRight } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import ConvertWatchlistDialog from "./convert-watchlist-dialog";
 import {ScrollArea} from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+
 
 interface ProductCardProps {
   product: SelectProduct;
@@ -37,6 +34,7 @@ interface AIAnalysis {
 export default function ProductCard({ product, onEdit, inWatchlist }: ProductCardProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
+  const [showConvertDialog, setShowConvertDialog] = useState(false);
 
   const markAsSold = async () => {
     try {
@@ -307,14 +305,27 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
           >
             <Trash2 className="h-4 w-4" />
           </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={markAsSold}
-            className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
-          >
-            <CheckCircle2 className="h-4 w-4" />
-          </Button>
+          {!inWatchlist && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={markAsSold}
+              className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+            >
+              <CheckCircle2 className="h-4 w-4" />
+            </Button>
+          )}
+          {inWatchlist && (
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowConvertDialog(true)}
+              className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+              title="Convert to Inventory"
+            >
+              <ArrowUpRight className="h-4 w-4" />
+            </Button>
+          )}
         </div>
         <Button
           size="icon"
@@ -325,6 +336,14 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
           <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
         </Button>
       </CardFooter>
+
+      {showConvertDialog && (
+        <ConvertWatchlistDialog
+          product={product}
+          open={showConvertDialog}
+          onOpenChange={setShowConvertDialog}
+        />
+      )}
     </Card>
   );
 }

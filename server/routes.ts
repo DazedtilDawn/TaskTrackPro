@@ -389,6 +389,57 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Add this before the watchlist routes
+  app.post("/api/generate-sale-price", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { productId, buyPrice, currentPrice, condition, category } = req.body;
+
+      // Create a prompt that uses the product details and the provided buy price
+      const prompt = `Given a product with:
+- Buy price: $${buyPrice}
+- Current market price: $${currentPrice || 'unknown'}
+- Condition: ${condition || 'unknown'}
+- Category: ${category || 'unknown'}
+
+Please recommend a competitive sale price that ensures a healthy profit margin. Consider:
+1. The product's condition and category
+2. A target profit margin of at least 20-30%
+3. Current market price if available
+4. Competitive positioning
+
+Format your answer as a JSON object with this exact structure:
+{
+  "recommendedSalePrice": number
+}`;
+
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash-exp",
+        generationConfig: {
+          maxOutputTokens: 100,
+          temperature: 0.7,
+        },
+      });
+
+      const result = await model.generateContent(prompt);
+      const text = await result.response.text();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON object found in response");
+      }
+      const jsonStr = jsonMatch[0];
+      const recommendation = JSON.parse(jsonStr);
+
+      res.json(recommendation);
+    } catch (error) {
+      console.error("Error generating sale price:", error);
+      res.status(500).json({ 
+        error: "Failed to generate sale price",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

@@ -44,7 +44,7 @@ async function initializeGemini() {
   if (!genAI) {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set");
+      throw new Error("GEMINI_API_KEY environment variable is not set. Please make sure it's properly configured.");
     }
     genAI = new GoogleGenerativeAI(apiKey);
   }
@@ -55,8 +55,30 @@ async function fileToGenerativePart(file: File): Promise<{
   inlineData: { data: string; mimeType: string };
 }> {
   return new Promise((resolve, reject) => {
+    // Check file size (max 4MB)
+    const MAX_FILE_SIZE = 4 * 1024 * 1024; // 4MB
+    if (file.size > MAX_FILE_SIZE) {
+      reject(new Error(`File size too large. Maximum size is 4MB. Current size: ${(file.size / 1024 / 1024).toFixed(2)}MB`));
+      return;
+    }
+
+    // Validate file type
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!supportedTypes.includes(file.type)) {
+      reject(new Error(`Invalid file type: ${file.type}. Supported types are: JPEG, PNG, and WebP`));
+      return;
+    }
+
     const reader = new FileReader();
+
+    // Set up a timeout (10 seconds)
+    const timeout = setTimeout(() => {
+      reader.abort();
+      reject(new Error('File reading timed out. Please try again.'));
+    }, 10000);
+
     reader.onloadend = () => {
+      clearTimeout(timeout);
       try {
         if (!reader.result) {
           reject(new Error("Failed to read file"));
@@ -65,7 +87,13 @@ async function fileToGenerativePart(file: File): Promise<{
 
         const base64Data = (reader.result as string).split(",")[1];
         if (!base64Data) {
-          reject(new Error("Failed to extract base64 data"));
+          reject(new Error("Failed to extract base64 data from file"));
+          return;
+        }
+
+        // Validate base64 data
+        if (base64Data.length === 0 || !isValidBase64(base64Data)) {
+          reject(new Error("Invalid image data"));
           return;
         }
 
@@ -80,26 +108,127 @@ async function fileToGenerativePart(file: File): Promise<{
         reject(new Error("Failed to process image file"));
       }
     };
-    reader.onerror = () => reject(new Error("Failed to read file"));
+
+    reader.onerror = () => {
+      clearTimeout(timeout);
+      reject(new Error(`Failed to read file: ${file.name}`));
+    };
+
+    reader.onabort = () => {
+      clearTimeout(timeout);
+      reject(new Error('File reading was aborted'));
+    };
+
     reader.readAsDataURL(file);
+  });
+}
+
+// Helper function to validate base64 data
+function isValidBase64(str: string): boolean {
+  try {
+    return btoa(atob(str)) === str;
+  } catch (err) {
+    return false;
+  }
+}
+
+async function compressImage(file: File): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(img.src); // Clean up
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('Could not get canvas context'));
+        return;
+      }
+
+      // Calculate new dimensions while maintaining aspect ratio
+      let width = img.width;
+      let height = img.height;
+      const MAX_DIMENSION = 1200;
+
+      if (width > height && width > MAX_DIMENSION) {
+        height = Math.round((height * MAX_DIMENSION) / width);
+        width = MAX_DIMENSION;
+      } else if (height > MAX_DIMENSION) {
+        width = Math.round((width * MAX_DIMENSION) / height);
+        height = MAX_DIMENSION;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // Use better image smoothing
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+
+      // Draw image with white background to handle transparency
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Convert to blob with quality adjustment
+      canvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            reject(new Error('Failed to compress image'));
+            return;
+          }
+          resolve(blob);
+        },
+        'image/jpeg',
+        0.8  // 80% quality
+      );
+    };
+
+    img.onerror = () => {
+      URL.revokeObjectURL(img.src);
+      reject(new Error('Failed to load image for compression'));
+    };
+
+    img.src = URL.createObjectURL(file);
   });
 }
 
 export async function generateSmartListing(
   files: File[]
 ): Promise<SmartListingAnalysis> {
+  if (!files.length) {
+    throw new Error("No files provided for analysis");
+  }
+
   try {
     console.log('Initializing Gemini...');
     const genAI = await initializeGemini();
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     console.log('Processing image files...');
-    const imageParts = await Promise.all(
-      files.map(file => fileToGenerativePart(file).catch(error => {
-        console.error('Error processing file:', error);
+
+    // Process images sequentially to avoid memory issues
+    const imageParts = [];
+    for (const file of files) {
+      try {
+        // Compress image before processing
+        const compressedBlob = await compressImage(file);
+        const compressedFile = new File([compressedBlob], file.name, {
+          type: 'image/jpeg'
+        });
+
+        // Add small delay between processing each image
+        if (imageParts.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        const part = await fileToGenerativePart(compressedFile);
+        imageParts.push(part);
+      } catch (error) {
+        console.error(`Error processing file ${file.name}:`, error);
         throw error;
-      }))
-    );
+      }
+    }
 
     console.log('Image files processed, count:', imageParts.length);
 
@@ -135,7 +264,7 @@ Format your response as a JSON object with the following structure:
     console.log('Sending request to Gemini...');
     const result = await model.generateContent([prompt, ...imageParts]);
     if (!result) {
-      throw new Error("No response from Gemini API");
+      throw new Error("No response received from Gemini API");
     }
 
     const response = await result.response;
@@ -147,17 +276,21 @@ Format your response as a JSON object with the following structure:
     console.log('Raw response from Gemini:', text);
 
     try {
-      const analysis = JSON.parse(text);
+      const analysis = JSON.parse(text) as SmartListingAnalysis;
       console.log('Successfully parsed analysis:', analysis);
       return analysis;
     } catch (parseError) {
       console.error("Failed to parse AI response:", text);
-      throw new Error(`Failed to parse AI analysis result: ${parseError.message}`);
+      throw new Error(
+        parseError instanceof Error
+          ? `Failed to parse AI analysis result: ${parseError.message}`
+          : "Failed to parse AI analysis result"
+      );
     }
   } catch (error) {
     console.error("Smart listing generation error:", error);
-    throw error instanceof Error 
-      ? error 
+    throw error instanceof Error
+      ? error
       : new Error("Failed to generate smart listing");
   }
 }

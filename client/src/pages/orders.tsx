@@ -18,13 +18,22 @@ import {
 } from "@/components/ui/card";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { type SelectOrder } from "@db/schema";
+import { type SelectOrder, type SelectProduct } from "@db/schema";
 import { Loader2 } from "lucide-react";
 
+interface OrderWithItems extends SelectOrder {
+  items?: { product: SelectProduct; quantity: number }[];
+}
+
 export default function Orders() {
-  const { data: orders = [], isLoading, error } = useQuery<SelectOrder[]>({
+  const { data: orders = [], isLoading, error } = useQuery<OrderWithItems[]>({
     queryKey: ["/api/orders"],
   });
+
+  const formatDate = (date: Date | string | null) => {
+    if (!date) return 'N/A';
+    return format(new Date(date), "MMM d, yyyy");
+  };
 
   return (
     <div className="flex h-screen">
@@ -65,7 +74,7 @@ export default function Orders() {
                         <TableRow key={order.id}>
                           <TableCell className="font-medium">#{order.id}</TableCell>
                           <TableCell>
-                            {format(new Date(order.createdAt), "MMM d, yyyy")}
+                            {formatDate(order.createdAt)}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -77,12 +86,14 @@ export default function Orders() {
                                   : "destructive"
                               }
                             >
-                              {order.status}
+                              {order.status || 'pending'}
                             </Badge>
                           </TableCell>
-                          <TableCell>{order.items?.length || 0} items</TableCell>
+                          <TableCell>
+                            {order.items ? `${order.items.length} items` : '1 item'}
+                          </TableCell>
                           <TableCell className="text-right">
-                            ${Number(order.total).toFixed(2)}
+                            ${Number(order.total || 0).toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))}

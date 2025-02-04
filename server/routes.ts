@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
 import multer from 'multer';
@@ -25,44 +25,6 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage: storage });
 
-// Rate limiting setup
-const requestQueue: Array<() => Promise<any>> = [];
-let isProcessing = false;
-let requestCount = 0;
-let lastRequestTime = Date.now();
-
-async function processQueue() {
-  if (isProcessing || requestQueue.length === 0) return;
-
-  // Rate limiting: 10 requests per minute
-  const now = Date.now();
-  if (now - lastRequestTime < 60000) { // Within the same minute
-    if (requestCount >= 10) {
-      // Wait until the next minute
-      setTimeout(processQueue, 60000 - (now - lastRequestTime));
-      return;
-    }
-  } else {
-    // Reset counter for new minute
-    requestCount = 0;
-    lastRequestTime = now;
-  }
-
-  isProcessing = true;
-  try {
-    const nextRequest = requestQueue.shift();
-    if (nextRequest) {
-      await nextRequest();
-      requestCount++;
-    }
-  } finally {
-    isProcessing = false;
-    if (requestQueue.length > 0) {
-      setTimeout(processQueue, 6000);
-    }
-  }
-}
-
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
@@ -80,40 +42,46 @@ export function registerRoutes(app: Express): Server {
   // Products
   app.get("/api/products", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const allProducts = await db.query.products.findMany({
-      where: eq(products.userId, req.user.id),
-    });
-    res.json(allProducts);
+    try {
+      const allProducts = await db.query.products.findMany({
+        where: eq(products.userId, req.user.id),
+      });
+      res.json(allProducts);
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
   });
 
   app.post("/api/products", upload.single('image'), async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    console.log('Request body:', req.body);
-
-    // Validate required fields from form data
-    const { name, description, price, quantity } = req.body;
-
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ error: "Product name is required" });
-    }
-
     try {
-      // Process file if uploaded
+      const { name, description, price, quantity, sku } = req.body;
+
+      if (!name || typeof name !== 'string' || !name.trim()) {
+        return res.status(400).json({ error: "Product name is required" });
+      }
+
       const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+      // Only include SKU if it's provided and not empty
+      const skuValue = sku?.trim() || null;
 
       const productData = {
         name: name.trim(),
-        description: description || null,
+        description: description?.trim() || null,
         price: price ? parseFloat(price) : null,
         quantity: quantity ? parseInt(quantity) : 0,
         imageUrl,
         userId: req.user.id,
-        // Add other fields from req.body
-        ...req.body,
+        sku: skuValue,
+        aiAnalysis: req.body.aiAnalysis ? JSON.parse(req.body.aiAnalysis) : null,
+        ebayPrice: req.body.ebayPrice ? parseFloat(req.body.ebayPrice) : null,
+        condition: req.body.condition || null,
+        brand: req.body.brand?.trim() || null,
+        category: req.body.category?.trim() || null,
       };
-
-      console.log('Creating product with data:', productData);
 
       const [product] = await db
         .insert(products)
@@ -130,199 +98,217 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  app.patch("/api/products/:id", async (req, res) => {
+  app.patch("/api/products/:id", upload.single('image'), async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const [product] = await db
-      .update(products)
-      .set(req.body)
-      .where(eq(products.id, parseInt(req.params.id)))
-      .returning();
-    res.json(product);
+
+    try {
+      const productId = parseInt(req.params.id);
+
+      // First verify the product belongs to the authenticated user
+      const [existingProduct] = await db.select()
+        .from(products)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.userId, req.user.id)
+        ))
+        .limit(1);
+
+      if (!existingProduct) {
+        return res.status(404).json({ error: "Product not found or access denied" });
+      }
+
+      const updateData: any = { ...req.body };
+
+      // Handle image upload if present
+      if (req.file) {
+        updateData.imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      // Handle SKU - only update if provided and not empty
+      if ('sku' in req.body) {
+        updateData.sku = req.body.sku?.trim() || null;
+      }
+
+      // Parse aiAnalysis if it's a string
+      if (typeof req.body.aiAnalysis === 'string') {
+        updateData.aiAnalysis = JSON.parse(req.body.aiAnalysis);
+      }
+
+      const [product] = await db
+        .update(products)
+        .set(updateData)
+        .where(eq(products.id, productId))
+        .returning();
+
+      res.json(product);
+    } catch (error) {
+      console.error('Failed to update product:', error);
+      res.status(500).json({
+        error: "Failed to update product",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
   });
 
-  // Add DELETE endpoint for products
   app.delete("/api/products/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    const productId = parseInt(req.params.id);
+    try {
+      const productId = parseInt(req.params.id);
 
-    // First verify the product belongs to the authenticated user
-    const [product] = await db.select()
-      .from(products)
-      .where(
-        eq(products.id, productId),
-        eq(products.userId, req.user.id)
-      )
-      .limit(1);
+      // Verify the product belongs to the authenticated user
+      const [product] = await db.select()
+        .from(products)
+        .where(and(
+          eq(products.id, productId),
+          eq(products.userId, req.user.id)
+        ))
+        .limit(1);
 
-    if (!product) {
-      return res.status(404).json({ error: "Product not found or access denied" });
-    }
-
-    // Delete the product
-    await db.delete(products)
-      .where(eq(products.id, productId));
-
-    res.sendStatus(200);
-  });
-
-  // Gemini API endpoint with enhanced rate limiting
-  app.post("/api/analyze-images", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-
-    const analyzeRequest = async () => {
-      try {
-        console.log('Starting image analysis request');
-        const { images } = req.body;
-        if (!images || !Array.isArray(images)) {
-          console.error('Invalid image data:', req.body);
-          return res.status(400).json({ error: "Invalid image data provided" });
-        }
-
-        console.log(`Processing ${images.length} images`);
-        const apiKey = process.env.GEMINI_API_KEY;
-        if (!apiKey) {
-          console.error('Missing Gemini API key');
-          return res.status(500).json({ error: "Gemini API key not configured" });
-        }
-
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({
-          model: "gemini-2.0-flash-exp",
-          generationConfig: {
-            maxOutputTokens: 8192,
-            temperature: 0.7,
-            topP: 0.8,
-            topK: 40,
-          }
-        });
-
-        console.log('Sending request to Gemini API');
-        const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
-1. A compelling product title
-2. A detailed, SEO-friendly product description
-3. Product category classification
-4. Market analysis including:
-   - Demand score (0-100)
-   - Competition level (low/medium/high)
-   - Suggested price range (min and max)
-5. 5-7 relevant SEO keywords
-6. 3-5 specific suggestions to improve the listing
-  
-Format your response as a valid JSON object with the following structure:
-{
-  "title": string,
-  "description": string,
-  "category": string,
-  "marketAnalysis": {
-    "demandScore": number,
-    "competitionLevel": string,
-    "priceSuggestion": {
-      "min": number,
-      "max": number
-    }
-  },
-  "seoKeywords": string[],
-  "suggestions": string[]
-}`;
-        const result = await model.generateContent([prompt, ...images]);
-        const response = await result.response;
-        const text = await response.text();
-        console.log('Received response from Gemini');
-
-        try {
-          const analysis = JSON.parse(text.replace(/```json\n|\n```/g, ''));
-          console.log('Successfully parsed analysis response');
-          res.json(analysis);
-        } catch (parseError) {
-          console.error('Failed to parse Gemini response:', text);
-          res.status(500).json({
-            error: "Failed to parse AI response into valid JSON"
-          });
-        }
-      } catch (error) {
-        console.error('Analysis error:', error);
-        if (error instanceof Error && error.message.includes('429')) {
-          console.log('Rate limit hit, queueing for retry');
-          requestQueue.push(analyzeRequest);
-          return res.status(429).json({
-            error: "Rate limit exceeded. Request queued for retry."
-          });
-        }
-        res.status(500).json({
-          error: error instanceof Error ? error.message : "Failed to analyze images"
-        });
+      if (!product) {
+        return res.status(404).json({ error: "Product not found or access denied" });
       }
-    };
 
-    requestQueue.push(analyzeRequest);
-    processQueue();
+      await db.delete(products)
+        .where(eq(products.id, productId));
+
+      res.sendStatus(200);
+    } catch (error) {
+      console.error('Failed to delete product:', error);
+      res.status(500).json({ error: "Failed to delete product" });
+    }
   });
 
   // Watchlist
   app.get("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const items = await db.query.watchlist.findMany({
-      where: eq(watchlist.userId, req.user.id),
-      with: {
-        product: true,
-      },
-    });
-    res.json(items);
+    try {
+      const items = await db.query.watchlist.findMany({
+        where: eq(watchlist.userId, req.user.id),
+        with: {
+          product: true,
+        },
+      });
+      res.json(items);
+    } catch (error) {
+      console.error('Failed to fetch watchlist:', error);
+      res.status(500).json({ error: "Failed to fetch watchlist" });
+    }
   });
 
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const [item] = await db
-      .insert(watchlist)
-      .values({ ...req.body, userId: req.user.id })
-      .returning();
-    res.json(item);
+    try {
+      const [item] = await db
+        .insert(watchlist)
+        .values({
+          productId: req.body.productId,
+          userId: req.user.id,
+        })
+        .returning();
+
+      const watchlistItem = await db.query.watchlist.findFirst({
+        where: eq(watchlist.id, item.id),
+        with: {
+          product: true,
+        },
+      });
+
+      res.json(watchlistItem);
+    } catch (error) {
+      console.error('Failed to add to watchlist:', error);
+      res.status(500).json({ error: "Failed to add to watchlist" });
+    }
   });
 
   app.delete("/api/watchlist/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    await db
-      .delete(watchlist)
-      .where(eq(watchlist.id, parseInt(req.params.id)));
-    res.sendStatus(200);
+    try {
+      const watchlistId = parseInt(req.params.id);
+
+      // Verify the watchlist item belongs to the authenticated user
+      const [item] = await db.select()
+        .from(watchlist)
+        .where(and(
+          eq(watchlist.id, watchlistId),
+          eq(watchlist.userId, req.user.id)
+        ))
+        .limit(1);
+
+      if (!item) {
+        return res.status(404).json({ error: "Watchlist item not found or access denied" });
+      }
+
+      await db.delete(watchlist)
+        .where(eq(watchlist.id, watchlistId));
+
+      res.sendStatus(200);
+    } catch (error) {
+      console.error('Failed to remove from watchlist:', error);
+      res.status(500).json({ error: "Failed to remove from watchlist" });
+    }
   });
 
   // Orders
   app.get("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const userOrders = await db.query.orders.findMany({
-      where: eq(orders.userId, req.user.id),
-      with: {
-        items: {
-          with: {
-            product: true,
+    try {
+      const userOrders = await db.query.orders.findMany({
+        where: eq(orders.userId, req.user.id),
+        with: {
+          items: {
+            with: {
+              product: true,
+            },
           },
         },
-      },
-    });
-    res.json(userOrders);
+      });
+      res.json(userOrders);
+    } catch (error) {
+      console.error('Failed to fetch orders:', error);
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
   });
 
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const [order] = await db
-      .insert(orders)
-      .values({ ...req.body, userId: req.user.id })
-      .returning();
+    try {
+      const [order] = await db
+        .insert(orders)
+        .values({
+          userId: req.user.id,
+          status: req.body.status || 'pending',
+          total: req.body.total,
+        })
+        .returning();
 
-    if (req.body.items) {
-      await db.insert(orderItems).values(
-        req.body.items.map((item: any) => ({
-          orderId: order.id,
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-        }))
-      );
+      if (req.body.items && Array.isArray(req.body.items)) {
+        await db.insert(orderItems).values(
+          req.body.items.map((item: any) => ({
+            orderId: order.id,
+            productId: item.productId,
+            quantity: item.quantity,
+            price: item.price,
+          }))
+        );
+      }
+
+      const createdOrder = await db.query.orders.findFirst({
+        where: eq(orders.id, order.id),
+        with: {
+          items: {
+            with: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      res.json(createdOrder);
+    } catch (error) {
+      console.error('Failed to create order:', error);
+      res.status(500).json({ error: "Failed to create order" });
     }
-
-    res.json(order);
   });
 
   const httpServer = createServer(app);

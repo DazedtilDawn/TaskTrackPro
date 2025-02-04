@@ -9,7 +9,7 @@ import ProductCard from "@/components/product-card";
 import ProductForm from "@/components/product-form";
 import BatchAnalysisDialog from "@/components/batch-analysis-dialog";
 import { Plus, Search, Sparkles } from "lucide-react";
-import { type SelectProduct } from "@db/schema";
+import { type SelectProduct, type SelectWatchlist } from "@db/schema";
 
 export default function Inventory() {
   const [search, setSearch] = useState("");
@@ -21,15 +21,15 @@ export default function Inventory() {
     queryKey: ["/api/products"],
   });
 
-  const { data: watchlist = [] } = useQuery({
+  const { data: watchlist = [] } = useQuery<SelectWatchlist[]>({
     queryKey: ["/api/watchlist"],
   });
 
-  const watchlistIds = new Set(watchlist.map((item: any) => item.productId));
+  const watchlistIds = new Set(watchlist.map((item) => item.productId));
 
   const filteredProducts = products.filter((product: SelectProduct) =>
     product.name.toLowerCase().includes(search.toLowerCase()) ||
-    product.sku?.toLowerCase().includes(search.toLowerCase())
+    (product.sku?.toLowerCase() || '').includes(search.toLowerCase())
   );
 
   const handleEdit = (product: SelectProduct) => {

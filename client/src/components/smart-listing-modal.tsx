@@ -1,9 +1,11 @@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileImage, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generateSmartListing } from "@/lib/gemini";
+import { Progress } from "@/components/ui/progress";
+import { cn } from "@/lib/utils";
 
 interface SmartListingModalProps {
   open: boolean;
@@ -31,7 +33,6 @@ export default function SmartListingModal({
 
   // Cleanup function for timers and state
   const cleanup = useCallback(() => {
-    console.log('SmartListingModal: Running cleanup');
     if (analysisTimeout.current) {
       clearTimeout(analysisTimeout.current);
       analysisTimeout.current = null;
@@ -48,23 +49,8 @@ export default function SmartListingModal({
     }
   }, []);
 
-  // Analysis function
   const runAnalysis = useCallback(async () => {
-    console.log('SmartListingModal: Starting analysis', {
-      mounted: isMounted.current,
-      locked: analysisLock.current,
-      filesCount: files.length
-    });
-
-    if (!isMounted.current) {
-      console.log('SmartListingModal: Component unmounted, skipping analysis');
-      return;
-    }
-
-    if (analysisLock.current) {
-      console.log('SmartListingModal: Analysis already in progress');
-      return;
-    }
+    if (!isMounted.current || analysisLock.current) return;
 
     try {
       analysisLock.current = true;
@@ -72,7 +58,6 @@ export default function SmartListingModal({
       setError(null);
       setProgress(10);
 
-      // Setup progress updates
       progressInterval.current = setInterval(() => {
         if (isMounted.current) {
           setProgress(prev => Math.min(prev + 10, 90));
@@ -80,11 +65,7 @@ export default function SmartListingModal({
       }, 2000);
 
       const analysis = await generateSmartListing(files);
-
-      if (!isMounted.current) {
-        console.log('SmartListingModal: Component unmounted during analysis');
-        return;
-      }
+      if (!isMounted.current) return;
 
       setProgress(100);
       onAnalysisComplete(analysis);
@@ -95,7 +76,7 @@ export default function SmartListingModal({
         description: "Product details have been analyzed successfully"
       });
     } catch (err) {
-      console.error('SmartListingModal: Analysis error:', err);
+      console.error('Analysis error:', err);
       if (isMounted.current) {
         setError(err instanceof Error ? err.message : 'Analysis failed');
         toast({
@@ -109,18 +90,10 @@ export default function SmartListingModal({
     }
   }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
 
-  // Handle modal open/close and initial analysis - simplified dependencies
   useEffect(() => {
     if (!open || files.length === 0) return;
 
-    console.log('SmartListingModal: Effect triggered', {
-      open,
-      filesCount: files.length,
-      isLocked: analysisLock.current
-    });
-
     if (!analysisLock.current) {
-      console.log('SmartListingModal: Scheduling analysis');
       analysisTimeout.current = setTimeout(() => {
         if (isMounted.current) {
           runAnalysis();
@@ -128,16 +101,11 @@ export default function SmartListingModal({
       }, 1000);
     }
 
-    return () => {
-      console.log('SmartListingModal: Effect cleanup');
-      cleanup();
-    };
-  }, [open, files, runAnalysis, cleanup]); // Removed loading from dependencies
+    return cleanup;
+  }, [open, files, runAnalysis, cleanup]);
 
-  // Handle empty files case
   useEffect(() => {
     if (open && files.length === 0) {
-      console.log('SmartListingModal: No files provided');
       onOpenChange(false);
       toast({
         title: "No images selected",
@@ -147,76 +115,137 @@ export default function SmartListingModal({
     }
   }, [open, files.length, onOpenChange, toast]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
-      console.log('SmartListingModal: Component unmounting');
       isMounted.current = false;
       cleanup();
     };
   }, [cleanup]);
 
+  const getStatusIcon = () => {
+    if (error) return <AlertCircle className="h-8 w-8 text-destructive" />;
+    if (progress === 100) return <CheckCircle2 className="h-8 w-8 text-primary" />;
+    return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
+  };
+
+  const getStatusMessage = () => {
+    if (progress < 20) return 'Validating images...';
+    if (progress < 50) return 'Processing images...';
+    if (progress < 80) return 'Analyzing content...';
+    return 'Finalizing results...';
+  };
+
   return (
     <Dialog 
       open={open} 
       onOpenChange={(newOpen) => {
-        console.log('SmartListingModal: Dialog state changing to:', newOpen);
-        if (!newOpen) {
-          cleanup();
-        }
+        if (!newOpen) cleanup();
         onOpenChange(newOpen);
       }}
     >
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Smart Listing Analysis</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <FileImage className="h-5 w-5" />
+            Smart Listing Analysis
+          </DialogTitle>
           <DialogDescription>
             {loading 
-              ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''}`
+              ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''} with AI`
               : error 
                 ? "Analysis encountered an error. Please try again."
                 : "AI-powered analysis for optimizing your product listings"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           {loading && (
             <div 
-              className="flex flex-col items-center justify-center py-8" 
+              className="relative p-6 bg-card rounded-lg border" 
               role="status" 
               aria-live="polite"
               aria-busy="true"
             >
-              <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
-                <div 
-                  className="bg-primary h-2.5 rounded-full transition-all duration-300" 
-                  style={{ width: `${progress}%` }}
-                  aria-valuenow={progress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                />
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 mb-6">
+                  {getStatusIcon()}
+                  <div>
+                    <h4 className="font-semibold">{error ? 'Analysis Error' : 'Processing'}</h4>
+                    <p className="text-sm text-muted-foreground">
+                      {getStatusMessage()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Analysis Progress</span>
+                    <span className="font-medium">{progress}%</span>
+                  </div>
+                  <div className="w-full bg-secondary rounded-full h-2.5">
+                    <div 
+                      className={cn(
+                        "h-2.5 rounded-full transition-all duration-300",
+                        error ? "bg-destructive" : "bg-primary"
+                      )}
+                      style={{ width: `${progress}%` }}
+                      role="progressbar"
+                      aria-valuenow={progress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    />
+                  </div>
+                </div>
+
+                {/* Steps indicator */}
+                <div className="space-y-3 mt-6">
+                  {['Image Validation', 'Processing', 'AI Analysis', 'Results'].map((step, index) => {
+                    const stepProgress = (index + 1) * 25;
+                    const isActive = progress >= stepProgress - 25;
+                    const isCompleted = progress >= stepProgress;
+
+                    return (
+                      <div 
+                        key={step}
+                        className={cn(
+                          "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                          isActive ? "bg-secondary/50" : "opacity-50"
+                        )}
+                      >
+                        <div className={cn(
+                          "h-2 w-2 rounded-full",
+                          isCompleted ? "bg-primary" : "bg-secondary"
+                        )} />
+                        <span className={cn(
+                          "text-sm",
+                          isActive ? "text-foreground" : "text-muted-foreground"
+                        )}>
+                          {step}
+                        </span>
+                        {isCompleted && <ChevronRight className="h-4 w-4 ml-auto text-primary" />}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-              <p className="text-sm text-muted-foreground">
-                {progress < 20 ? 'Validating images...' :
-                 progress < 50 ? 'Processing images...' :
-                 progress < 80 ? 'Analyzing content...' :
-                 'Finalizing results...'}
-              </p>
             </div>
           )}
 
           {error && !loading && (
             <div 
-              className="text-center space-y-4" 
+              className="p-6 border rounded-lg space-y-4 text-center"
               role="alert"
               aria-live="assertive"
             >
-              <p className="text-destructive whitespace-pre-line">{error}</p>
+              <AlertCircle className="h-8 w-8 text-destructive mx-auto" />
+              <div>
+                <h4 className="font-semibold mb-1">Analysis Failed</h4>
+                <p className="text-sm text-destructive whitespace-pre-line">{error}</p>
+              </div>
               <Button
+                className="mt-4"
                 variant="outline"
                 onClick={() => {
-                  console.log('SmartListingModal: Retrying analysis');
                   if (!analysisLock.current) {
                     runAnalysis();
                   }

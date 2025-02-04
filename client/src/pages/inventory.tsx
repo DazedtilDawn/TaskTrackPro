@@ -7,15 +7,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import ProductCard from "@/components/product-card";
 import ProductForm from "@/components/product-form";
-import { Plus, Search } from "lucide-react";
+import BatchAnalysisDialog from "@/components/batch-analysis-dialog";
+import { Plus, Search, Sparkles } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 
 export default function Inventory() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isBatchAnalysisOpen, setIsBatchAnalysisOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
 
-  const { data: products = [] } = useQuery({
+  const { data: products = [] } = useQuery<SelectProduct[]>({
     queryKey: ["/api/products"],
   });
 
@@ -23,9 +25,9 @@ export default function Inventory() {
     queryKey: ["/api/watchlist"],
   });
 
-  const watchlistIds = new Set(watchlist.map(item => item.productId));
+  const watchlistIds = new Set(watchlist.map((item: any) => item.productId));
 
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = products.filter((product: SelectProduct) =>
     product.name.toLowerCase().includes(search.toLowerCase()) ||
     product.sku?.toLowerCase().includes(search.toLowerCase())
   );
@@ -58,10 +60,20 @@ export default function Inventory() {
                 />
               </div>
             </div>
-            <Button onClick={() => setIsDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Product
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsBatchAnalysisOpen(true)}
+                disabled={products.length === 0}
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Batch Analysis
+              </Button>
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Product
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -88,6 +100,12 @@ export default function Inventory() {
               />
             </DialogContent>
           </Dialog>
+
+          <BatchAnalysisDialog
+            open={isBatchAnalysisOpen}
+            onOpenChange={setIsBatchAnalysisOpen}
+            products={products}
+          />
         </main>
       </div>
     </div>

@@ -26,6 +26,16 @@ export function registerRoutes(app: Express): Server {
     res.json(product);
   });
 
+  app.patch("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const [product] = await db
+      .update(products)
+      .set(req.body)
+      .where(eq(products.id, parseInt(req.params.id)))
+      .returning();
+    res.json(product);
+  });
+
   // Watchlist
   app.get("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -77,7 +87,7 @@ export function registerRoutes(app: Express): Server {
       .insert(orders)
       .values({ ...req.body, userId: req.user.id })
       .returning();
-    
+
     if (req.body.items) {
       await db.insert(orderItems).values(
         req.body.items.map((item: any) => ({
@@ -88,7 +98,7 @@ export function registerRoutes(app: Express): Server {
         }))
       );
     }
-    
+
     res.json(order);
   });
 

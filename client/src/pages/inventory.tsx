@@ -10,12 +10,16 @@ import ProductForm from "@/components/product-form";
 import BatchAnalysisDialog from "@/components/batch-analysis-dialog";
 import { Plus, Search, Sparkles } from "lucide-react";
 import { type SelectProduct, type SelectWatchlist } from "@db/schema";
+import { useViewPreference } from "@/hooks/use-view-preference";
+import ViewToggle from "@/components/view-toggle";
+import { cn } from "@/lib/utils";
 
 export default function Inventory() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBatchAnalysisOpen, setIsBatchAnalysisOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
+  const [view, setView] = useViewPreference();
 
   const { data: products = [] } = useQuery<SelectProduct[]>({
     queryKey: ["/api/products"],
@@ -49,7 +53,7 @@ export default function Inventory() {
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="flex justify-between items-center mb-6">
-            <div className="flex items-center gap-4 flex-1">
+            <div className="flex items-center gap-4">
               <div className="relative flex-1 max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -59,6 +63,10 @@ export default function Inventory() {
                   className="pl-9"
                 />
               </div>
+              <ViewToggle
+                view={view}
+                onViewChange={setView}
+              />
             </div>
             <div className="flex gap-2">
               <Button
@@ -76,13 +84,32 @@ export default function Inventory() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {view === "table" && (
+            <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
+              <div className="w-12">Image</div>
+              <div className="flex-1">Product Details</div>
+              <div className="w-24">SKU</div>
+              <div className="w-32">Price</div>
+              <div className="w-24">Quantity</div>
+              <div className="w-32">Market Status</div>
+              <div className="w-40">Actions</div>
+            </div>
+          )}
+
+          <div className={cn(
+            view === "grid"
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              : view === "list"
+                ? "space-y-4"
+                : "divide-y"
+          )}>
             {filteredProducts.map((product) => (
               <ProductCard
                 key={product.id}
                 product={product}
                 onEdit={handleEdit}
                 inWatchlist={watchlistIds.has(product.id)}
+                view={view}
               />
             ))}
           </div>

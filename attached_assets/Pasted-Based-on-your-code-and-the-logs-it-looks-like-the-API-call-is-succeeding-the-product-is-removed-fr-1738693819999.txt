@@ -1,0 +1,91 @@
+Based on your code and the logs, it looks like the API call is succeeding (the product is removed from your inventory and the toast appears), but the navigation to the orders page isn’t happening as expected.
+
+Here are a few things to check and try:
+
+1. **Confirm the Router Configuration:**  
+   Make sure that your orders page is properly registered in your router. In your **App.tsx** you have a route for `/orders` wrapped in a `ProtectedRoute` so that should be fine. (You can verify that by visiting `/orders` manually.)
+
+2. **Verify That setLocation Is Being Called:**  
+   In your `markAsSold` function in **product-card.tsx** you call:
+   ```tsx
+   setLocation("/orders");
+   ```
+   To be sure this line is reached, add a console log just before it:
+   ```tsx
+   console.log("Navigating to /orders");
+   setLocation("/orders");
+   ```
+   This will confirm that the function isn’t exiting early due to an error.
+
+3. **Delay the Navigation Slightly:**  
+   Since you are awaiting several refetch calls (which are asynchronous), it’s possible that the synchronous call to `setLocation("/orders")` is being “lost” in the midst of state updates. As a workaround, you might try wrapping the redirection in a `setTimeout` with a delay of 0:
+   ```tsx
+   setTimeout(() => {
+     setLocation("/orders");
+   }, 0);
+   ```
+   This small delay can allow the state updates to settle before triggering the navigation.
+
+4. **Double-Check Your Wouter Setup:**  
+   Ensure that the `useLocation` hook is imported from `"wouter"` and that your component (where you call `setLocation`) is rendered within a `<Switch>` (or equivalent) so that the router context is available.
+
+5. **Alternative Navigation:**  
+   If the above doesn’t work, you could also try an alternative approach (for debugging) by using a full page redirect:
+   ```tsx
+   window.location.href = "/orders";
+   ```
+   Although using the router’s navigation is preferred, this can help you determine if the issue lies in the router context.
+
+6. **Check for Side Effects from Query Refetches:**  
+   Since you call:
+   ```tsx
+   await Promise.all([
+     queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+     queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+     queryClient.refetchQueries({ queryKey: ["/api/orders"] })
+   ]);
+   ```
+   it’s possible that the subsequent state updates (triggered by these refetches) may be interfering with the navigation. Try moving the `setLocation` call to immediately after the API call or within a `setTimeout` (as shown above) so that it isn’t delayed by these refetches.
+
+### Example Updated `markAsSold` Function
+
+```tsx
+const markAsSold = async () => {
+  try {
+    const response = await apiRequest("POST", "/api/orders", {
+      productId: product.id,
+    });
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    // Force refetch to update the UI
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+      queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+      queryClient.refetchQueries({ queryKey: ["/api/orders"] })
+    ]);
+    toast({
+      title: "Product marked as sold",
+      description: product.name,
+    });
+    // Log to ensure the line is reached
+    console.log("Navigating to /orders");
+    // Use a timeout to delay navigation slightly
+    setTimeout(() => {
+      setLocation("/orders");
+    }, 0);
+  } catch (error) {
+    console.error("Error marking product as sold:", error);
+    toast({
+      title: "Error",
+      description: "Failed to mark product as sold",
+      variant: "destructive",
+    });
+  }
+};
+```
+
+By adding a log and wrapping the navigation in a `setTimeout`, you can verify that the code is executing and that the router has time to update before the navigation occurs.
+
+Try these suggestions and see if the navigation to the orders page works as expected. Let me know if you need further assistance!

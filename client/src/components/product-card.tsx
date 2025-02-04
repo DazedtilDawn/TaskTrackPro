@@ -61,8 +61,13 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         description: product.name,
       });
 
-      // Navigate to orders page after successful sale
-      setLocation("/orders");
+      // Log navigation attempt
+      console.log("Navigating to /orders");
+
+      // Use setTimeout to ensure navigation happens after state updates
+      setTimeout(() => {
+        setLocation("/orders");
+      }, 0);
     } catch (error) {
       console.error('Error marking product as sold:', error);
       toast({

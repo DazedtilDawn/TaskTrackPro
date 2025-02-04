@@ -4,6 +4,7 @@ import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart, CheckCir
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import {
   Popover,
   PopoverContent,
@@ -35,6 +36,7 @@ interface AIAnalysis {
 
 export default function ProductCard({ product, onEdit, inWatchlist }: ProductCardProps) {
   const { toast } = useToast();
+  const [location, setLocation] = useLocation();
 
   const markAsSold = async () => {
     try {
@@ -58,6 +60,9 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         title: "Product marked as sold",
         description: product.name,
       });
+
+      // Navigate to orders page after successful sale
+      setLocation("/orders");
     } catch (error) {
       console.error('Error marking product as sold:', error);
       toast({

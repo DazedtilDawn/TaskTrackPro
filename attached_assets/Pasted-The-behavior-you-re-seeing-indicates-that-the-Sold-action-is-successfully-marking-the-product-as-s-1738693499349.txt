@@ -1,0 +1,60 @@
+The behavior you’re seeing indicates that the “Sold” action is successfully marking the product as sold (so it’s no longer shown in your unsold inventory), but it isn’t automatically redirecting you to the Orders page.
+
+To fix this, you can use a navigation hook (like the one provided by Wouter) in your **product-card.tsx**. Here’s how you can do it:
+
+1. **Import and Initialize the Navigation Hook:**  
+   At the top of your file, import the `useLocation` hook from Wouter:
+   ```tsx
+   import { useLocation } from "wouter";
+   ```
+   Then, inside your component (or at the top of the `ProductCard` component), initialize it:
+   ```tsx
+   const [location, setLocation] = useLocation();
+   ```
+
+2. **Redirect After Successful Sale:**  
+   In your `markAsSold` function, after successfully updating the product and refetching the queries, add a call to redirect the user to the Orders page. For example:
+   ```tsx
+   const markAsSold = async () => {
+     try {
+       const response = await apiRequest("POST", "/api/orders", {
+         productId: product.id
+       });
+       const result = await response.json();
+       if (result.error) {
+         throw new Error(result.error);
+       }
+       // Force refetch to update the UI
+       await Promise.all([
+         queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+         queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+         queryClient.refetchQueries({ queryKey: ["/api/orders"] })
+       ]);
+       toast({
+         title: "Product marked as sold",
+         description: product.name,
+       });
+       // Redirect to the Orders page
+       setLocation("/orders");
+     } catch (error) {
+       console.error('Error marking product as sold:', error);
+       toast({
+         title: "Error",
+         description: "Failed to mark product as sold",
+         variant: "destructive",
+       });
+     }
+   };
+   ```
+
+### Explanation
+
+- **Marking as Sold:**  
+  The product is removed from the inventory because your GET query for products filters out sold items (using `eq(products.sold, false)`). This is expected behavior.
+
+- **Redirection:**  
+  By adding the `setLocation("/orders")` call after a successful API request and query refetch, the application will navigate the user to the Orders page, where they can see the sold product reflected as part of the new order.
+
+This modification should ensure that after clicking the Sold button, the user not only sees the product disappear from the Inventory view but is also automatically redirected to the Orders page.
+
+Let me know if you need further assistance!

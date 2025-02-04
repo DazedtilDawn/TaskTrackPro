@@ -1,0 +1,62 @@
+Based on the files you shared, it looks like the GET endpoint for products is filtering on a “sold” field:
+
+```ts
+const productsList = await db
+  .select()
+  .from(products)
+  .where(
+    and(
+      eq(products.userId, req.user!.id),
+      eq(products.sold, false)
+    )
+  )
+  .orderBy(products.createdAt);
+```
+
+However, if you review your database schema in **db/schema.ts** for the products table, there isn’t a “sold” column defined. (Even though your product‐creation code and your “mark as sold” endpoint are trying to set or update a “sold” field.) This discrepancy is causing the GET query to fail with a 500 error, which is why new products don’t appear in your inventory view.
+
+### How to Fix
+
+1. **Update Your Schema:**  
+   Add a boolean column (for example, `sold`) to your products table. In **db/schema.ts**, modify your products definition like so:
+
+   ```ts
+   export const products = pgTable("products", {
+     id: serial("id").primaryKey(),
+     userId: integer("user_id").references(() => users.id),
+     name: text("name").notNull(),
+     description: text("description"),
+     sku: text("sku").unique(),
+     price: decimal("price", { precision: 10, scale: 2 }),
+     quantity: integer("quantity").default(0),
+     imageUrl: text("image_url"),
+     aiAnalysis: jsonb("ai_analysis"),
+     ebayPrice: decimal("ebay_price", { precision: 10, scale: 2 }),
+     createdAt: timestamp("created_at").defaultNow(),
+     updatedAt: timestamp("updated_at").defaultNow(),
+     sold: boolean("sold").default(false),  // <-- Added field
+   });
+   ```
+
+2. **Run a Migration/Update the Database:**  
+   After updating your schema file, you’ll need to run the appropriate migration (or update your database manually) so that the `sold` column is created in your products table.
+
+3. **Verify the Workflow:**  
+   With the sold field in place:
+   - When a new product is added (via POST `/api/products`), it will be stored with `sold: false`.
+   - The GET `/api/products` query will work correctly (filtering on `sold: false`).
+   - And when you mark a product as sold (via POST `/api/orders`), your update call that sets `sold: true` will succeed, and that product will no longer appear in your active inventory.
+
+### UI/UX Considerations
+
+For a reseller’s workflow, marking an item as sold without deleting it is ideal so that you can track historical orders and inventory changes. Your current approach of updating the product’s status (instead of deleting) is in line with best practices:
+
+- **Immediate Feedback:** After clicking the “Sold” button, provide a notification (e.g., via your toast system) and remove the product from the unsold list.
+- **Historical Data:** Retain the sold product in your orders view for revenue tracking and future reference.
+- **Error Handling:** Make sure that if the update fails (for example, because the field doesn’t exist), you show a clear error message. Once you add the sold field, those errors should disappear.
+
+### Summary
+
+The root cause is the missing `sold` column in your database schema. Updating your schema to include this field (and running the corresponding migration) should resolve the error and let products show up (or be hidden once sold) as expected.
+
+Let me know if you need further assistance or have any additional questions!

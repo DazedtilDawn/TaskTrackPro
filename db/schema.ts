@@ -22,6 +22,12 @@ export const products = pgTable("products", {
   ebayPrice: decimal("ebay_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
+  sold: boolean("sold").default(false),
+  condition: text("condition").default("used_good"),
+  brand: text("brand"),
+  category: text("category"),
+  weight: decimal("weight", { precision: 10, scale: 2 }),
+  dimensions: text("dimensions"),
 });
 
 export const watchlist = pgTable("watchlist", {

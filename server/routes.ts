@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
 import multer from 'multer';
@@ -277,6 +277,52 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       res.status(500).json({
         error: "Failed to mark product as sold",
         details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  // Get orders endpoint
+  app.get("/api/orders", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const userOrders = await db.select({
+        id: orders.id,
+        status: orders.status,
+        total: orders.total,
+        createdAt: orders.createdAt,
+        updatedAt: orders.updatedAt,
+        items: orderItems
+      })
+      .from(orders)
+      .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+      .where(eq(orders.userId, req.user!.id))
+      .orderBy(desc(orders.createdAt));
+
+      // Group items by order
+      const groupedOrders = userOrders.reduce((acc: any[], order) => {
+        const existingOrder = acc.find(o => o.id === order.id);
+        if (existingOrder) {
+          if (order.items) {
+            existingOrder.items.push(order.items);
+          }
+        } else {
+          acc.push({
+            ...order,
+            items: order.items ? [order.items] : []
+          });
+        }
+        return acc;
+      }, []);
+
+      res.json(groupedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch orders",
+        details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });

@@ -1,0 +1,118 @@
+65Tracking Prevention blocked access to storage for <URL>.
+bash.svg:1 
+            
+            
+            Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+27Error while parsing the 'sandbox' attribute: 'allow-downloads-without-user-activation' is an invalid sandbox flag.
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'ambient-light-sensor'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'battery'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'execution-while-not-rendered'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'execution-while-out-of-viewport'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'layout-animations'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'legacy-image-formats'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'navigation-override'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'oversized-images'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'publickey-credentials'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'speaker-selection'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'unoptimized-images'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Unrecognized feature: 'unsized-media'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Allow attribute will take precedence over 'allowfullscreen'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+framework-bdb7e2c8e66385c7.js:1  Allow attribute will take precedence over 'allowpaymentrequest'.
+_ @ framework-bdb7e2c8e66385c7.js:1
+131WARNING: Too many active WebGL contexts. Oldest context will be lost.
+stallwart.build.js:1 stallwart: failed ping 1
+stallwart.build.js:1 stallwart: failed ping 2
+stallwart.build.js:1 stallwart: failed ping 3
+stallwart.build.js:1 stallwart: failed ping 4
+stallwart.build.js:1 stallwart: failed ping 5
+stallwart.build.js:1 stallwart: session stalled
+69_app-6f4755a9d44589ea.js:16 webglcontextlost event received
+_app-6f4755a9d44589ea.js:16 Adding extension: Perplexity Object
+28hook.js:608  webgl context not restored; firing onContextLoss
+overrideMethod @ hook.js:608
+/~:1  Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: div
+Ancestor with aria-hidden:  <div class=​" useView_view__C2mnv css-tj2o4r Surface_surfaceRoot__TeA2u" aria-hidden=​"true" style=​"--useView--gap:​ 4px;​ --borderColor:​ var(--outline-default)​;​ --focusedBorderColor:​ var(--accent-blurple-default)​;​ --hoverBorderColor:​ var(--accent-blurple-default)​;​">​…​</div>​
+41hook.js:608  webgl context not restored; firing onContextLoss
+overrideMethod @ hook.js:608
+bash.svg:1 
+            
+            
+            Failed to load resource: net::ERR_NAME_NOT_RESOLVED
+/~:1  <meta name="apple-mobile-web-app-capable" content="yes"> is deprecated. Please include <meta name="mobile-web-app-capable" content="yes">
+/~:1 Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner.
+_app-6f4755a9d44589ea.js:16 Adding extension: Perplexity Object
+TaskTrackPro:1  Blocked aria-hidden on an element because its descendant retained focus. The focus must not be hidden from assistive technology users. Avoid using aria-hidden on a focused element or its ancestor. Consider using the inert attribute instead, which will also prevent focus. For more details, see the aria-hidden section of the WAI-ARIA specification at https://w3c.github.io/aria/#aria-hidden.
+Element with focus: div
+Ancestor with aria-hidden:  <div class=​" useView_view__C2mnv css-tj2o4r Surface_surfaceDefault__TcNI5" aria-hidden=​"true" style=​"--useView--gap:​ 4px;​ --borderColor:​ var(--outline-default)​;​ --focusedBorderColor:​ var(--accent-blurple-default)​;​ --hoverBorderColor:​ var(--accent-blurple-default)​;​">​…​</div>​flex
+hook.js:608  Command: hello has unrecognized contributions: editor-context-menu. Valid contributions are commandbar,filetree-context-menu,sidebar-search,editor-context-menu Object
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//auth' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//watchlist' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//analytics' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//orders' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//watchlist' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+3hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//watchlist' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+4hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//watchlist' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+2hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+5hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+2hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+2hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+3hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+2hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+2hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+hook.js:608  Invalid href 'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev//inventory' passed to next/router in page: '/replEnvironmentDesktop'. Repeated forward-slashes (//) or backslashes \ are not valid in the href.
+overrideMethod @ hook.js:608
+769Microsoft Edge is moving towards a new experience that allows users to choose to browse without third-party cookies.
+[Violation] 'setTimeout' handler took 59ms

@@ -1,6 +1,6 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { generateSmartListing } from "@/lib/gemini";
@@ -21,14 +21,20 @@ export default function SmartListingModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const mounted = useRef(false);
 
   const handleAnalyze = useCallback(async () => {
+    if (!files.length) return;
+
     try {
       console.log('Starting image analysis...');
       setLoading(true);
       setError(null);
 
       const analysis = await generateSmartListing(files);
+
+      if (!mounted.current) return;
+
       console.log('Analysis completed:', analysis);
       onAnalysisComplete(analysis);
       onOpenChange(false);
@@ -39,6 +45,8 @@ export default function SmartListingModal({
       });
     } catch (err) {
       console.error('Analysis error:', err);
+      if (!mounted.current) return;
+
       setError(err instanceof Error ? err.message : 'Failed to analyze');
       toast({
         title: "Analysis failed",
@@ -46,14 +54,22 @@ export default function SmartListingModal({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      if (mounted.current) {
+        setLoading(false);
+      }
     }
   }, [files, onAnalysisComplete, onOpenChange, toast]);
 
   useEffect(() => {
+    mounted.current = true;
+
     if (open && files.length > 0) {
       handleAnalyze();
     }
+
+    return () => {
+      mounted.current = false;
+    };
   }, [open, files, handleAnalyze]);
 
   return (

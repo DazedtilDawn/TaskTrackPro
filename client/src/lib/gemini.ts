@@ -40,7 +40,6 @@ interface AIAnalysisResult {
   improvementAreas: string[];
 }
 
-
 async function initializeGemini() {
   if (!genAI) {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -59,11 +58,17 @@ async function fileToGenerativePart(file: File): Promise<{
     const reader = new FileReader();
     reader.onloadend = () => {
       try {
-        const base64Data = (reader.result as string).split(",")[1];
-        if (!base64Data) {
-          reject(new Error("Failed to read image data"));
+        if (!reader.result) {
+          reject(new Error("Failed to read file"));
           return;
         }
+
+        const base64Data = (reader.result as string).split(",")[1];
+        if (!base64Data) {
+          reject(new Error("Failed to extract base64 data"));
+          return;
+        }
+
         resolve({
           inlineData: {
             data: base64Data,
@@ -71,7 +76,8 @@ async function fileToGenerativePart(file: File): Promise<{
           },
         });
       } catch (error) {
-        reject(new Error("Failed to process image data"));
+        console.error("Error processing file:", error);
+        reject(new Error("Failed to process image file"));
       }
     };
     reader.onerror = () => reject(new Error("Failed to read file"));
@@ -88,8 +94,14 @@ export async function generateSmartListing(
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     console.log('Processing image files...');
-    const imageParts = await Promise.all(files.map(fileToGenerativePart));
-    console.log('Image files processed successfully');
+    const imageParts = await Promise.all(
+      files.map(file => fileToGenerativePart(file).catch(error => {
+        console.error('Error processing file:', error);
+        throw error;
+      }))
+    );
+
+    console.log('Image files processed, count:', imageParts.length);
 
     const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 
@@ -122,9 +134,17 @@ Format your response as a JSON object with the following structure:
 
     console.log('Sending request to Gemini...');
     const result = await model.generateContent([prompt, ...imageParts]);
+    if (!result) {
+      throw new Error("No response from Gemini API");
+    }
+
     const response = await result.response;
+    if (!response) {
+      throw new Error("Empty response from Gemini API");
+    }
+
     const text = response.text();
-    console.log('Received response from Gemini');
+    console.log('Raw response from Gemini:', text);
 
     try {
       const analysis = JSON.parse(text);
@@ -132,13 +152,13 @@ Format your response as a JSON object with the following structure:
       return analysis;
     } catch (parseError) {
       console.error("Failed to parse AI response:", text);
-      throw new Error("Failed to parse AI analysis result");
+      throw new Error(`Failed to parse AI analysis result: ${parseError.message}`);
     }
   } catch (error) {
     console.error("Smart listing generation error:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to generate smart listing"
-    );
+    throw error instanceof Error 
+      ? error 
+      : new Error("Failed to generate smart listing");
   }
 }
 

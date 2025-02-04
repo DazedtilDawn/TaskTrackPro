@@ -44,7 +44,7 @@ async function initializeGemini() {
   if (!genAI) {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is not set");
+      throw new Error("GEMINI_API_KEY environment variable is not set");
     }
     genAI = new GoogleGenerativeAI(apiKey);
   }
@@ -55,6 +55,11 @@ async function fileToGenerativePart(file: File): Promise<{
   inlineData: { data: string; mimeType: string };
 }> {
   return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error(`Invalid file type: ${file.type}. Only images are supported.`));
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       try {
@@ -65,7 +70,7 @@ async function fileToGenerativePart(file: File): Promise<{
 
         const base64Data = (reader.result as string).split(",")[1];
         if (!base64Data) {
-          reject(new Error("Failed to extract base64 data"));
+          reject(new Error("Failed to extract base64 data from file"));
           return;
         }
 
@@ -80,7 +85,8 @@ async function fileToGenerativePart(file: File): Promise<{
         reject(new Error("Failed to process image file"));
       }
     };
-    reader.onerror = () => reject(new Error("Failed to read file"));
+
+    reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`));
     reader.readAsDataURL(file);
   });
 }
@@ -88,19 +94,24 @@ async function fileToGenerativePart(file: File): Promise<{
 export async function generateSmartListing(
   files: File[]
 ): Promise<SmartListingAnalysis> {
+  if (!files.length) {
+    throw new Error("No files provided for analysis");
+  }
+
   try {
     console.log('Initializing Gemini...');
     const genAI = await initializeGemini();
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
     console.log('Processing image files...');
-    const imageParts = await Promise.all(
-      files.map(file => fileToGenerativePart(file).catch(error => {
-        console.error('Error processing file:', error);
+    const imagePartPromises = files.map(file => 
+      fileToGenerativePart(file).catch(error => {
+        console.error(`Error processing file ${file.name}:`, error);
         throw error;
-      }))
+      })
     );
 
+    const imageParts = await Promise.all(imagePartPromises);
     console.log('Image files processed, count:', imageParts.length);
 
     const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
@@ -135,7 +146,7 @@ Format your response as a JSON object with the following structure:
     console.log('Sending request to Gemini...');
     const result = await model.generateContent([prompt, ...imageParts]);
     if (!result) {
-      throw new Error("No response from Gemini API");
+      throw new Error("No response received from Gemini API");
     }
 
     const response = await result.response;
@@ -147,12 +158,16 @@ Format your response as a JSON object with the following structure:
     console.log('Raw response from Gemini:', text);
 
     try {
-      const analysis = JSON.parse(text);
+      const analysis = JSON.parse(text) as SmartListingAnalysis;
       console.log('Successfully parsed analysis:', analysis);
       return analysis;
     } catch (parseError) {
       console.error("Failed to parse AI response:", text);
-      throw new Error(`Failed to parse AI analysis result: ${parseError.message}`);
+      throw new Error(
+        parseError instanceof Error
+          ? `Failed to parse AI analysis result: ${parseError.message}`
+          : "Failed to parse AI analysis result"
+      );
     }
   } catch (error) {
     console.error("Smart listing generation error:", error);

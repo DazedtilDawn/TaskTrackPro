@@ -12,6 +12,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import ImageUpload from "@/components/ui/image-upload";
 
 // Schema for form validation
 const productFormSchema = z.object({
@@ -35,6 +36,7 @@ interface ProductFormProps {
 export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -52,6 +54,10 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
   const onSubmit = async (data: ProductFormData) => {
     try {
+      // TODO: Handle image upload to storage service
+      // For now, we'll just use the first image URL if available
+      const imageUrl = imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null;
+
       // Transform the data to match InsertProduct type
       const productData: InsertProduct = {
         name: data.name,
@@ -59,7 +65,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
         sku: data.sku || null,
         price: data.price || null,
         quantity: data.quantity,
-        imageUrl: data.imageUrl || null,
+        imageUrl: imageUrl,
         aiAnalysis: data.aiAnalysis || null,
         ebayPrice: data.ebayPrice || null,
       };
@@ -84,6 +90,11 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
         variant: "destructive",
       });
     }
+  };
+
+  const handleImagesUploaded = (files: File[]) => {
+    setImageFiles(files);
+    // TODO: When ready to implement AI analysis, trigger it here
   };
 
   const analyzeProductDetails = async () => {
@@ -130,6 +141,11 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <div className="mb-6">
+          <FormLabel>Product Images</FormLabel>
+          <ImageUpload onImagesUploaded={handleImagesUploaded} />
+        </div>
+
         <FormField
           control={form.control}
           name="name"
@@ -203,20 +219,14 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             )}
           />
         </div>
-        <FormField
-          control={form.control}
-          name="imageUrl"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Image URL</FormLabel>
-              <FormControl>
-                <Input {...field} value={field.value ?? ''} />
-              </FormControl>
-            </FormItem>
-          )}
-        />
+
         <div className="flex justify-between pt-4">
-          <Button type="button" variant="outline" onClick={analyzeProductDetails} disabled={isAnalyzing}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={analyzeProductDetails}
+            disabled={isAnalyzing || imageFiles.length === 0}
+          >
             {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Analyze Product
           </Button>

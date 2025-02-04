@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
-import {ScrollArea} from "@/components/ui/scroll-area"; // Assuming ScrollArea is imported from here. Adjust if needed.
+import {ScrollArea} from "@/components/ui/scroll-area";
 
 interface ProductCardProps {
   product: SelectProduct;
@@ -41,9 +41,16 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
       if (inWatchlist) {
         await apiRequest("DELETE", `/api/watchlist/${product.id}`);
       } else {
-        await apiRequest("POST", "/api/watchlist", { productId: product.id });
+        await apiRequest("POST", "/api/watchlist", { 
+          productId: product.id 
+        }, { 
+          headers: { 'Content-Type': 'application/json' } 
+        });
       }
+
       queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+
       toast({
         title: inWatchlist ? "Removed from watchlist" : "Added to watchlist",
         description: product.name,
@@ -61,6 +68,7 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
     try {
       await apiRequest("DELETE", `/api/products/${product.id}`);
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
       toast({
         title: "Product deleted",
         description: product.name,

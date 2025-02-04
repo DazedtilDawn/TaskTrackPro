@@ -68,11 +68,34 @@ export function registerRoutes(app: Express): Server {
 
   app.post("/api/products", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
-    const [product] = await db
-      .insert(products)
-      .values({ ...req.body, userId: req.user.id })
-      .returning();
-    res.json(product);
+
+    // Validate required fields
+    const { name, description, price, quantity } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: "Product name is required" });
+    }
+
+    try {
+      const [product] = await db
+        .insert(products)
+        .values({ 
+          ...req.body,
+          name: name.trim(),
+          description: description || null,
+          price: price || null,
+          quantity: quantity || 0,
+          userId: req.user.id 
+        })
+        .returning();
+      res.json(product);
+    } catch (error) {
+      console.error('Failed to create product:', error);
+      res.status(500).json({ 
+        error: "Failed to create product",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
   });
 
   app.patch("/api/products/:id", async (req, res) => {

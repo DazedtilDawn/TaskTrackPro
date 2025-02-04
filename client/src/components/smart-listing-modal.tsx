@@ -24,33 +24,40 @@ export default function SmartListingModal({
   const { toast } = useToast();
 
   // Refs for managing analysis state
-  const mounted = useRef(true);
+  const isMounted = useRef(true);
   const analysisLock = useRef<boolean>(false);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
   const analysisTimeout = useRef<NodeJS.Timeout | null>(null);
 
-  // Cleanup function
+  // Cleanup function for timers and state
   const cleanup = useCallback(() => {
-    console.log('SmartListingModal: Cleanup triggered');
+    console.log('SmartListingModal: Running cleanup');
     if (analysisTimeout.current) {
       clearTimeout(analysisTimeout.current);
       analysisTimeout.current = null;
     }
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
     analysisLock.current = false;
-    setLoading(false);
-    setProgress(0);
-    setError(null);
+    if (isMounted.current) {
+      setLoading(false);
+      setProgress(0);
+      setError(null);
+    }
   }, []);
 
   // Analysis function
   const runAnalysis = useCallback(async () => {
-    console.log('SmartListingModal: Starting analysis process', {
-      mounted: mounted.current,
+    console.log('SmartListingModal: Starting analysis', {
+      mounted: isMounted.current,
       locked: analysisLock.current,
       filesCount: files.length
     });
 
-    if (!mounted.current) {
-      console.log('SmartListingModal: Component not mounted, aborting');
+    if (!isMounted.current) {
+      console.log('SmartListingModal: Component unmounted, skipping analysis');
       return;
     }
 
@@ -65,20 +72,16 @@ export default function SmartListingModal({
       setError(null);
       setProgress(10);
 
-      console.log('SmartListingModal: Calling generateSmartListing');
-
-      // Progress updates
-      const progressInterval = setInterval(() => {
-        setProgress(prev => Math.min(prev + 10, 90));
+      // Setup progress updates
+      progressInterval.current = setInterval(() => {
+        if (isMounted.current) {
+          setProgress(prev => Math.min(prev + 10, 90));
+        }
       }, 2000);
 
       const analysis = await generateSmartListing(files);
 
-      clearInterval(progressInterval);
-
-      console.log('SmartListingModal: Analysis completed successfully');
-
-      if (!mounted.current) {
+      if (!isMounted.current) {
         console.log('SmartListingModal: Component unmounted during analysis');
         return;
       }
@@ -93,46 +96,44 @@ export default function SmartListingModal({
       });
     } catch (err) {
       console.error('SmartListingModal: Analysis error:', err);
-      if (!mounted.current) return;
-
-      setError(err instanceof Error ? err.message : 'Analysis failed');
-
-      toast({
-        title: "Analysis failed",
-        description: err instanceof Error ? err.message : 'Could not analyze product details',
-        variant: "destructive",
-      });
-    } finally {
-      if (mounted.current) {
-        setLoading(false);
-        setProgress(0);
+      if (isMounted.current) {
+        setError(err instanceof Error ? err.message : 'Analysis failed');
+        toast({
+          title: "Analysis failed",
+          description: err instanceof Error ? err.message : 'Could not analyze product details',
+          variant: "destructive",
+        });
       }
-      analysisLock.current = false;
+    } finally {
+      cleanup();
     }
-  }, [files, onAnalysisComplete, onOpenChange, toast]);
+  }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
 
+  // Handle modal open/close and initial analysis
   useEffect(() => {
-    console.log('SmartListingModal: Modal state changed', { 
-      open, 
+    console.log('SmartListingModal: Effect triggered', {
+      open,
       filesCount: files.length,
       isLocked: analysisLock.current,
-      isLoading: loading 
+      isLoading: loading
     });
 
     if (open && files.length > 0 && !analysisLock.current && !loading) {
       console.log('SmartListingModal: Scheduling analysis');
       analysisTimeout.current = setTimeout(() => {
-        console.log('SmartListingModal: Analysis timeout triggered');
-        runAnalysis();
+        if (isMounted.current) {
+          runAnalysis();
+        }
       }, 1000);
     }
 
     return () => {
-      mounted.current = false;
+      console.log('SmartListingModal: Effect cleanup');
       cleanup();
     };
   }, [open, files, runAnalysis, cleanup, loading]);
 
+  // Handle empty files case
   useEffect(() => {
     if (open && files.length === 0) {
       console.log('SmartListingModal: No files provided');
@@ -145,6 +146,15 @@ export default function SmartListingModal({
     }
   }, [open, files.length, onOpenChange, toast]);
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      console.log('SmartListingModal: Component unmounting');
+      isMounted.current = false;
+      cleanup();
+    };
+  }, [cleanup]);
+
   const dialogDescription = loading 
     ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''}`
     : error 
@@ -152,13 +162,16 @@ export default function SmartListingModal({
     : "AI-powered analysis for optimizing your product listings";
 
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      console.log('SmartListingModal: Dialog state changing to:', newOpen);
-      if (!newOpen) {
-        cleanup();
-      }
-      onOpenChange(newOpen);
-    }}>
+    <Dialog 
+      open={open} 
+      onOpenChange={(newOpen) => {
+        console.log('SmartListingModal: Dialog state changing to:', newOpen);
+        if (!newOpen) {
+          cleanup();
+        }
+        onOpenChange(newOpen);
+      }}
+    >
       <DialogContent 
         className="max-w-2xl"
         aria-describedby="dialog-description"

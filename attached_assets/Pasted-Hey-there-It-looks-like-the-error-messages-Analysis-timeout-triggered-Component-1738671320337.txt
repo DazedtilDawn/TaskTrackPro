@@ -1,0 +1,65 @@
+Hey there! It looks like the error messages—
+
+> **"Analysis timeout triggered"**  
+> **"Component not mounted, aborting"**
+
+—are coming from your Smart Listing modal’s analysis flow. In short, the analysis process is still running (or timing out) even though the modal (and its component) has been unmounted or closed. When that happens, the async code later tries to update state (like setting progress or loading flags) but finds that the component isn’t mounted anymore, so it “aborts” the update.
+
+### What’s Likely Happening
+
+1. **Async Analysis Outlives the Component:**  
+   Your `handleAnalyze` function kicks off an async process (which includes file validation, calling the Gemini API, and updating progress). If the modal is closed (or the component unmounts) while that process is still running, there’s a chance that once the async work completes (or times out), it attempts to update state in a component that no longer exists.
+
+2. **Timeout/Cancellation Mechanism:**  
+   You’re logging that an “analysis timeout” was triggered. This likely indicates that after a certain period, you’re aborting the operation. When combined with the component unmounting, your code checks a mounted flag (or similar mechanism) and logs “Component not mounted, aborting” to prevent any further state updates.
+
+### How to Fix It
+
+The key is to ensure that the async analysis function doesn’t try to update state if the component has unmounted. Here are a couple of ways to handle it:
+
+- **Add an “isMounted” Flag:**  
+  In your component, use a flag that you set to `true` when the component is mounted and set to `false` in a cleanup function. Then, before every state update inside your async function, check this flag. For example:
+
+  ```tsx
+  useEffect(() => {
+    let isMounted = true;
+
+    // You can wrap your handleAnalyze call so that it only updates if isMounted is true.
+    if (open && files.length > 0 && !loading && !analysisInProgress.current) {
+      handleAnalyze().catch(err => {
+        if (!isMounted) {
+          console.log("Component unmounted, aborting update.");
+        } else {
+          console.error(err);
+        }
+      });
+    }
+
+    return () => {
+      isMounted = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, [open, files, handleAnalyze, loading]);
+  ```
+
+- **Ensure Proper Abortion:**  
+  You’re already using an `AbortController` to cancel the fetch, which is great. Just make sure that any subsequent state updates (like `setLoading(false)` or `setProgress(0)`) are also guarded by a mounted check or skipped if the modal is closed.
+
+### Next Steps (Integration Plan)
+
+1. **Implementation:**  
+   - Introduce an `isMounted` flag in your modal’s main `useEffect` and set it to `false` in the cleanup.
+   - In `handleAnalyze` (and any other async callbacks), wrap your state-updating calls with a check on that flag.
+
+2. **Testing:**  
+   - Manually test by opening the modal, starting an analysis, and then closing the modal before the analysis completes.
+   - Verify that no warnings or errors are thrown about state updates on an unmounted component.
+   - Test edge cases where analysis times out to make sure your abort logic still works.
+
+3. **Deployment:**  
+   - Roll these changes out in a staging environment first.
+   - Monitor for any issues in the analysis process and check the logs to ensure that the “Component not mounted” log no longer appears unexpectedly.
+
+I hope this helps clear things up! Let me know if you need more details or if you want to brainstorm any further improvements. Cheers!

@@ -1,8 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { apiRequest } from "./queryClient";
 
-let genAI: GoogleGenerativeAI | null = null;
-
 interface SmartListingAnalysis {
   title: string;
   description: string;
@@ -41,6 +39,8 @@ interface AIAnalysisResult {
   improvementAreas: string[];
 }
 
+let genAI: GoogleGenerativeAI | null = null;
+
 async function initializeGemini() {
   if (!genAI) {
     const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
@@ -56,7 +56,7 @@ async function compressImage(file: File): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
-      URL.revokeObjectURL(img.src); // Clean up
+      URL.revokeObjectURL(img.src);
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -68,7 +68,7 @@ async function compressImage(file: File): Promise<Blob> {
       // Calculate new dimensions while maintaining aspect ratio
       let width = img.width;
       let height = img.height;
-      const MAX_DIMENSION = 800; // Reduced from 1200 to 800 for smaller file size
+      const MAX_DIMENSION = 600; // Further reduced for smaller file size
 
       if (width > height && width > MAX_DIMENSION) {
         height = Math.round((height * MAX_DIMENSION) / width);
@@ -81,7 +81,6 @@ async function compressImage(file: File): Promise<Blob> {
       canvas.width = width;
       canvas.height = height;
 
-      // Use better image smoothing
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
@@ -100,7 +99,7 @@ async function compressImage(file: File): Promise<Blob> {
           resolve(blob);
         },
         'image/jpeg',
-        0.7  // Reduced quality to 70% for smaller file size
+        0.6 // Further reduced quality for smaller file size
       );
     };
 
@@ -143,7 +142,7 @@ export async function generateSmartListing(
 
   try {
     console.log('Processing image files...');
-    // Process one image at a time to reduce memory usage
+    // Process one image at a time
     const processedImages: string[] = [];
 
     for (const file of files) {
@@ -155,16 +154,19 @@ export async function generateSmartListing(
         throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
       }
 
-      // Add delay between processing each image
-      if (processedImages.length > 0) {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
       const base64Data = await fileToBase64(file);
       processedImages.push(base64Data);
+
+      // Add delay between processing images
+      if (files.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
     }
 
     console.log('Images processed successfully');
+
+    // Add delay before making the API request
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
     const response = await apiRequest(
       "POST",
@@ -173,7 +175,6 @@ export async function generateSmartListing(
     );
 
     const analysis = await response.json();
-    console.log('Analysis completed:', analysis);
 
     if (!analysis || typeof analysis.error === 'string') {
       throw new Error(analysis.error || 'Failed to analyze images');

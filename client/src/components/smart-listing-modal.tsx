@@ -24,23 +24,42 @@ export default function SmartListingModal({
   const { toast } = useToast();
   const analysisInProgress = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const cleanupRequest = useCallback(() => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    if (retryTimeoutRef.current) {
+      clearTimeout(retryTimeoutRef.current);
+      retryTimeoutRef.current = null;
+    }
+    setLoading(false);
+    analysisInProgress.current = false;
+    setProgress(0);
+  }, []);
 
   const handleAnalyze = useCallback(async () => {
-    if (!files.length || analysisInProgress.current) return;
+    if (!files.length || analysisInProgress.current) {
+      return;
+    }
 
-    // Create new AbortController for this analysis
+    cleanupRequest();
+    analysisInProgress.current = true;
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
     try {
-      analysisInProgress.current = true;
       setLoading(true);
       setError(null);
       setProgress(0);
 
-      // Validate files in a non-blocking way
-      await new Promise(resolve => setTimeout(resolve, 0));
+      // Initial delay to prevent rapid retries
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (signal.aborted) throw new Error('Analysis cancelled');
 
+      // Validate files
       const validationErrors: string[] = [];
       const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB total
       let totalSize = 0;
@@ -49,28 +68,16 @@ export default function SmartListingModal({
         if (signal.aborted) throw new Error('Analysis cancelled');
 
         const file = files[i];
-        // Check file type
         if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
           validationErrors.push(`File ${i + 1}: Invalid file type. Only JPEG, PNG, and WebP are supported.`);
         }
-
-        // Check individual file size
         if (file.size > 4 * 1024 * 1024) {
           validationErrors.push(`File ${i + 1}: File size exceeds 4MB limit.`);
         }
-
         totalSize += file.size;
-
-        // Update progress for validation phase
-        setProgress((i + 1) * 20 / files.length); // First 20% for validation
-
-        // Yield to main thread periodically
-        if (i % 2 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+        setProgress((i + 1) * 20 / files.length);
       }
 
-      if (signal.aborted) throw new Error('Analysis cancelled');
-
-      // Check total size
       if (totalSize > MAX_TOTAL_SIZE) {
         validationErrors.push(`Total file size exceeds 10MB limit.`);
       }
@@ -79,24 +86,16 @@ export default function SmartListingModal({
         throw new Error(`Validation errors:\n${validationErrors.join('\n')}`);
       }
 
-      console.log('Starting analysis with files:', files.length);
+      if (signal.aborted) throw new Error('Analysis cancelled');
+
       toast({
         title: "Analysis started",
         description: `Analyzing ${files.length} image${files.length > 1 ? 's' : ''}...`,
       });
 
-      // Add debounce delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
       const analysis = await generateSmartListing(files);
 
       if (signal.aborted) throw new Error('Analysis cancelled');
-
-      console.log('Analysis completed:', analysis);
-
-      if (!analysis) {
-        throw new Error('Analysis failed to generate results');
-      }
 
       setProgress(100);
       onAnalysisComplete(analysis);
@@ -127,12 +126,9 @@ export default function SmartListingModal({
         });
       }
     } finally {
-      setLoading(false);
-      analysisInProgress.current = false;
-      abortControllerRef.current = null;
-      setProgress(0);
+      cleanupRequest();
     }
-  }, [files, onAnalysisComplete, onOpenChange, toast]);
+  }, [files, onAnalysisComplete, onOpenChange, toast, cleanupRequest]);
 
   useEffect(() => {
     // Only start analysis if modal is open and we have files
@@ -142,13 +138,9 @@ export default function SmartListingModal({
 
     // Cleanup function
     return () => {
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      setLoading(false);
-      analysisInProgress.current = false;
+      cleanupRequest();
     };
-  }, [open, files, handleAnalyze, loading]);
+  }, [open, files, handleAnalyze, loading, cleanupRequest]);
 
   // Close modal if there are no files
   useEffect(() => {
@@ -163,10 +155,8 @@ export default function SmartListingModal({
   }, [open, files.length, onOpenChange, toast]);
 
   const handleCancel = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-    }
-  }, []);
+    cleanupRequest();
+  }, [cleanupRequest]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

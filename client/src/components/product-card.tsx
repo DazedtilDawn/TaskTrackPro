@@ -1,6 +1,6 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart } from "lucide-react";
+import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart, CheckCircle2 } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -35,6 +35,38 @@ interface AIAnalysis {
 
 export default function ProductCard({ product, onEdit, inWatchlist }: ProductCardProps) {
   const { toast } = useToast();
+
+  const markAsSold = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/orders", {
+        productId: product.id
+      });
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      // Force refetch to update the UI
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/orders"] })
+      ]);
+
+      toast({
+        title: "Product marked as sold",
+        description: product.name,
+      });
+    } catch (error) {
+      console.error('Error marking product as sold:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark product as sold",
+        variant: "destructive",
+      });
+    }
+  };
 
   const toggleWatchlist = async () => {
     try {
@@ -266,6 +298,14 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
             className="hover:scale-105 transition-transform"
           >
             <Trash2 className="h-4 w-4" />
+          </Button>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={markAsSold}
+            className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+          >
+            <CheckCircle2 className="h-4 w-4" />
           </Button>
         </div>
         <Button

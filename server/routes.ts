@@ -246,6 +246,68 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Mark product as sold endpoint
+  app.post("/api/orders", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const { productId } = req.body;
+      if (!productId) {
+        return res.status(400).json({ error: "Product ID is required" });
+      }
+
+      // Retrieve the product details
+      const [product] = await db.select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Create an order record
+      const [order] = await db.insert(orders)
+        .values({
+          userId: req.user!.id,
+          status: "completed",
+          total: product.price,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      // Create order item
+      await db.insert(orderItems)
+        .values({
+          orderId: order.id,
+          productId: product.id,
+          price: product.price,
+          quantity: 1,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+
+      // Remove product from inventory
+      await db.delete(products)
+        .where(eq(products.id, productId));
+
+      // Remove from any watchlists
+      await db.delete(watchlist)
+        .where(eq(watchlist.productId, productId));
+
+      res.status(201).json({
+        message: "Product marked as sold",
+        order,
+      });
+    } catch (error) {
+      console.error('Error marking product as sold:', error);
+      res.status(500).json({
+        error: "Failed to mark product as sold",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
 
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {

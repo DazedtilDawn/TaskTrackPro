@@ -24,7 +24,7 @@ export default function Watchlist() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
-  const [view, setView] = useState<"grid" | "list">("grid");
+  const [view, setView] = useState<"grid" | "list" | "table">("grid");
 
   const { data: watchlist = [], isLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
@@ -86,10 +86,22 @@ export default function Watchlist() {
             </div>
           ) : (
             <>
+              {view === "table" && (
+                <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
+                  <div className="w-12">Image</div>
+                  <div className="flex-1">Product Details</div>
+                  <div className="w-32">Price</div>
+                  <div className="w-24">Condition</div>
+                  <div className="w-32">Market Status</div>
+                  <div className="w-40">Actions</div>
+                </div>
+              )}
               <div className={cn(
                 view === "grid" 
                   ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : "space-y-4"
+                  : view === "list"
+                    ? "space-y-4"
+                    : "divide-y"
               )}>
                 {filteredWatchlist.map((item) => (
                   <ProductCard

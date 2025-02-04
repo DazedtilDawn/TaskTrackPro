@@ -20,7 +20,7 @@ interface ProductCardProps {
   product: SelectProduct;
   onEdit: (product: SelectProduct) => void;
   inWatchlist?: boolean;
-  view?: "grid" | "list";
+  view?: "grid" | "list" | "table";
 }
 
 interface AIAnalysis {
@@ -156,6 +156,124 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
   const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
   const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
+
+  if (view === "table") {
+    return (
+      <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group">
+        {/* Thumbnail */}
+        <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
+              <Box className="w-6 h-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
+        {/* Name & Description */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium truncate">{product.name}</h3>
+          <p className="text-sm text-muted-foreground truncate">
+            {product.description}
+          </p>
+        </div>
+
+        {/* Price Info */}
+        <div className="flex-shrink-0 w-32">
+          <div className="text-sm font-medium">
+            ${Number(product.price).toFixed(2)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {inWatchlist ? "Recommended" : "Selling Price"}
+          </div>
+        </div>
+
+        {/* Condition */}
+        {product.condition && (
+          <div className="flex-shrink-0 w-24">
+            <span className="text-sm capitalize">
+              {product.condition.replace(/_/g, ' ')}
+            </span>
+          </div>
+        )}
+
+        {/* Market Analysis */}
+        {hasAnalysis && (
+          <div className="flex-shrink-0 w-32">
+            <div 
+              className={cn(
+                "text-xs px-2 py-1 rounded-full inline-flex items-center gap-1",
+                isUnderpriced && "bg-yellow-500/10 text-yellow-700",
+                isOverpriced && "bg-red-500/10 text-red-700",
+                isPricedRight && "bg-green-500/10 text-green-700"
+              )}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {isUnderpriced ? 'Underpriced' :
+                isOverpriced ? 'Overpriced' :
+                  'Optimal Price'}
+            </div>
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-1">
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => onEdit(product)}
+              className="h-8 w-8 hover:scale-105 transition-transform"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={deleteProduct}
+              className="h-8 w-8 hover:scale-105 transition-transform"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+            {!inWatchlist && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={markAsSold}
+                className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+              </Button>
+            )}
+            {inWatchlist && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setShowConvertDialog(true)}
+                className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                title="Convert to Inventory"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            )}
+            <Button
+              size="icon"
+              variant={inWatchlist ? "secondary" : "ghost"}
+              onClick={toggleWatchlist}
+              className="h-8 w-8 hover:scale-105 transition-transform"
+            >
+              <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Card className={cn(

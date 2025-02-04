@@ -17,6 +17,20 @@ interface ProductCardProps {
   inWatchlist?: boolean;
 }
 
+interface AIAnalysis {
+  category: string;
+  marketAnalysis: {
+    demandScore: number;
+    competitionLevel: string;
+    priceSuggestion: {
+      min: number;
+      max: number;
+    };
+  };
+  suggestions: string[];
+  seoKeywords: string[];
+}
+
 export default function ProductCard({ product, onEdit, inWatchlist }: ProductCardProps) {
   const { toast } = useToast();
 
@@ -58,10 +72,11 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
     }
   };
 
-  const hasAnalysis = product.aiAnalysis && Object.keys(product.aiAnalysis).length > 0;
+  const aiAnalysis = product.aiAnalysis as AIAnalysis | undefined;
+  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
   const currentPrice = Number(product.price) || 0;
-  const isUnderpriced = hasAnalysis && currentPrice < product.aiAnalysis?.marketAnalysis?.priceSuggestion?.min;
-  const isOverpriced = hasAnalysis && currentPrice > product.aiAnalysis?.marketAnalysis?.priceSuggestion?.max;
+  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
+  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
   const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
 
   return (
@@ -76,7 +91,7 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
           <h3 className="font-semibold text-lg">{product.name}</h3>
-          {hasAnalysis && (
+          {hasAnalysis && aiAnalysis && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -87,19 +102,19 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <h4 className="font-medium text-lg">AI Analysis</h4>
-                    <span className="text-sm text-muted-foreground">{product.aiAnalysis.category}</span>
+                    <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
                   </div>
 
                   <div className="p-4 bg-secondary/20 rounded-lg space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium">Market Demand</span>
-                      <span className="text-sm font-medium">{product.aiAnalysis.marketAnalysis.demandScore}/100</span>
+                      <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
                     </div>
-                    <Progress value={product.aiAnalysis.marketAnalysis.demandScore} className="h-2" />
+                    <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
 
                     <div className="flex items-center gap-2 mt-2">
                       <BarChart className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">Competition: {product.aiAnalysis.marketAnalysis.competitionLevel}</span>
+                      <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
                     </div>
                   </div>
 
@@ -112,7 +127,9 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
                     <div className="pl-6 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="text-sm text-muted-foreground">Suggested Range:</span>
-                        <span className="font-medium">${product.aiAnalysis.marketAnalysis.priceSuggestion.min} - ${product.aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                        <span className="font-medium">
+                          ${aiAnalysis.marketAnalysis.priceSuggestion.min} - ${aiAnalysis.marketAnalysis.priceSuggestion.max}
+                        </span>
                       </div>
 
                       <div className={`text-sm px-3 py-1.5 rounded-md ${
@@ -133,7 +150,7 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
                       <h5 className="font-medium">Top Suggestions</h5>
                     </div>
                     <ul className="space-y-1.5 pl-6">
-                      {product.aiAnalysis.suggestions.slice(0, 3).map((suggestion, index) => (
+                      {aiAnalysis.suggestions.slice(0, 3).map((suggestion: string, index: number) => (
                         <li key={index} className="text-sm text-muted-foreground list-disc">{suggestion}</li>
                       ))}
                     </ul>
@@ -145,7 +162,7 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
                       <h5 className="font-medium">SEO Keywords</h5>
                     </div>
                     <div className="mt-2 flex flex-wrap gap-1">
-                      {product.aiAnalysis.seoKeywords.map((keyword, index) => (
+                      {aiAnalysis.seoKeywords.map((keyword: string, index: number) => (
                         <span
                           key={index}
                           className="inline-flex items-center px-2 py-1 rounded-md bg-primary/10 text-xs font-medium"

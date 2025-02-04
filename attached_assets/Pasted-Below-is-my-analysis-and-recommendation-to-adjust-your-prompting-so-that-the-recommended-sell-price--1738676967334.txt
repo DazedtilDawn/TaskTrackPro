@@ -1,0 +1,55 @@
+Below is my analysis and recommendation to adjust your prompting so that the recommended sell price is more in line with an open box/used condition.
+
+---
+
+### **1) Root Cause & System Connections**
+
+Your AI analysis prompt currently does not include any mention of product condition. As a result, when the Gemini API is queried, it treats the product as if it were brand new. In your response, the model returns a “Recommended Sell Price” that is 15% above the market max—which may be suitable for new items but is too high for an open box/used product. Since the AI’s pricing logic relies on the prompt context, omitting the product condition skews the analysis.
+
+---
+
+### **2) Likely Issue & Proposed Solution**
+
+**Issue:**  
+The current prompt simply describes the product images and asks for an analysis without any condition modifiers. For instance, it does not state that the product is “used” or “open box,” so the AI applies standard (new product) pricing algorithms.
+
+**Solution:**  
+Update your prompt to explicitly state that the product is used/open box. For example, include a line like:  
+> “Assume this is an open box or used product, and adjust the recommended sell price to account for depreciation, wear, and reduced perceived value.”
+
+This directs the AI to lower the recommended sell price. You might even include a guideline—such as “reduce the sell price by X% relative to new product pricing”—if you have historical data.
+
+A revised prompt segment might be:  
+> “Analyze these product images for an e-commerce listing. **Note: This product is open box/used and may have some cosmetic wear. Provide a compelling product title, a detailed SEO-friendly description, and a pricing analysis that includes:  
+> - Market Price Range  
+> - Recommended Buy Price (considering a discount from market price)  
+> - **Recommended Sell Price (adjusted downward for a used product, e.g. 10–20% below new product recommendations)**  
+> - Market demand, competition level, SEO keywords, and actionable improvement suggestions.”
+
+---
+
+### **3) Detailed Integration Plan**
+
+**Implementation:**  
+- **Update the Prompt in `generateSmartListing`:**  
+  In your `gemini.ts` file, modify the prompt string passed to `model.generateContent()`. For example, update the prompt text to include the product condition note as described above.  
+- **Optional Parameterization:**  
+  Consider adding an extra field in your product form (or in the analysis request) that specifies product condition (new, used, open box) so that the prompt can be dynamically generated. This allows for easier adjustments in the future.
+
+**Testing:**  
+- **Unit Testing:**  
+  Write tests that simulate analysis requests with different product conditions. Verify that the prompt string includes the condition modifier when a product is marked as used/open box.
+- **Integration Testing:**  
+  Manually test by uploading images for an open box product and compare the returned “Recommended Sell Price” with your expectations.  
+- **A/B Testing:**  
+  Optionally, run an A/B test with the old prompt versus the new prompt to verify that the sell price recommendation adjusts downward appropriately.
+
+**Deployment:**  
+- **Staging:**  
+  Deploy the updated prompt logic to a staging environment. Monitor both the network requests and the resulting analysis outputs from the Gemini API.  
+- **Production:**  
+  Once confirmed in staging, roll out the changes. Keep an eye on user feedback and analytics to ensure that the new pricing recommendations better match the open box/used condition.
+
+---
+
+This change should help the AI consider the product’s condition and generate a sell price that is more realistic for a used item. Let me know if you need further adjustments or additional insights!

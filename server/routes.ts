@@ -191,6 +191,24 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  app.delete("/api/watchlist/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    try {
+      await db.delete(watchlist)
+        .where(
+          and(
+            eq(watchlist.productId, parseInt(req.params.id)),
+            eq(watchlist.userId, req.user!.id)
+          )
+        );
+      res.sendStatus(200);
+    } catch (error) {
+      console.error('Error removing from watchlist:', error);
+      res.status(500).json({ error: "Failed to remove item from watchlist" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }

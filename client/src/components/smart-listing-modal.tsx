@@ -22,79 +22,43 @@ export default function SmartListingModal({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const { toast } = useToast();
-  const analysisInProgress = useRef(false);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const cleanupAnalysis = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
+  // Refs for managing analysis state
+  const mounted = useRef(true);
+  const analysisLock = useRef<boolean>(false);
+  const abortController = useRef<AbortController | null>(null);
+  const analysisTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup function
+  const cleanup = useCallback(() => {
+    if (analysisTimeout.current) {
+      clearTimeout(analysisTimeout.current);
+      analysisTimeout.current = null;
     }
-    if (analysisTimeoutRef.current) {
-      clearTimeout(analysisTimeoutRef.current);
-      analysisTimeoutRef.current = null;
+    if (abortController.current) {
+      abortController.current.abort();
+      abortController.current = null;
     }
-    analysisInProgress.current = false;
-    setLoading(false);
-    setProgress(0);
+    analysisLock.current = false;
   }, []);
 
-  const handleAnalyze = useCallback(async () => {
-    if (!files.length || analysisInProgress.current) {
-      return;
-    }
+  // Analysis function
+  const runAnalysis = useCallback(async () => {
+    // Prevent concurrent analysis
+    if (analysisLock.current || !mounted.current) return;
 
     try {
-      // Cleanup any existing analysis
-      cleanupAnalysis();
-
-      // Set up new analysis state
-      analysisInProgress.current = true;
-      abortControllerRef.current = new AbortController();
-      const signal = abortControllerRef.current.signal;
+      cleanup();
+      analysisLock.current = true;
+      abortController.current = new AbortController();
 
       setLoading(true);
       setError(null);
       setProgress(0);
 
-      // Validate files
-      const validationErrors: string[] = [];
-      const MAX_TOTAL_SIZE = 10 * 1024 * 1024;
-      let totalSize = 0;
-
-      for (let i = 0; i < files.length; i++) {
-        if (signal.aborted) return;
-
-        const file = files[i];
-        if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
-          validationErrors.push(`File ${i + 1}: Invalid file type. Only JPEG, PNG, and WebP are supported.`);
-        }
-        if (file.size > 4 * 1024 * 1024) {
-          validationErrors.push(`File ${i + 1}: File size exceeds 4MB limit.`);
-        }
-        totalSize += file.size;
-        setProgress((i + 1) * 20 / files.length);
-      }
-
-      if (totalSize > MAX_TOTAL_SIZE) {
-        validationErrors.push(`Total file size exceeds 10MB limit.`);
-      }
-
-      if (validationErrors.length > 0) {
-        throw new Error(`Validation errors:\n${validationErrors.join('\n')}`);
-      }
-
-      if (signal.aborted) return;
-
-      toast({
-        title: "Analysis started",
-        description: `Analyzing ${files.length} image${files.length > 1 ? 's' : ''}...`,
-      });
-
       const analysis = await generateSmartListing(files);
 
-      if (signal.aborted) return;
+      if (!mounted.current) return;
 
       setProgress(100);
       onAnalysisComplete(analysis);
@@ -102,37 +66,39 @@ export default function SmartListingModal({
 
       toast({
         title: "Analysis complete",
-        description: "Product details have been analyzed successfully",
+        description: "Product details have been analyzed successfully"
       });
     } catch (err) {
-      if (abortControllerRef.current?.signal.aborted) {
-        setError('Analysis was cancelled');
-      } else {
-        console.error('Analysis error:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to analyze';
-        setError(errorMessage);
+      if (!mounted.current) return;
 
-        toast({
-          title: "Analysis failed",
-          description: errorMessage,
-          variant: "destructive",
-          duration: 5000,
-        });
-      }
+      console.error('Analysis error:', err);
+      setError(err instanceof Error ? err.message : 'Analysis failed');
+
+      toast({
+        title: "Analysis failed",
+        description: err instanceof Error ? err.message : 'Could not analyze product details',
+        variant: "destructive",
+      });
     } finally {
-      cleanupAnalysis();
+      if (mounted.current) {
+        setLoading(false);
+        setProgress(0);
+      }
+      analysisLock.current = false;
     }
-  }, [files, onAnalysisComplete, onOpenChange, toast, cleanupAnalysis]);
+  }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
 
-  // Start analysis when modal opens
+  // Effect to start analysis
   useEffect(() => {
-    if (open && files.length > 0 && !loading && !analysisInProgress.current) {
-      // Add delay before starting analysis to prevent rapid retries
-      analysisTimeoutRef.current = setTimeout(handleAnalyze, 500);
+    if (open && files.length > 0 && !analysisLock.current) {
+      analysisTimeout.current = setTimeout(runAnalysis, 1000);
     }
 
-    return cleanupAnalysis;
-  }, [open, files, handleAnalyze, loading, cleanupAnalysis]);
+    return () => {
+      mounted.current = false;
+      cleanup();
+    };
+  }, [open, files, runAnalysis, cleanup]);
 
   // Handle no files case
   useEffect(() => {
@@ -149,7 +115,7 @@ export default function SmartListingModal({
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
       if (!newOpen) {
-        cleanupAnalysis();
+        cleanup();
       }
       onOpenChange(newOpen);
     }}>
@@ -183,8 +149,11 @@ export default function SmartListingModal({
               <p className="text-destructive whitespace-pre-line">{error}</p>
               <Button
                 variant="outline"
-                onClick={handleAnalyze}
-                disabled={analysisInProgress.current}
+                onClick={() => {
+                  if (!analysisLock.current) {
+                    runAnalysis();
+                  }
+                }}
               >
                 Retry Analysis
               </Button>

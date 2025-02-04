@@ -64,7 +64,7 @@ export async function generateSmartListing(
 
   try {
     console.log('generateSmartListing: Processing image files...');
-    const processedImages: string[] = [];
+    const formData = new FormData();
 
     for (const file of files) {
       console.log(`Processing file: ${file.name}, type: ${file.type}, size: ${file.size}`);
@@ -78,10 +78,9 @@ export async function generateSmartListing(
         throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
       }
 
-      console.log(`Converting ${file.name} to base64...`);
-      const base64Data = await fileToBase64(file);
-      console.log(`Successfully converted ${file.name} to base64 (${base64Data.length} chars)`);
-      processedImages.push(base64Data);
+      // Compress the image before uploading
+      const compressedBlob = await compressImage(file);
+      formData.append('images', compressedBlob, file.name);
 
       if (files.length > 1) {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -101,7 +100,7 @@ export async function generateSmartListing(
         const response = await apiRequest(
           "POST",
           "/api/analyze-images",
-          { images: processedImages }
+          formData
         );
 
         console.log('generateSmartListing: Received response:', {

@@ -11,6 +11,7 @@ import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import ProductForm from "@/components/product-form";
 import { cn } from "@/lib/utils";
+import { useViewPreference } from "@/hooks/use-view-preference";
 
 interface WatchlistItem {
   id: number;
@@ -24,7 +25,7 @@ export default function Watchlist() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
-  const [view, setView] = useState<"grid" | "list" | "table">("grid");
+  const [view, setView] = useViewPreference();
 
   const { data: watchlist = [], isLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],

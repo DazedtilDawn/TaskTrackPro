@@ -57,21 +57,30 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const onSubmit = async (data: ProductFormData) => {
     try {
       // Convert number values to strings for API
-      const productData: InsertProduct = {
-        name: data.name,
-        description: data.description || null,
-        sku: data.sku || null,
-        price: data.price ? String(data.price) : null,
-        quantity: data.quantity,
-        imageUrl: imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null,
-        aiAnalysis: data.aiAnalysis || null,
-        ebayPrice: data.ebayPrice ? String(data.ebayPrice) : null,
-      };
+      const formData = new FormData();
+
+      // Add all form fields
+      formData.append('name', data.name);
+      formData.append('description', data.description || '');
+      formData.append('sku', data.sku || '');
+      formData.append('price', data.price ? String(data.price) : '');
+      formData.append('quantity', String(data.quantity));
+      if (data.aiAnalysis) {
+        formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
+      }
+      if (data.ebayPrice) {
+        formData.append('ebayPrice', String(data.ebayPrice));
+      }
+
+      // Add image file if present
+      if (imageFiles.length > 0) {
+        formData.append('image', imageFiles[0]);
+      }
 
       if (product) {
-        await apiRequest("PATCH", `/api/products/${product.id}`, productData);
+        await apiRequest("PATCH", `/api/products/${product.id}`, formData);
       } else {
-        await apiRequest("POST", "/api/products", productData);
+        await apiRequest("POST", "/api/products", formData);
       }
 
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });

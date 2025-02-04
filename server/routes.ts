@@ -91,13 +91,17 @@ export function registerRoutes(app: Express): Server {
 
     const analyzeRequest = async () => {
       try {
+        console.log('Starting image analysis request');
         const { images } = req.body;
         if (!images || !Array.isArray(images)) {
+          console.error('Invalid image data:', req.body);
           return res.status(400).json({ error: "Invalid image data provided" });
         }
 
+        console.log(`Processing ${images.length} images`);
         const apiKey = process.env.GEMINI_API_KEY;
         if (!apiKey) {
+          console.error('Missing Gemini API key');
           return res.status(500).json({ error: "Gemini API key not configured" });
         }
 
@@ -112,6 +116,7 @@ export function registerRoutes(app: Express): Server {
           }
         });
 
+        console.log('Sending request to Gemini API');
         const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 1. A compelling product title
 2. A detailed, SEO-friendly product description
@@ -139,13 +144,14 @@ Format your response as a valid JSON object with the following structure:
   "seoKeywords": string[],
   "suggestions": string[]
 }`;
-
         const result = await model.generateContent([prompt, ...images]);
         const response = await result.response;
         const text = await response.text();
+        console.log('Received response from Gemini');
 
         try {
           const analysis = JSON.parse(text.replace(/```json\n|\n```/g, ''));
+          console.log('Successfully parsed analysis response');
           res.json(analysis);
         } catch (parseError) {
           console.error('Failed to parse Gemini response:', text);
@@ -156,7 +162,7 @@ Format your response as a valid JSON object with the following structure:
       } catch (error) {
         console.error('Analysis error:', error);
         if (error instanceof Error && error.message.includes('429')) {
-          // Add back to queue for retry
+          console.log('Rate limit hit, queueing for retry');
           requestQueue.push(analyzeRequest);
           return res.status(429).json({
             error: "Rate limit exceeded. Request queued for retry."

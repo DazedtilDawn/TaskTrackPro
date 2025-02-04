@@ -159,7 +159,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
   if (view === "table") {
     return (
-      <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group">
+      <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
         {/* Thumbnail */}
         <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
           {product.imageUrl ? (
@@ -222,12 +222,15 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         )}
 
         {/* Actions */}
-        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex-shrink-0 invisible group-hover:visible transition-[visibility] duration-100 z-10">
           <div className="flex items-center gap-1">
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => onEdit(product)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit(product);
+              }}
               className="h-8 w-8 hover:scale-105 transition-transform"
             >
               <Edit className="h-4 w-4" />
@@ -235,7 +238,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             <Button
               size="icon"
               variant="ghost"
-              onClick={deleteProduct}
+              onClick={(e) => {
+                e.stopPropagation();
+                deleteProduct();
+              }}
               className="h-8 w-8 hover:scale-105 transition-transform"
             >
               <Trash2 className="h-4 w-4" />
@@ -244,7 +250,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={markAsSold}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  markAsSold();
+                }}
                 className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
               >
                 <CheckCircle2 className="h-4 w-4" />
@@ -254,7 +263,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               <Button
                 size="icon"
                 variant="ghost"
-                onClick={() => setShowConvertDialog(true)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowConvertDialog(true);
+                }}
                 className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                 title="Convert to Inventory"
               >
@@ -264,7 +276,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             <Button
               size="icon"
               variant={inWatchlist ? "secondary" : "ghost"}
-              onClick={toggleWatchlist}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleWatchlist();
+              }}
               className="h-8 w-8 hover:scale-105 transition-transform"
             >
               <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />

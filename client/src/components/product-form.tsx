@@ -9,11 +9,14 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
 import { getEbayPrice } from "@/lib/ebay";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, BarChart2, Tag, TrendingUp, BookMarked } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ImageUpload from "@/components/ui/image-upload";
 import SmartListingModal from "@/components/smart-listing-modal";
+import { Progress } from "@/components/ui/progress";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 // Schema for form validation
 const productFormSchema = z.object({
@@ -54,9 +57,16 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
     },
   });
 
+  const aiAnalysis = form.watch("aiAnalysis");
+  const currentPrice = form.watch("price") || 0;
+  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+
+  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
+  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
+  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
+
   const onSubmit = async (data: ProductFormData) => {
     try {
-      // Convert number values to strings for API
       const formData = new FormData();
 
       // Add all form fields
@@ -165,11 +175,110 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div className="mb-6">
           <FormLabel>Product Images</FormLabel>
           <ImageUpload onImagesUploaded={handleImagesUploaded} />
         </div>
+
+        {hasAnalysis && (
+          <Card className={cn(
+            "p-6 mb-6 border-2",
+            isUnderpriced && "border-yellow-500/50",
+            isOverpriced && "border-red-500/50",
+            isPricedRight && "border-green-500/50"
+          )}>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between border-b pb-4">
+                <div className="flex items-center gap-2">
+                  <BookMarked className="h-5 w-5 text-primary" />
+                  <h3 className="font-semibold text-lg">AI Analysis Results</h3>
+                </div>
+                <div className={cn(
+                  "px-3 py-1 rounded-full text-sm font-medium",
+                  isUnderpriced && "bg-yellow-500/10 text-yellow-600",
+                  isOverpriced && "bg-red-500/10 text-red-600",
+                  isPricedRight && "bg-green-500/10 text-green-600"
+                )}>
+                  {isUnderpriced ? 'Consider Increasing Price' :
+                   isOverpriced ? 'Consider Reducing Price' :
+                   'Optimal Price Range'}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <BarChart2 className="h-4 w-4 text-primary" />
+                    <h4 className="font-medium">Market Analysis</h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <div className="flex justify-between text-sm mb-2">
+                        <span className="text-muted-foreground">Market Demand</span>
+                        <span className="font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
+                      </div>
+                      <Progress 
+                        value={aiAnalysis.marketAnalysis.demandScore} 
+                        className="h-2"
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Competition Level</span>
+                      <span className="font-medium">{aiAnalysis.marketAnalysis.competitionLevel}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-primary" />
+                    <h4 className="font-medium">Price Analysis</h4>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm text-muted-foreground">Suggested Range</span>
+                      <div className="flex items-baseline gap-2 mt-1">
+                        <span className="text-2xl font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
+                        <span className="text-muted-foreground">-</span>
+                        <span className="text-2xl font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                      </div>
+                    </div>
+
+                    {form.getValues("ebayPrice") && (
+                      <div>
+                        <span className="text-sm text-muted-foreground">Average eBay Price</span>
+                        <div className="text-lg font-medium mt-1">
+                          ${form.getValues("ebayPrice")}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  <h4 className="font-medium">Optimization Tips</h4>
+                </div>
+                <ul className="grid grid-cols-2 gap-3">
+                  {aiAnalysis.suggestions.slice(0, 4).map((suggestion: string, index: number) => (
+                    <li 
+                      key={index}
+                      className="text-sm text-muted-foreground p-3 bg-secondary/20 rounded-lg"
+                    >
+                      {suggestion}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </Card>
+        )}
 
         <FormField
           control={form.control}
@@ -221,6 +330,11 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                     {...field}
                     value={field.value ?? ''}
                     onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
+                    className={cn(
+                      isUnderpriced && "border-yellow-500 focus-visible:ring-yellow-500",
+                      isOverpriced && "border-red-500 focus-visible:ring-red-500",
+                      isPricedRight && "border-green-500 focus-visible:ring-green-500"
+                    )}
                   />
                 </FormControl>
               </FormItem>
@@ -250,7 +364,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             type="button"
             variant="outline"
             onClick={analyzeProductDetails}
-            disabled={isAnalyzing || imageFiles.length === 0}
+            disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
           >
             {isAnalyzing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Analyze Product
@@ -264,6 +378,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             </Button>
           </div>
         </div>
+
         <SmartListingModal
           open={showSmartListing}
           onOpenChange={setShowSmartListing}

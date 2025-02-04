@@ -30,6 +30,7 @@ export default function ConvertWatchlistDialog({
     handleSubmit,
     setValue,
     getValues,
+    reset,
     formState: { isSubmitting },
   } = useForm<ConvertWatchlistFormData>();
   const [isGenerating, setIsGenerating] = useState(false);
@@ -37,15 +38,27 @@ export default function ConvertWatchlistDialog({
   const generateRecommendation = async () => {
     setIsGenerating(true);
     try {
+      const buyPrice = Number(getValues("buyPrice"));
+      if (!buyPrice) {
+        throw new Error("Please enter a buy price first");
+      }
+
       const response = await apiRequest("POST", "/api/generate-sale-price", {
         productId: product.id,
-        buyPrice: Number(getValues("buyPrice")),
+        buyPrice,
         currentPrice: product.price,
         condition: product.condition,
         category: product.category,
       });
       const data = await response.json();
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Update the form with the recommended price
       setValue("recommendedSalePrice", data.recommendedSalePrice);
+
       toast({
         title: "Recommendation Generated",
         description: "The sale price has been recommended based on market data.",
@@ -66,18 +79,29 @@ export default function ConvertWatchlistDialog({
 
   const onSubmit = async (data: ConvertWatchlistFormData) => {
     try {
+      // Update the product with buy price and recommended sale price
       await apiRequest("PATCH", `/api/products/${product.id}`, {
         buyPrice: data.buyPrice,
-        price: data.recommendedSalePrice,
+        price: data.recommendedSalePrice, // Use recommendedSalePrice as the new price
         quantity: 1,
       });
+
+      // Remove from watchlist
       await apiRequest("DELETE", `/api/watchlist/${product.id}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+
+      // Invalidate queries to refresh the UI
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+      ]);
+
       toast({
         title: "Product Converted",
         description: `${product.name} has been added to your inventory.`,
       });
+
+      // Reset form and close dialog
+      reset();
       onOpenChange(false);
     } catch (error) {
       toast({
@@ -123,7 +147,7 @@ export default function ConvertWatchlistDialog({
               type="button"
               variant="outline"
               onClick={generateRecommendation}
-              disabled={isGenerating}
+              disabled={isGenerating || !getValues("buyPrice")}
               className="mt-6"
             >
               {isGenerating ? (

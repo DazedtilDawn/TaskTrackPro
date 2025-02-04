@@ -10,19 +10,35 @@ import { Search, Plus } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import ProductForm from "@/components/product-form";
 
+interface WatchlistItem {
+  id: number;
+  userId: number;
+  productId: number;
+  product: SelectProduct | null;
+  createdAt: string;
+}
+
 export default function Watchlist() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
 
-  const { data: watchlist = [] } = useQuery<{ product: SelectProduct }[]>({
+  const { data: watchlist = [] } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
   });
 
-  const filteredWatchlist = watchlist.filter(item =>
-    item.product.name.toLowerCase().includes(search.toLowerCase()) ||
-    item.product.sku?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredWatchlist = watchlist
+    .filter((item): item is WatchlistItem & { product: SelectProduct } => {
+      // First filter out items with null products
+      if (!item.product) return false;
+
+      // Then filter by search term
+      const searchTerm = search.toLowerCase();
+      return (
+        item.product.name.toLowerCase().includes(searchTerm) ||
+        (item.product.sku?.toLowerCase() || '').includes(searchTerm)
+      );
+    });
 
   const handleEdit = (product: SelectProduct) => {
     setSelectedProduct(product);

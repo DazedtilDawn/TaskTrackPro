@@ -112,20 +112,56 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       if (!trimmedName) {
         form.setError("name", {
           type: "manual",
-          message: "Product name cannot be empty"
+          message: "Product name is required"
         });
         return;
       }
 
       if (isWatchlistItem) {
-        await apiRequest("POST", "/api/watchlist", {
-          productId: product?.id,
+        // Create watchlist item with required fields
+        const watchlistData = {
           name: trimmedName,
           description: data.description,
           price: data.price,
           sku: data.sku,
           imageUrl: data.imageUrl,
-        });
+          aiAnalysis: data.aiAnalysis,
+          brand: data.brand,
+          category: data.category,
+          condition: data.condition,
+          weight: data.weight,
+          dimensions: data.dimensions,
+          ebayPrice: data.ebayPrice,
+        };
+
+        console.log('Creating watchlist item:', watchlistData);
+
+        // Create new product first if no existing product is selected
+        if (!product) {
+          const formData = new FormData();
+          Object.entries(watchlistData).forEach(([key, value]) => {
+            if (value !== null && value !== undefined) {
+              formData.append(key, typeof value === 'object' ? JSON.stringify(value) : String(value));
+            }
+          });
+
+          if (imageFiles.length > 0) {
+            formData.append('image', imageFiles[0]);
+          }
+
+          const response = await apiRequest("POST", "/api/products", formData);
+          const newProduct = await response.json();
+
+          // Add to watchlist using the new product's ID
+          await apiRequest("POST", "/api/watchlist", {
+            productId: newProduct.id
+          });
+        } else {
+          // Add existing product to watchlist
+          await apiRequest("POST", "/api/watchlist", {
+            productId: product.id
+          });
+        }
 
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
         toast({

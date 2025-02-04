@@ -106,6 +106,10 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const onSubmit = async (data: ProductFormData) => {
     try {
       const trimmedName = data.name.trim();
+
+      // Add debug logging
+      console.log('Submitting form with name:', trimmedName);
+
       if (!trimmedName) {
         form.setError("name", {
           type: "manual",
@@ -117,7 +121,10 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       const formData = new FormData();
 
       // Add all form fields with proper trimming
-      formData.append('name', trimmedName);
+      // Add name field first and ensure it's a string
+      formData.append('name', String(trimmedName));
+
+      // Rest of fields
       formData.append('description', data.description?.trim() || '');
       formData.append('sku', data.sku?.trim() || '');
       formData.append('price', data.price ? String(data.price) : '');
@@ -127,6 +134,10 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       formData.append('category', data.category?.trim() || '');
       formData.append('weight', data.weight ? String(data.weight) : '');
       formData.append('dimensions', data.dimensions?.trim() || '');
+
+      // Debug log formData
+      const formDataEntries = Array.from(formData.entries());
+      console.log('FormData contents:', formDataEntries);
 
       if (data.aiAnalysis) {
         formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));

@@ -72,7 +72,15 @@ export function registerRoutes(app: Express): Server {
     // Validate required fields
     const { name, description, price, quantity } = req.body;
 
-    if (!name) {
+    // Debug logging
+    console.log('Received product creation request:', {
+      name,
+      description: description?.length,
+      price,
+      quantity
+    });
+
+    if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: "Product name is required" });
     }
 

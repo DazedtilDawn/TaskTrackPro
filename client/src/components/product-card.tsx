@@ -78,6 +78,12 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
   const toggleWatchlist = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
+
+    // Prevent toggling if we're already in watchlist view
+    if (inWatchlist && location.includes("/watchlist")) {
+      return;
+    }
+
     try {
       if (inWatchlist) {
         const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
@@ -119,44 +125,11 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         variant: "destructive",
       });
     }
-  }, [product.id, product.name, inWatchlist, toast]);
-
-  const deleteProduct = useCallback(async (e?: React.MouseEvent) => {
-    e?.stopPropagation();
-    try {
-      const response = await apiRequest("DELETE", `/api/products/${product.id}`);
-      const result = await response.json();
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
-        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
-      ]);
-
-      toast({
-        title: "Product deleted",
-        description: product.name,
-      });
-    } catch (error) {
-      console.error('Product deletion failed:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete product",
-        variant: "destructive",
-      });
-    }
-  }, [product.id, product.name, toast]);
-
-  const handleEdit = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    onEdit(product);
-  }, [onEdit, product]);
+  }, [product.id, product.name, inWatchlist, toast, location]);
 
   const handleConvertDialog = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
     setShowConvertDialog(true);
   }, []);
 
@@ -215,7 +188,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         {/* Market Analysis */}
         {hasAnalysis && (
           <div className="flex-shrink-0 w-32">
-            <div 
+            <div
               className={cn(
                 "text-xs px-2 py-1 rounded-full inline-flex items-center gap-1",
                 isUnderpriced && "bg-yellow-500/10 text-yellow-700",
@@ -232,7 +205,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         )}
 
         {/* Actions */}
-        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto">
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 pointer-events-none group-hover:pointer-events-auto z-10">
           <div className="flex items-center gap-1">
             <Button
               size="icon"
@@ -271,14 +244,16 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 <ArrowUpRight className="h-4 w-4" />
               </Button>
             )}
-            <Button
-              size="icon"
-              variant={inWatchlist ? "secondary" : "ghost"}
-              onClick={toggleWatchlist}
-              className="h-8 w-8 hover:scale-105 transition-transform"
-            >
-              <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
-            </Button>
+            {!location.includes("/watchlist") && (
+              <Button
+                size="icon"
+                variant={inWatchlist ? "secondary" : "ghost"}
+                onClick={toggleWatchlist}
+                className="h-8 w-8 hover:scale-105 transition-transform"
+              >
+                <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+              </Button>
+            )}
           </div>
         </div>
       </div>

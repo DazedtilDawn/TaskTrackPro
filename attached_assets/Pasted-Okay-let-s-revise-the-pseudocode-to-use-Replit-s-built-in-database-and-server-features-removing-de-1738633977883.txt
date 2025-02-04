@@ -1,0 +1,158 @@
+Okay, let's revise the pseudocode to use Replit's built-in database and server features, removing dependencies on Netlify and Supabase.
+
+**Overall Strategy (Replit-Centric)**
+
+1.  **Foundation**: Set up a basic React application with Vite and TypeScript within Replit.
+2.  **Authentication**: Implement a basic authentication system on the server using Replit's secrets for handling authentication tokens, user session and avoid excessive re-renders and incorrect hook usages.
+3.  **Data Handling:** Utilize Replit's database for data storage and retrieval, using a Replit-hosted server to access it, implementing API endpoints for CRUD operations.
+4.  **AI Integration:** Integrate Gemini API for listing analysis, paying close attention to network requests, error handling, and rate limiting. Implement cancellation and retry logic.
+5.  **Component Structure**: Develop modular and reusable React components, each responsible for a specific part of the UI or logic. Use context and memoization to reduce unnecessary re-renders.
+6.  **Server-Side Logic:** Implement API endpoints on the Replit server for all data access, auth, and Gemini calls.
+7.  **Thorough Testing**: Write unit and integration tests for all critical logic and UI components. Implement thorough end-to-end testing.
+8.  **Error Handling:** Implement global error handling and retry mechanisms. Use error boundaries for React components.
+9.   **CORS Handling:** Implement CORS handling to allow your client side app to talk to Replit hosted server.
+
+**Pseudocode (Replit-Specific)**
+
+```pseudocode
+// Project Setup (Replit)
+
+1.  CREATE React app using Vite & TypeScript in Replit
+2.  INSTALL dependencies (react-router-dom, recharts, lucide-react, @testing-library/*)
+3.  CONFIGURE tsconfig.json, eslint.config.js, prettier
+4.  SET UP folder structure (src/, server/, public/)
+
+// Core App Structure
+
+1.  CREATE routes.tsx (using react-router-dom)
+   * Define main routes with layouts and error boundaries
+     * `\` (Dashboard)
+     * `/inventory`
+     * `/watchlist`
+     * `/orders`
+     * `/analytics`
+     * `/settings`
+     * `/auth` (nested: `/login`, `/signup`, `/callback`)
+2.  CREATE Layout.tsx
+     * Define app layout with navigation (sidebar)
+     * Renders `<Outlet />` for route components
+3. CREATE  components/ErrorFallback.tsx
+4. CREATE components/LoadingSpinner.tsx
+5.  CREATE App.tsx (root)
+    * Wrap app in RouterProvider, ErrorBoundary, and required providers (like WatchlistProvider, WizardProvider)
+    * Implement global state management
+
+// Authentication (src/auth)
+
+1.  CREATE src/hooks/useAuth.ts
+   * Initialize state: user, loading, error
+   * Implement server calls for sign in, sign up, sign out and reset password
+   * Provide a way to manage the user's session or authentication token (e.g., localStorage, cookies).
+   * Update state only if session changes using a useCallback or useMemo.
+   * Avoid useRefs in dependencies of the hooks
+2. CREATE src/components/AuthGuard.tsx
+    * Protect routes using useAuth hook
+    * Redirect unauthenticated users to `/auth/login` using useNavigate and useLocation
+3. CREATE src/pages/Login.tsx
+    * Display login, signup, reset form
+    * Handle form submission and authentication events using useAuth hook
+    *   Show the appropriate UI based on signin, signup, or password reset modes.
+4.  REMOVE or REFACTOR  src/pages/OAuthCallback.tsx as necessary to use your local implementation
+5. REMOVE unused components if they do not fit into your new plan.
+
+// Data Fetching & Management
+1. CREATE server/server.ts
+* Set up Express server to handle all data and API communication.
+* This server will handle access to Replit's database and communication with third party APIs.
+* Install Express, cors and node-fetch libraries
+2.  CREATE  server/db.ts using `node-replit-db` or another suitable database solution to interact with your database
+3.  CREATE src/lib/api.ts (for fetch functions for use in your react app)
+* Create functions that fetch data from the Replit server API endpoints.
+4.  CREATE src/hooks/useWatchlist.ts
+     * Fetch watchlist data from your API endpoint
+     * Implement functions for add and remove actions, and refetching.
+    *   Set up polling or websocket for updates using the fetch API or use Replit's websocket.
+5.  CREATE src/hooks/useStats.ts
+    *   Fetch basic stats (totals, averages)
+6.  CREATE src/lib/utils.ts for generic utils
+7.  CREATE src/components/PaginationControls.tsx for list controls
+8.  CREATE src/components/SortableHeader.tsx for sortable lists
+9.  CREATE src/components/BulkActionsMenu.tsx for bulk list actions
+10. CREATE src/components/BulkAnalysisPanel.tsx (AI insights for the selected products)
+
+// AI Integration (Gemini)
+
+1.  CREATE src/lib/geminiAI.ts
+   * Implement Gemini API client with methods to generate descriptions, perform image analysis, and provide price suggestions.
+   * Call Replit server to communicate with Gemini. Handle errors, implement retries with backoff,
+   * Implement cancellation of requests when component unmounts.
+2. CREATE src/hooks/useAIAnalysis.ts
+    * Implement hook to call your Replit server API for AI suggestions
+    * Implement state management, and loading
+   *   Use retry logic to recover from temporary failures
+3. CREATE src/components/AIProductAnalysis.tsx to display the output of useAIAnalysis, including data visualization components
+4.  CREATE  src/components/SmartListingModal.tsx to use your Replit server API for Gemini, handle images and user interface logic
+
+// Reusable UI Components
+
+1.  CREATE src/components/Icon.tsx (using lucide-react) to provide a single source for all icons.
+2.  CREATE src/components/ImageUpload.tsx for image uploads
+3.  CREATE src/components/LoadingSpinner.tsx for consistent visual loading
+4.  CREATE src/components/ProductActionsMenu.tsx to handle actions per item
+5.  CREATE src/components/Layer.tsx for recharts (if used)
+6.  CREATE src/components/AddProductModal.tsx for new and edit product workflows.
+7.  CREATE src/components/AddOrderModal.tsx for order management.
+8. CREATE src/lib/logger.ts for consistent app logging.
+9.  CREATE src/types/ and src/lib folders as needed for models and common functions, respectively.
+
+// eBay Integration
+1. CREATE `src/lib/ebayService.ts` with methods for eBay API calls (prices, etc)
+2. CREATE `src/lib/ebayAuth.ts` to handle eBay auth via your server (not Netlify function), with proper token management, including saving/loading tokens to/from local storage.
+3. Implement `/server/ebayAuth.ts` and `/server/ebayProxy.ts` or in single server file
+    * Handle OPTIONS requests for CORS using a library like "cors"
+    * Handle POST requests to authenticate and fetch data from eBay.
+
+// Data Management
+
+1. Implement filtering/sorting in components using useMemo for performance.
+2. Implement pagination to handle lists with lots of items.
+3. Use `useCallback` where functions are used in dependencies or as props.
+4. Use React.memo and other performance enhancements.
+
+// Component Logic
+
+1.  Ensure `useWizard` is only used within a `WizardProvider`.
+2.  Ensure `useCallback` is used outside of `useEffect` in components such as `ProductActionsMenu`
+3.  Implement proper cleanup logic for all hooks and event listeners, and cancel async calls where required to avoid the 'mounted' is not defined errors.
+4. Ensure that state is handled in a way to avoid multiple fetches by implementing proper change detection before updating the state.
+5. Ensure your use of React Router to include future flags to ensure seamless navigation
+6. Check your data fetching logic and avoid excessive rendering.
+7. Handle loading and error states in all component hierarchies.
+8. Utilize error boundaries to prevent cascading errors
+
+// Testing
+1. Add unit tests for all key components and hooks using @testing-library/react and Jest.
+2. Implement end-to-end testing in all auth and integration flows using Jest, or other tools of your choosing
+3. Use mock implementations when required.
+4. Ensure there is proper testing of component lifecycle methods, API call integration and authentication flows.
+// Deployment
+
+1. Replit will host the server code (use .replit to configure).
+2.  Set environment variables and secrets in Replit.
+3.  Run the app using `npm run dev`.
+4. Verify all functionality before marking it as complete.
+
+```
+
+**Key Considerations for the AI:**
+
+*   **No Netlify/Supabase:** The AI must exclusively use Replit's environment, server, and database.
+*   **Replit Database:** The AI must establish communication with Replit's database.
+*   **Server Logic:** Ensure that server logic is in its own isolated folder (e.g. server/) and that it exposes all necessary endpoints.
+*   **CORS Handling:**  The AI needs to implement correct CORS handling in the server to allow the Replit application to communicate with the backend server code (hosted on Replit as well).
+*   **API Calls:** Use `fetch` (or a similar library) in the client to communicate with the Replit server for data and AI.
+*   **Environment Variables:** Use Replit secrets for managing all sensitive API keys, and make sure server uses `process.env`.
+*   **Testing:**  The AI must implement unit and integration tests locally on Replit.
+*   **Error Handling:** The AI should catch errors properly and provide a graceful way to recover (or fallback UI).
+
+This revised pseudocode shifts the focus to a Replit-centric approach, leveraging its environment and infrastructure, ensuring that the AI does not rely on Netlify or Supabase. The AI will now need to manage its own database connection using your methods of choice within Replit and create server endpoints as needed. It also provides guidance on the project structure and requirements.

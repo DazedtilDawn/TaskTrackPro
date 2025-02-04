@@ -85,7 +85,7 @@ export function registerRoutes(app: Express): Server {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
 
         const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 1. A compelling product title

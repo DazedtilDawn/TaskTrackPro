@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
@@ -44,7 +44,6 @@ export default function SmartListingModal({
 
   // Analysis function
   const runAnalysis = useCallback(async () => {
-    // Prevent concurrent analysis
     if (analysisLock.current || !mounted.current) return;
 
     try {
@@ -88,7 +87,6 @@ export default function SmartListingModal({
     }
   }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
 
-  // Effect to start analysis
   useEffect(() => {
     if (open && files.length > 0 && !analysisLock.current) {
       analysisTimeout.current = setTimeout(runAnalysis, 1000);
@@ -100,7 +98,6 @@ export default function SmartListingModal({
     };
   }, [open, files, runAnalysis, cleanup]);
 
-  // Handle no files case
   useEffect(() => {
     if (open && files.length === 0) {
       onOpenChange(false);
@@ -122,14 +119,20 @@ export default function SmartListingModal({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Smart Listing Analysis</DialogTitle>
+          <DialogDescription>
+            Analyzing your product images using AI to generate optimized listings
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-8">
+            <div className="flex flex-col items-center justify-center py-8" role="status" aria-live="polite">
               <div className="w-full max-w-xs bg-secondary rounded-full h-2.5 mb-4">
                 <div 
                   className="bg-primary h-2.5 rounded-full transition-all duration-300" 
                   style={{ width: `${progress}%` }}
+                  aria-valuenow={progress}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
                 />
               </div>
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
@@ -145,7 +148,7 @@ export default function SmartListingModal({
             </div>
           )}
           {error && !loading && (
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-4" role="alert">
               <p className="text-destructive whitespace-pre-line">{error}</p>
               <Button
                 variant="outline"

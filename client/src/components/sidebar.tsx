@@ -24,16 +24,16 @@ export default function Sidebar() {
       <div className="p-6 space-y-4">
         {navItems.map(({ href, label, icon: Icon }) => (
           <Link key={href} href={href}>
-            <a
+            <div
               className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
+                "flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer",
                 "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                 location === href && "bg-sidebar-accent text-sidebar-accent-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
               <span>{label}</span>
-            </a>
+            </div>
           </Link>
         ))}
       </div>

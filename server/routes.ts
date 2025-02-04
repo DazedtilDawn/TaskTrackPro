@@ -214,6 +214,59 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Add PATCH endpoint to update a product after the POST and before DELETE endpoint
+  app.patch("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+    try {
+      const productId = parseInt(req.params.id);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+
+      // Verify the product exists and belongs to the user
+      const [existingProduct] = await db.select()
+        .from(products)
+        .where(
+          and(
+            eq(products.id, productId),
+            eq(products.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (!existingProduct) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // The update data is sent in req.body
+      const updateData = req.body;
+
+      // Update the product in the database
+      const [updatedProduct] = await db.update(products)
+        .set({
+          ...updateData,
+          updatedAt: new Date(), // Update the timestamp
+        })
+        .where(
+          and(
+            eq(products.id, productId),
+            eq(products.userId, req.user!.id) // Ensure the product belongs to the user
+          )
+        )
+        .returning();
+
+      res.json(updatedProduct);
+    } catch (error) {
+      console.error("Error updating product:", error);
+      res.status(500).json({
+        error: "Failed to update product",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Add DELETE endpoint for products after the POST endpoint
   app.delete("/api/products/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

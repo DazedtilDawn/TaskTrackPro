@@ -9,7 +9,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
 import { getEbayPrice } from "@/lib/ebay";
 import { useState } from "react";
-import { Loader2, BarChart2, Tag, TrendingUp, BookMarked, PackageOpen, Sparkles, InfoIcon } from "lucide-react";
+import { Loader2, BarChart2, Tag, TrendingUp, BookMarked, PackageOpen, Sparkles, InfoIcon, Info } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ImageUpload from "@/components/ui/image-upload";
@@ -23,16 +23,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
-// Schema for form validation
+// Schema update for better validation
 const productFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
+  name: z.string().min(1, "Product name is required"),
   description: z.string().min(10, "Description must be at least 10 characters").optional().nullable(),
   sku: z.string().optional().nullable(),
   condition: z.enum(["new", "open_box", "used_like_new", "used_good", "used_fair"]).default("used_good"),
   brand: z.string().optional().nullable(),
   category: z.string().optional().nullable(),
-  price: z.coerce.number().min(0).optional().nullable(),
-  quantity: z.coerce.number().min(0).default(0),
+  price: z.coerce.number().min(0, "Price must be greater than 0").optional().nullable(),
+  quantity: z.coerce.number().min(0, "Quantity must be 0 or greater").default(0),
   imageUrl: z.string().optional().nullable(),
   aiAnalysis: z.any().optional().nullable(),
   ebayPrice: z.coerce.number().optional().nullable(),
@@ -246,7 +246,10 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   };
 
   return (
-    <DialogContent className="max-w-2xl overflow-hidden">
+    <DialogContent className="max-w-2xl overflow-hidden" aria-describedby="product-form-description">
+      <div id="product-form-description" className="sr-only">
+        Add or edit product details, including name, description, pricing, and inventory information.
+      </div>
       <ScrollArea className="max-h-[80vh]">
         <div className="p-6">
           <div className="space-y-6">
@@ -441,10 +444,23 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Product Name</FormLabel>
+                            <FormLabel>
+                              Product Name <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter product name" />
+                              <Input
+                                {...field}
+                                placeholder="Enter product name"
+                                className={cn(
+                                  form.formState.errors.name && "border-destructive"
+                                )}
+                              />
                             </FormControl>
+                            {form.formState.errors.name && (
+                              <p className="text-sm text-destructive mt-1">
+                                {form.formState.errors.name.message}
+                              </p>
+                            )}
                           </FormItem>
                         )}
                       />
@@ -467,15 +483,25 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                       name="description"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Description</FormLabel>
+                          <FormLabel>
+                            Description <span className="text-destructive">*</span>
+                          </FormLabel>
                           <FormControl>
                             <Textarea
                               {...field}
                               value={field.value ?? ''}
                               placeholder="Describe the product's features, specifications, and condition"
-                              className="min-h-[100px]"
+                              className={cn(
+                                "min-h-[100px]",
+                                form.formState.errors.description && "border-destructive"
+                              )}
                             />
                           </FormControl>
+                          {form.formState.errors.description && (
+                            <p className="text-sm text-destructive mt-1">
+                              {form.formState.errors.description.message}
+                            </p>
+                          )}
                         </FormItem>
                       )}
                     />
@@ -547,7 +573,9 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                         name="price"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Price</FormLabel>
+                            <FormLabel>
+                              Price <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -558,11 +586,17 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                                 className={cn(
                                   isUnderpriced && "border-yellow-500 focus-visible:ring-yellow-500",
                                   isOverpriced && "border-red-500 focus-visible:ring-red-500",
-                                  isPricedRight && "border-green-500 focus-visible:ring-green-500"
+                                  isPricedRight && "border-green-500 focus-visible:ring-green-500",
+                                  form.formState.errors.price && "border-destructive"
                                 )}
                                 placeholder="0.00"
                               />
                             </FormControl>
+                            {form.formState.errors.price && (
+                              <p className="text-sm text-destructive mt-1">
+                                {form.formState.errors.price.message}
+                              </p>
+                            )}
                           </FormItem>
                         )}
                       />
@@ -571,7 +605,9 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                         name="quantity"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Quantity</FormLabel>
+                            <FormLabel>
+                              Quantity <span className="text-destructive">*</span>
+                            </FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
@@ -579,8 +615,16 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                                 value={field.value}
                                 onChange={e => field.onChange(Number(e.target.value))}
                                 placeholder="0"
+                                className={cn(
+                                  form.formState.errors.quantity && "border-destructive"
+                                )}
                               />
                             </FormControl>
+                            {form.formState.errors.quantity && (
+                              <p className="text-sm text-destructive mt-1">
+                                {form.formState.errors.quantity.message}
+                              </p>
+                            )}
                           </FormItem>
                         )}
                       />
@@ -592,9 +636,22 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                         name="sku"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>SKU</FormLabel>
+                            <FormLabel className="flex items-center gap-2">
+                              SKU
+                              <Tooltip>
+                                <TooltipTrigger>
+                                  <Info className="h-4 w-4 text-muted-foreground" />
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="w-[200px] text-sm">
+                                    Stock Keeping Unit - A unique identifier for your product.
+                                    Useful for inventory tracking.
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </FormLabel>
                             <FormControl>
-                              <Input {...field} value={field.value ?? ''} placeholder="Enter SKU" />
+                              <Input {...field} placeholder="Enter SKU" />
                             </FormControl>
                           </FormItem>
                         )}
@@ -625,7 +682,19 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                       name="dimensions"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Dimensions (L × W × H inches)</FormLabel>
+                          <FormLabel className="flex items-center gap-2">
+                            Dimensions (L × W × H inches)
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Info className="h-4 w-4 text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p className="w-[200px] text-sm">
+                                  Enter the product dimensions in inches (length x width x height).
+                                </p>
+                              </TooltipContent>
+                            </Tooltip>
+                          </FormLabel>
                           <FormControl>
                             <Input {...field} value={field.value ?? ''} placeholder="e.g., 12 × 8 × 4" />
                           </FormControl>
@@ -638,8 +707,19 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                     <Button type="button" variant="ghost" onClick={onComplete}>
                       Cancel
                     </Button>
-                    <Button type="submit">
-                      {product ? "Update" : "Create"} Product
+                    <Button
+                      type="submit"
+                      disabled={form.formState.isSubmitting}
+                      className="min-w-[120px]"
+                    >
+                      {form.formState.isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>{product ? "Update" : "Create"} Product</>
+                      )}
                     </Button>
                   </div>
 

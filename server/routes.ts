@@ -8,6 +8,12 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
 import multer from 'multer';
 import path from 'path';
+import express from 'express';
+import { fileURLToPath } from 'url';
+
+// Get directory name in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -68,6 +74,9 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
+  // Serve static files from uploads directory
+  app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+
   // Products
   app.get("/api/products", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
@@ -114,7 +123,7 @@ export function registerRoutes(app: Express): Server {
       res.json(product);
     } catch (error) {
       console.error('Failed to create product:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create product",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -178,7 +187,7 @@ export function registerRoutes(app: Express): Server {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ 
+        const model = genAI.getGenerativeModel({
           model: "gemini-2.0-flash-exp",
           generationConfig: {
             maxOutputTokens: 8192,
@@ -199,7 +208,7 @@ export function registerRoutes(app: Express): Server {
    - Suggested price range (min and max)
 5. 5-7 relevant SEO keywords
 6. 3-5 specific suggestions to improve the listing
-
+  
 Format your response as a valid JSON object with the following structure:
 {
   "title": string,

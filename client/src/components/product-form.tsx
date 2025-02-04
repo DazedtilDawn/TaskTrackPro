@@ -13,15 +13,16 @@ import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+// Schema for form validation
 const productFormSchema = z.object({
   name: z.string().min(1, "Name is required"),
-  description: z.string().optional(),
-  sku: z.string().optional(),
-  price: z.number().min(0).optional(),
-  quantity: z.number().min(0).default(0),
-  imageUrl: z.string().optional(),
-  aiAnalysis: z.any().optional(),
-  ebayPrice: z.number().optional(),
+  description: z.string().optional().nullable(),
+  sku: z.string().optional().nullable(),
+  price: z.coerce.number().min(0).optional().nullable(),
+  quantity: z.coerce.number().min(0).default(0),
+  imageUrl: z.string().optional().nullable(),
+  aiAnalysis: z.any().optional().nullable(),
+  ebayPrice: z.coerce.number().optional().nullable(),
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
@@ -41,21 +42,34 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       name: product?.name ?? "",
       description: product?.description ?? "",
       sku: product?.sku ?? "",
-      price: product?.price ? Number(product.price) : undefined,
+      price: product?.price ? Number(product.price) : null,
       quantity: product?.quantity ?? 0,
       imageUrl: product?.imageUrl ?? "",
-      aiAnalysis: product?.aiAnalysis,
-      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : undefined,
+      aiAnalysis: product?.aiAnalysis ?? null,
+      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : null,
     },
   });
 
   const onSubmit = async (data: ProductFormData) => {
     try {
+      // Transform the data to match InsertProduct type
+      const productData: InsertProduct = {
+        name: data.name,
+        description: data.description || null,
+        sku: data.sku || null,
+        price: data.price || null,
+        quantity: data.quantity,
+        imageUrl: data.imageUrl || null,
+        aiAnalysis: data.aiAnalysis || null,
+        ebayPrice: data.ebayPrice || null,
+      };
+
       if (product) {
-        await apiRequest("PATCH", `/api/products/${product.id}`, data);
+        await apiRequest("PATCH", `/api/products/${product.id}`, productData);
       } else {
-        await apiRequest("POST", "/api/products", data);
+        await apiRequest("POST", "/api/products", productData);
       }
+
       queryClient.invalidateQueries({ queryKey: ["/api/products"] });
       toast({
         title: product ? "Product updated" : "Product created",
@@ -63,6 +77,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       });
       onComplete();
     } catch (error) {
+      console.error('Form submission error:', error);
       toast({
         title: "Error",
         description: "Failed to save product",
@@ -101,6 +116,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
         description: "Product details have been analyzed",
       });
     } catch (error) {
+      console.error('Analysis error:', error);
       toast({
         title: "Analysis failed",
         description: "Could not analyze product details",
@@ -121,7 +137,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input {...field} value={field.value ?? ''} />
+                <Input {...field} />
               </FormControl>
             </FormItem>
           )}
@@ -163,7 +179,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                     step="0.01" 
                     {...field}
                     value={field.value ?? ''} 
-                    onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                    onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
                   />
                 </FormControl>
               </FormItem>
@@ -179,7 +195,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                   <Input 
                     type="number"
                     {...field}
-                    value={field.value ?? 0}
+                    value={field.value}
                     onChange={e => field.onChange(Number(e.target.value))}
                   />
                 </FormControl>

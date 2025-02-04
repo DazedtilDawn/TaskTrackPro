@@ -10,21 +10,38 @@ import bodyParser from "body-parser";
 // Rate limiting setup
 const requestQueue: Array<() => Promise<any>> = [];
 let isProcessing = false;
+let requestCount = 0;
+let lastRequestTime = Date.now();
 
 async function processQueue() {
   if (isProcessing || requestQueue.length === 0) return;
+
+  // Rate limiting: 10 requests per minute
+  const now = Date.now();
+  if (now - lastRequestTime < 60000) { // Within the same minute
+    if (requestCount >= 10) {
+      // Wait until the next minute
+      setTimeout(processQueue, 60000 - (now - lastRequestTime));
+      return;
+    }
+  } else {
+    // Reset counter for new minute
+    requestCount = 0;
+    lastRequestTime = now;
+  }
 
   isProcessing = true;
   try {
     const nextRequest = requestQueue.shift();
     if (nextRequest) {
       await nextRequest();
+      requestCount++;
     }
   } finally {
     isProcessing = false;
     if (requestQueue.length > 0) {
-      // Add delay between requests
-      setTimeout(processQueue, 1000);
+      // Add delay between requests within the rate limit
+      setTimeout(processQueue, 6000); // 6 seconds between requests to stay under 10 RPM
     }
   }
 }
@@ -68,7 +85,7 @@ export function registerRoutes(app: Express): Server {
     res.json(product);
   });
 
-  // Gemini API endpoint with rate limiting and retries
+  // Gemini API endpoint with enhanced rate limiting
   app.post("/api/analyze-images", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
@@ -85,7 +102,15 @@ export function registerRoutes(app: Express): Server {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+        const model = genAI.getGenerativeModel({ 
+          model: "gemini-2.0-flash-exp",
+          generationConfig: {
+            maxOutputTokens: 8192,
+            temperature: 0.7,
+            topP: 0.8,
+            topK: 40,
+          }
+        });
 
         const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 1. A compelling product title
@@ -130,7 +155,7 @@ Format your response as a valid JSON object with the following structure:
         }
       } catch (error) {
         console.error('Analysis error:', error);
-        if (error.status === 429) {
+        if (error instanceof Error && error.message.includes('429')) {
           // Add back to queue for retry
           requestQueue.push(analyzeRequest);
           return res.status(429).json({

@@ -68,7 +68,7 @@ async function compressImage(file: File): Promise<Blob> {
       // Calculate new dimensions while maintaining aspect ratio
       let width = img.width;
       let height = img.height;
-      const MAX_DIMENSION = 600; // Further reduced for smaller file size
+      const MAX_DIMENSION = 600;
 
       if (width > height && width > MAX_DIMENSION) {
         height = Math.round((height * MAX_DIMENSION) / width);
@@ -89,7 +89,6 @@ async function compressImage(file: File): Promise<Blob> {
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Convert to blob with reduced quality
       canvas.toBlob(
         (blob) => {
           if (!blob) {
@@ -99,7 +98,7 @@ async function compressImage(file: File): Promise<Blob> {
           resolve(blob);
         },
         'image/jpeg',
-        0.6 // Further reduced quality for smaller file size
+        0.7
       );
     };
 
@@ -145,7 +144,6 @@ export async function generateSmartListing(
     const processedImages: string[] = [];
 
     for (const file of files) {
-      // Validate file
       if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
         throw new Error(`Invalid file type: ${file.type}. Only JPEG, PNG, and WebP are supported.`);
       }
@@ -156,20 +154,17 @@ export async function generateSmartListing(
       const base64Data = await fileToBase64(file);
       processedImages.push(base64Data);
 
-      // Add delay between processing images
       if (files.length > 1) {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
     console.log('Images processed successfully');
-
-    // Add delay before making the API request
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    await new Promise(resolve => setTimeout(resolve, 2000));
 
     let retries = 0;
     const maxRetries = 3;
-    const retryDelay = 2000; // 2 seconds
+    const retryDelay = 3000; // 3 seconds between retries
 
     while (retries < maxRetries) {
       try {
@@ -215,9 +210,18 @@ export async function generateSmartListing(
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
   const genAI = await initializeGemini();
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+  const model = genAI.getGenerativeModel({ 
+    model: "gemini-2.0-flash-exp",
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.7,
+      topP: 0.8,
+      topK: 40,
+    }
+  });
+
   const results = new Map<string, AIAnalysisResult>();
-  const batchSize = 5;
+  const batchSize = 3; // Reduced batch size due to rate limits
 
   for (let i = 0; i < products.length; i += batchSize) {
     const batch = products.slice(i, i + batchSize);
@@ -263,9 +267,9 @@ Format the response in JSON.`;
     });
 
     await Promise.all(promises);
-    // Add a small delay between batches to respect rate limits
+    // Add a longer delay between batches to respect rate limits (10 RPM)
     if (i + batchSize < products.length) {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 6000));
     }
   }
 

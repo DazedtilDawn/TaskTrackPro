@@ -109,18 +109,17 @@ export default function SmartListingModal({
     }
   }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
 
-  // Handle modal open/close and initial analysis
+  // Handle modal open/close and initial analysis - simplified dependencies
   useEffect(() => {
     if (!open || files.length === 0) return;
 
     console.log('SmartListingModal: Effect triggered', {
       open,
       filesCount: files.length,
-      isLocked: analysisLock.current,
-      isLoading: loading
+      isLocked: analysisLock.current
     });
 
-    if (!analysisLock.current && !loading) {
+    if (!analysisLock.current) {
       console.log('SmartListingModal: Scheduling analysis');
       analysisTimeout.current = setTimeout(() => {
         if (isMounted.current) {
@@ -133,7 +132,7 @@ export default function SmartListingModal({
       console.log('SmartListingModal: Effect cleanup');
       cleanup();
     };
-  }, [open, files, runAnalysis, cleanup, loading]);
+  }, [open, files, runAnalysis, cleanup]); // Removed loading from dependencies
 
   // Handle empty files case
   useEffect(() => {

@@ -21,24 +21,21 @@ export default function SmartListingModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-  const analysisInProgress = useRef(false);
+  const mounted = useRef(false);
 
   const handleAnalyze = useCallback(async () => {
-    if (!files.length || analysisInProgress.current) return;
+    if (!files.length) return;
 
     try {
-      analysisInProgress.current = true;
+      console.log('Starting image analysis...');
       setLoading(true);
       setError(null);
 
-      console.log('Starting analysis with files:', files.length);
       const analysis = await generateSmartListing(files);
+
+      if (!mounted.current) return;
+
       console.log('Analysis completed:', analysis);
-
-      if (!analysis) {
-        throw new Error('Analysis failed to generate results');
-      }
-
       onAnalysisComplete(analysis);
       onOpenChange(false);
 
@@ -48,70 +45,59 @@ export default function SmartListingModal({
       });
     } catch (err) {
       console.error('Analysis error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to analyze product');
+      if (!mounted.current) return;
+
+      setError(err instanceof Error ? err.message : 'Failed to analyze');
       toast({
         title: "Analysis failed",
-        description: err instanceof Error ? err.message : "Could not analyze product details",
+        description: "Could not analyze product details",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
-      analysisInProgress.current = false;
+      if (mounted.current) {
+        setLoading(false);
+      }
     }
   }, [files, onAnalysisComplete, onOpenChange, toast]);
 
   useEffect(() => {
-    // Only start analysis if modal is open and we have files
-    if (open && files.length > 0 && !loading && !analysisInProgress.current) {
+    mounted.current = true;
+
+    if (open && files.length > 0) {
       handleAnalyze();
     }
 
-    // Cleanup function
     return () => {
-      if (loading) {
-        setLoading(false);
-        analysisInProgress.current = false;
-      }
+      mounted.current = false;
     };
-  }, [open, files, handleAnalyze, loading]);
-
-  // Close modal if there are no files
-  useEffect(() => {
-    if (open && files.length === 0) {
-      onOpenChange(false);
-      toast({
-        title: "No images selected",
-        description: "Please select at least one image to analyze",
-        variant: "destructive",
-      });
-    }
-  }, [open, files.length, onOpenChange, toast]);
+  }, [open, files, handleAnalyze]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>Smart Listing Analysis</DialogTitle>
+          <DialogTitle>Analyzing Product Images</DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
           {loading && (
             <div className="flex flex-col items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
               <p className="text-sm text-muted-foreground">
-                Analyzing {files.length} product image{files.length !== 1 ? 's' : ''}...
+                Analyzing your product images...
               </p>
               <p className="text-xs text-muted-foreground mt-2">
-                This may take a few moments
+                This may take a few moments as we generate detailed product insights
               </p>
             </div>
           )}
-          {error && !loading && (
-            <div className="text-center space-y-4">
-              <p className="text-destructive">{error}</p>
+          {error && (
+            <div className="text-center text-destructive">
+              <p>{error}</p>
               <Button
                 variant="outline"
                 onClick={handleAnalyze}
-                disabled={analysisInProgress.current}
+                className="mt-4"
+                disabled={loading}
               >
                 Retry Analysis
               </Button>

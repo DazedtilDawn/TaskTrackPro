@@ -2,6 +2,7 @@ import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 import { useQuery } from "@tanstack/react-query";
 import ProductCard from "@/components/product-card";
+import ViewToggle from "@/components/view-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -9,6 +10,7 @@ import { useState } from "react";
 import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import ProductForm from "@/components/product-form";
+import { cn } from "@/lib/utils";
 
 interface WatchlistItem {
   id: number;
@@ -22,6 +24,7 @@ export default function Watchlist() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
+  const [view, setView] = useState<"grid" | "list">("grid");
 
   const { data: watchlist = [], isLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
@@ -54,13 +57,19 @@ export default function Watchlist() {
         <Header />
         <main className="flex-1 overflow-y-auto p-6">
           <div className="flex justify-between items-center mb-6">
-            <div className="relative max-w-md flex-1">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search watchlist..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9"
+            <div className="flex items-center gap-4">
+              <div className="relative max-w-md flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search watchlist..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <ViewToggle
+                view={view}
+                onViewChange={setView}
               />
             </div>
             <Button onClick={() => setIsDialogOpen(true)}>
@@ -77,13 +86,18 @@ export default function Watchlist() {
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className={cn(
+                view === "grid" 
+                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                  : "space-y-4"
+              )}>
                 {filteredWatchlist.map((item) => (
                   <ProductCard
                     key={item.id}
                     product={item.product}
                     onEdit={handleEdit}
                     inWatchlist={true}
+                    view={view}
                   />
                 ))}
               </div>

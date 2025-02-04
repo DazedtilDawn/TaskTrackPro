@@ -16,11 +16,11 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
-
 interface ProductCardProps {
   product: SelectProduct;
   onEdit: (product: SelectProduct) => void;
   inWatchlist?: boolean;
+  view?: "grid" | "list";
 }
 
 interface AIAnalysis {
@@ -37,7 +37,7 @@ interface AIAnalysis {
   seoKeywords: string[];
 }
 
-export default function ProductCard({ product, onEdit, inWatchlist }: ProductCardProps) {
+export default function ProductCard({ product, onEdit, inWatchlist, view = "grid" }: ProductCardProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
@@ -97,8 +97,8 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         console.log('Queries refetched after deletion');
       } else {
         console.log(`Attempting to add product ${product.id} to watchlist`);
-        const response = await apiRequest("POST", "/api/watchlist", { 
-          productId: product.id 
+        const response = await apiRequest("POST", "/api/watchlist", {
+          productId: product.id
         });
         const result = await response.json();
 
@@ -162,14 +162,21 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
       "overflow-hidden transition-all duration-200 hover:shadow-lg",
       isUnderpriced && "border-yellow-500/50",
       isOverpriced && "border-red-500/50",
-      isPricedRight && "border-green-500/50"
+      isPricedRight && "border-green-500/50",
+      view === "list" && "flex"
     )}>
       {product.imageUrl && (
-        <div className="relative">
+        <div className={cn(
+          "relative",
+          view === "grid" ? "w-full" : "w-48 shrink-0"
+        )}>
           <img
             src={product.imageUrl}
             alt={product.name}
-            className="w-full h-48 object-cover"
+            className={cn(
+              "object-cover",
+              view === "grid" ? "w-full h-48" : "w-48 h-full"
+            )}
           />
           {hasAnalysis && (
             <div className={cn(
@@ -185,181 +192,200 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
           )}
         </div>
       )}
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-2">
-          <h3 className="font-semibold text-lg">{product.name}</h3>
-          {hasAnalysis && aiAnalysis && (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 transition-transform hover:scale-110"
-                >
-                  <Sparkles className="h-4 w-4 text-primary" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-80 p-0">
-                <ScrollArea className="h-[400px]">
-                  <div className="p-4 space-y-4">
-                    <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
-                      <h4 className="font-medium text-lg">Market Analysis</h4>
-                      <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">Market Demand</span>
-                          <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
-                        </div>
-                        <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
-                        <div className="flex items-center gap-2">
-                          <BarChart className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
-                        </div>
+      <div className={cn(
+        view === "list" && "flex-1 flex flex-col"
+      )}>
+        <CardContent className={cn(
+          "p-4",
+          view === "list" && "flex-1"
+        )}>
+          <div className="flex items-start justify-between mb-2">
+            <div className={cn(
+              view === "list" && "flex-1"
+            )}>
+              <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
+              <p className="text-muted-foreground text-sm">{product.description}</p>
+            </div>
+            {hasAnalysis && aiAnalysis && (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 transition-transform hover:scale-110 shrink-0"
+                  >
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0">
+                  <ScrollArea className="h-[400px]">
+                    <div className="p-4 space-y-4">
+                      <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
+                        <h4 className="font-medium text-lg">Market Analysis</h4>
+                        <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
                       </div>
 
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Tag className="h-4 w-4" />
-                          <h5 className="font-medium">Price Analysis</h5>
+                      <div className="space-y-4">
+                        <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm font-medium">Market Demand</span>
+                            <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
+                          </div>
+                          <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
+                          <div className="flex items-center gap-2">
+                            <BarChart className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
+                          </div>
                         </div>
 
-                        <div className="pl-4 space-y-2">
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm text-muted-foreground">Current Price:</span>
-                            <span className={cn(
-                              "text-lg font-semibold",
-                              isUnderpriced && "text-yellow-600",
-                              isOverpriced && "text-red-600",
-                              isPricedRight && "text-green-600"
-                            )}>
-                              ${currentPrice}
-                            </span>
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Tag className="h-4 w-4" />
+                            <h5 className="font-medium">Price Analysis</h5>
                           </div>
-                          <div className="flex flex-col gap-1">
-                            <span className="text-sm text-muted-foreground">Suggested Range:</span>
-                            <div className="flex items-baseline gap-2">
-                              <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
-                              <span className="text-muted-foreground">-</span>
-                              <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+
+                          <div className="pl-4 space-y-2">
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm text-muted-foreground">Current Price:</span>
+                              <span className={cn(
+                                "text-lg font-semibold",
+                                isUnderpriced && "text-yellow-600",
+                                isOverpriced && "text-red-600",
+                                isPricedRight && "text-green-600"
+                              )}>
+                                ${currentPrice}
+                              </span>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-sm text-muted-foreground">Suggested Range:</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
+                                <span className="text-muted-foreground">-</span>
+                                <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="border-t pt-3">
-                        <div className="flex items-center gap-2 mb-2">
-                          <TrendingUp className="h-4 w-4" />
-                          <h5 className="font-medium">Optimization Tips</h5>
+                        <div className="border-t pt-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="h-4 w-4" />
+                            <h5 className="font-medium">Optimization Tips</h5>
+                          </div>
+                          <ul className="space-y-2">
+                            {aiAnalysis.suggestions.map((suggestion: string, index: number) => (
+                              <li
+                                key={index}
+                                className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
+                              >
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
-                        <ul className="space-y-2">
-                          {aiAnalysis.suggestions.map((suggestion: string, index: number) => (
-                            <li
-                              key={index}
-                              className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
-                            >
-                              {suggestion}
-                            </li>
-                          ))}
-                        </ul>
                       </div>
                     </div>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
+
+          <div className={cn(
+            "space-y-2",
+            view === "list" && "flex items-center gap-6"
+          )}>
+            <div className={cn(
+              "flex items-baseline justify-between",
+              view === "list" && "flex-1"
+            )}>
+              <div className="space-y-1">
+                <div className="text-sm text-muted-foreground font-medium">
+                  {inWatchlist ? "Recommended Buy Price" : "Selling Price"}
+                </div>
+                <div className="text-xl font-semibold text-primary">
+                  ${Number(product.price).toFixed(2)}
+                </div>
+                {!inWatchlist && product.buyPrice && (
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-sm text-muted-foreground">Purchase Price:</span>
+                    <span className="text-sm font-medium">
+                      ${Number(product.buyPrice).toFixed(2)}
+                    </span>
                   </div>
-                </ScrollArea>
-              </PopoverContent>
-            </Popover>
-          )}
-        </div>
-
-        <p className="text-muted-foreground text-sm mb-4">{product.description}</p>
-
-        <div className="space-y-2">
-          <div className="flex items-baseline justify-between">
-            <div className="space-y-1">
-              <div className="text-sm text-muted-foreground font-medium">
-                {inWatchlist ? "Recommended Buy Price" : "Selling Price"}
+                )}
               </div>
-              <div className="text-xl font-semibold text-primary">
-                ${Number(product.price).toFixed(2)}
-              </div>
-              {!inWatchlist && product.buyPrice && (
-                <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-sm text-muted-foreground">Purchase Price:</span>
-                  <span className="text-sm font-medium">
-                    ${Number(product.buyPrice).toFixed(2)}
+              {product.ebayPrice && (
+                <div className="flex flex-col items-end">
+                  <span className="text-sm text-muted-foreground">eBay Price</span>
+                  <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
+                    ${Number(product.ebayPrice).toFixed(2)}
                   </span>
                 </div>
               )}
             </div>
-            {product.ebayPrice && (
-              <div className="flex flex-col items-end">
-                <span className="text-sm text-muted-foreground">eBay Price</span>
-                <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
-                  ${Number(product.ebayPrice).toFixed(2)}
-                </span>
+            {product.condition && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>Condition:</span>
+                <span className="capitalize">{product.condition.replace(/_/g, ' ')}</span>
               </div>
             )}
           </div>
-          {product.condition && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>Condition:</span>
-              <span className="capitalize">{product.condition.replace(/_/g, ' ')}</span>
-            </div>
-          )}
-        </div>
-      </CardContent>
+        </CardContent>
 
-      <CardFooter className="p-4 pt-0 flex justify-between">
-        <div className="flex gap-2">
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => onEdit(product)}
-            className="hover:scale-105 transition-transform"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={deleteProduct}
-            className="hover:scale-105 transition-transform"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-          {!inWatchlist && (
+        <CardFooter className={cn(
+          "p-4 pt-0 flex justify-between",
+          view === "list" && "border-t"
+        )}>
+          <div className="flex gap-2">
             <Button
               size="icon"
               variant="ghost"
-              onClick={markAsSold}
-              className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+              onClick={() => onEdit(product)}
+              className="hover:scale-105 transition-transform"
             >
-              <CheckCircle2 className="h-4 w-4" />
+              <Edit className="h-4 w-4" />
             </Button>
-          )}
-          {inWatchlist && (
             <Button
               size="icon"
               variant="ghost"
-              onClick={() => setShowConvertDialog(true)}
-              className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
-              title="Convert to Inventory"
+              onClick={deleteProduct}
+              className="hover:scale-105 transition-transform"
             >
-              <ArrowUpRight className="h-4 w-4" />
+              <Trash2 className="h-4 w-4" />
             </Button>
-          )}
-        </div>
-        <Button
-          size="icon"
-          variant={inWatchlist ? "secondary" : "ghost"}
-          onClick={toggleWatchlist}
-          className="hover:scale-105 transition-transform"
-        >
-          <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
-        </Button>
-      </CardFooter>
+            {!inWatchlist && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={markAsSold}
+                className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+              >
+                <CheckCircle2 className="h-4 w-4" />
+              </Button>
+            )}
+            {inWatchlist && (
+              <Button
+                size="icon"
+                variant="ghost"
+                onClick={() => setShowConvertDialog(true)}
+                className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                title="Convert to Inventory"
+              >
+                <ArrowUpRight className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <Button
+            size="icon"
+            variant={inWatchlist ? "secondary" : "ghost"}
+            onClick={toggleWatchlist}
+            className="hover:scale-105 transition-transform"
+          >
+            <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+          </Button>
+        </CardFooter>
+      </div>
 
       {showConvertDialog && (
         <ConvertWatchlistDialog

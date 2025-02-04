@@ -45,6 +45,7 @@ type ProductFormData = z.infer<typeof productFormSchema>;
 interface ProductFormProps {
   product?: SelectProduct;
   onComplete: () => void;
+  isWatchlistItem?: boolean;
 }
 
 const conditionOptions = [
@@ -55,7 +56,7 @@ const conditionOptions = [
   { value: "used_fair", label: "Used - Fair", discount: 0.6 },
 ];
 
-export default function ProductForm({ product, onComplete }: ProductFormProps) {
+export default function ProductForm({ product, onComplete, isWatchlistItem = false }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
@@ -71,7 +72,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       brand: product?.brand ?? "",
       category: product?.category ?? "",
       price: product?.price ? Number(product.price) : null,
-      quantity: product?.quantity ?? 0,
+      quantity: isWatchlistItem ? 0 : (product?.quantity ?? 0),
       imageUrl: product?.imageUrl ?? "",
       aiAnalysis: product?.aiAnalysis ?? null,
       ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : null,
@@ -106,8 +107,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const onSubmit = async (data: ProductFormData) => {
     try {
       const trimmedName = data.name.trim();
-
-      // Add debug logging
       console.log('Submitting form with name:', trimmedName);
 
       if (!trimmedName) {
@@ -118,50 +117,58 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
         return;
       }
 
-      const formData = new FormData();
+      if (isWatchlistItem) {
+        await apiRequest("POST", "/api/watchlist", {
+          productId: product?.id,
+          name: trimmedName,
+          description: data.description,
+          price: data.price,
+          sku: data.sku,
+          imageUrl: data.imageUrl,
+        });
 
-      // Add all form fields with proper trimming
-      // Add name field first and ensure it's a string
-      formData.append('name', String(trimmedName));
-
-      // Rest of fields
-      formData.append('description', data.description?.trim() || '');
-      formData.append('sku', data.sku?.trim() || '');
-      formData.append('price', data.price ? String(data.price) : '');
-      formData.append('quantity', String(data.quantity));
-      formData.append('condition', data.condition);
-      formData.append('brand', data.brand?.trim() || '');
-      formData.append('category', data.category?.trim() || '');
-      formData.append('weight', data.weight ? String(data.weight) : '');
-      formData.append('dimensions', data.dimensions?.trim() || '');
-
-      // Debug log formData
-      const formDataEntries = Array.from(formData.entries());
-      console.log('FormData contents:', formDataEntries);
-
-      if (data.aiAnalysis) {
-        formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
-      }
-      if (data.ebayPrice) {
-        formData.append('ebayPrice', String(data.ebayPrice));
-      }
-
-      // Add image file if present
-      if (imageFiles.length > 0) {
-        formData.append('image', imageFiles[0]);
-      }
-
-      if (product) {
-        await apiRequest("PATCH", `/api/products/${product.id}`, formData);
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+        toast({
+          title: "Product added to watchlist",
+          description: trimmedName,
+        });
       } else {
-        await apiRequest("POST", "/api/products", formData);
+        const formData = new FormData();
+        formData.append('name', trimmedName);
+        formData.append('description', data.description?.trim() || '');
+        formData.append('sku', data.sku?.trim() || '');
+        formData.append('price', data.price ? String(data.price) : '');
+        formData.append('quantity', String(data.quantity));
+        formData.append('condition', data.condition);
+        formData.append('brand', data.brand?.trim() || '');
+        formData.append('category', data.category?.trim() || '');
+        formData.append('weight', data.weight ? String(data.weight) : '');
+        formData.append('dimensions', data.dimensions?.trim() || '');
+
+        if (data.aiAnalysis) {
+          formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
+        }
+        if (data.ebayPrice) {
+          formData.append('ebayPrice', String(data.ebayPrice));
+        }
+
+        if (imageFiles.length > 0) {
+          formData.append('image', imageFiles[0]);
+        }
+
+        if (product) {
+          await apiRequest("PATCH", `/api/products/${product.id}`, formData);
+        } else {
+          await apiRequest("POST", "/api/products", formData);
+        }
+
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+        toast({
+          title: product ? "Product updated" : "Product created",
+          description: trimmedName,
+        });
       }
 
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      toast({
-        title: product ? "Product updated" : "Product created",
-        description: trimmedName,
-      });
       onComplete();
     } catch (error) {
       console.error('Form submission error:', error);
@@ -183,7 +190,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const handleAnalysisComplete = (analysis: any) => {
     setIsAnalyzing(false);
 
-    // Sanitize: keep only essential fields
     const sanitizedAnalysis = {
       title: analysis?.title,
       description: analysis?.description,
@@ -202,7 +208,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
     form.setValue("aiAnalysis", sanitizedAnalysis);
 
-    // Pre-fill form fields based on sanitized AI analysis
     if (sanitizedAnalysis.title) {
       form.setValue("name", sanitizedAnalysis.title);
     }
@@ -217,7 +222,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
 
-      // Apply condition-based discount to suggested price
       const adjustedPrice = Math.floor(
         sanitizedAnalysis.marketAnalysis.priceSuggestion.min * conditionDiscount
       );
@@ -279,19 +283,9 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
       <ScrollArea className="max-h-[80vh]">
         <div className="p-6">
           <div className="space-y-6">
-            <div>
-              {/* <h2 className="text-2xl font-semibold tracking-tight">
-                {product ? "Edit Product" : "Add New Product"}
-              </h2> */}
-              {/* <p className="text-sm text-muted-foreground">
-                Enter product details and use AI analysis for optimal pricing
-              </p> */}
-            </div>
-
             <TooltipProvider>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  {/* Images Section */}
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -321,7 +315,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
                   <Separator />
 
-                  {/* AI Analysis Section */}
                   {hasAnalysis && (
                     <Card className={cn(
                       "p-6 border-2",
@@ -380,7 +373,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                             </div>
 
                             <div className="space-y-4">
-                              {/* Market Price Range */}
                               <div>
                                 <span className="text-sm text-muted-foreground">Market Price Range</span>
                                 <div className="flex items-baseline gap-2 mt-1">
@@ -390,7 +382,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                                 </div>
                               </div>
 
-                              {/* Recommended Buy/Sell Prices */}
                               <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
                                 <div>
                                   <span className="text-sm font-medium">Recommended Buy Price</span>
@@ -462,7 +453,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                     </Card>
                   )}
 
-                  {/* Basic Info Section */}
                   <div className="grid gap-6">
                     <div className="grid gap-4 grid-cols-2">
                       <FormField
@@ -579,7 +569,6 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
                   <Separator />
 
-                  {/* Inventory Details */}
                   <div className="space-y-4">
                     <div className="flex items-center gap-2">
                       <h3 className="text-lg font-semibold">Inventory Details</h3>

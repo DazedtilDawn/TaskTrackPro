@@ -56,20 +56,16 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
   const onSubmit = async (data: ProductFormData) => {
     try {
-      // TODO: Handle image upload to storage service
-      // For now, we'll just use the first image URL if available
-      const imageUrl = imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null;
-
-      // Transform the data to match InsertProduct type
+      // Convert number values to strings for API
       const productData: InsertProduct = {
         name: data.name,
         description: data.description || null,
         sku: data.sku || null,
-        price: data.price || null,
+        price: data.price ? String(data.price) : null,
         quantity: data.quantity,
-        imageUrl: imageUrl,
+        imageUrl: imageFiles.length > 0 ? URL.createObjectURL(imageFiles[0]) : null,
         aiAnalysis: data.aiAnalysis || null,
-        ebayPrice: data.ebayPrice || null,
+        ebayPrice: data.ebayPrice ? String(data.ebayPrice) : null,
       };
 
       if (product) {

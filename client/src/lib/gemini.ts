@@ -174,13 +174,18 @@ export async function generateSmartListing(
       { images: processedImages }
     );
 
-    const analysis = await response.json();
+    const text = await response.text();
 
-    if (!analysis || typeof analysis.error === 'string') {
-      throw new Error(analysis.error || 'Failed to analyze images');
+    try {
+      const analysis = JSON.parse(text);
+      if (!analysis || typeof analysis.error === 'string') {
+        throw new Error(analysis.error || 'Failed to analyze images');
+      }
+      return analysis;
+    } catch (parseError) {
+      console.error('Failed to parse API response:', text);
+      throw new Error('Failed to parse analysis results');
     }
-
-    return analysis;
   } catch (error) {
     console.error("Smart listing generation error:", error);
     throw error instanceof Error
@@ -191,10 +196,9 @@ export async function generateSmartListing(
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
   const genAI = await initializeGemini();
-
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
   const results = new Map<string, AIAnalysisResult>();
-  const batchSize = 5; // Process 5 products at a time
+  const batchSize = 5;
 
   for (let i = 0; i < products.length; i += batchSize) {
     const batch = products.slice(i, i + batchSize);
@@ -220,7 +224,7 @@ Format the response in JSON.`;
       try {
         const result = await model.generateContent(prompt);
         const response = await result.response;
-        const text = response.text();
+        const text = await response.text();
         const analysis = JSON.parse(text);
         results.set(product.name, analysis);
       } catch (error) {

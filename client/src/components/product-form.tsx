@@ -13,6 +13,7 @@ import { Loader2 } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import ImageUpload from "@/components/ui/image-upload";
+import SmartListingModal from "@/components/smart-listing-modal";
 
 // Schema for form validation
 const productFormSchema = z.object({
@@ -37,6 +38,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
+  const [showSmartListing, setShowSmartListing] = useState(false);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -94,7 +96,25 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
   const handleImagesUploaded = (files: File[]) => {
     setImageFiles(files);
-    // TODO: When ready to implement AI analysis, trigger it here
+    if (files.length > 0) {
+      setShowSmartListing(true);
+    }
+  };
+
+  const handleAnalysisComplete = (analysis: any) => {
+    setIsAnalyzing(false);
+    form.setValue("aiAnalysis", analysis);
+
+    // Pre-fill form fields based on AI analysis
+    if (analysis.title) {
+      form.setValue("name", analysis.title);
+    }
+    if (analysis.description) {
+      form.setValue("description", analysis.description);
+    }
+    if (analysis.marketAnalysis?.priceSuggestion?.min) {
+      form.setValue("price", analysis.marketAnalysis.priceSuggestion.min);
+    }
   };
 
   const analyzeProductDetails = async () => {
@@ -190,11 +210,11 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Price</FormLabel>
                 <FormControl>
-                  <Input 
-                    type="number" 
-                    step="0.01" 
+                  <Input
+                    type="number"
+                    step="0.01"
                     {...field}
-                    value={field.value ?? ''} 
+                    value={field.value ?? ''}
                     onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
                   />
                 </FormControl>
@@ -208,7 +228,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Quantity</FormLabel>
                 <FormControl>
-                  <Input 
+                  <Input
                     type="number"
                     {...field}
                     value={field.value}
@@ -239,6 +259,12 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             </Button>
           </div>
         </div>
+        <SmartListingModal
+          open={showSmartListing}
+          onOpenChange={setShowSmartListing}
+          files={imageFiles}
+          onAnalysisComplete={handleAnalysisComplete}
+        />
       </form>
     </Form>
   );

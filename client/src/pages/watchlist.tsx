@@ -17,7 +17,7 @@ interface WatchlistItem {
     productId: number;
     createdAt: string;
   };
-  products: SelectProduct;
+  products: SelectProduct | null;
 }
 
 export default function Watchlist() {
@@ -30,11 +30,13 @@ export default function Watchlist() {
   });
 
   const filteredWatchlist = watchlist
+    .filter((item) => item.products !== null)
     .filter((item) => {
       const searchTerm = search.toLowerCase();
+      const product = item.products!;
       return (
-        item.products.name.toLowerCase().includes(searchTerm) ||
-        (item.products.sku?.toLowerCase() || '').includes(searchTerm)
+        product.name.toLowerCase().includes(searchTerm) ||
+        (product.sku?.toLowerCase() || '').includes(searchTerm)
       );
     });
 
@@ -73,8 +75,8 @@ export default function Watchlist() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredWatchlist.map((item) => (
               <ProductCard
-                key={item.products.id}
-                product={item.products}
+                key={item.products!.id}
+                product={item.products!}
                 onEdit={handleEdit}
                 inWatchlist={true}
               />

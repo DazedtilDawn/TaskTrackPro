@@ -249,7 +249,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const items = await db.select()
+      const items = await db.select({
+        watchlist: watchlist,
+        products: products
+      })
         .from(watchlist)
         .leftJoin(products, eq(watchlist.productId, products.id))
         .where(eq(watchlist.userId, req.user!.id))

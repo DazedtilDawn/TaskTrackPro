@@ -161,14 +161,46 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
     try {
+      const { productId } = req.body;
+
+      if (!productId) {
+        return res.status(400).json({ error: "Product ID is required" });
+      }
+
+      // Check if product exists
+      const [productExists] = await db.select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
+
+      if (!productExists) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Check if already in watchlist
+      const [existing] = await db.select()
+        .from(watchlist)
+        .where(
+          and(
+            eq(watchlist.productId, productId),
+            eq(watchlist.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (existing) {
+        return res.status(409).json({ error: "Product already in watchlist" });
+      }
+
       const [item] = await db.insert(watchlist)
         .values({
-          ...req.body,
+          productId,
           userId: req.user!.id,
           createdAt: new Date(),
           updatedAt: new Date()
         })
         .returning();
+
       res.status(201).json(item);
     } catch (error) {
       console.error('Error adding to watchlist:', error);

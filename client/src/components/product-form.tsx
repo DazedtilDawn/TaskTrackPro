@@ -120,10 +120,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       if (isWatchlistItem) {
         // Create a new product first if no existing product is selected
         if (!product) {
+          // First create the product
           const formData = new FormData();
           formData.append('name', trimmedName);
           formData.append('description', data.description?.trim() || '');
-          // Only append SKU if it's not empty after trimming
           const sku = data.sku?.trim();
           if (sku) {
             formData.append('sku', sku);
@@ -147,15 +147,15 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           const response = await apiRequest("POST", "/api/products", formData);
           const newProduct = await response.json();
 
-          // Add to watchlist using the new product's ID
+          // Then add to watchlist using the new product's ID
           await apiRequest("POST", "/api/watchlist", {
             productId: newProduct.id
-          });
+          }, { headers: { 'Content-Type': 'application/json' } });
         } else {
           // Add existing product to watchlist
           await apiRequest("POST", "/api/watchlist", {
             productId: product.id
-          });
+          }, { headers: { 'Content-Type': 'application/json' } });
         }
 
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });

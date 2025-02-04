@@ -85,6 +85,32 @@ export function registerRoutes(app: Express): Server {
     res.json(product);
   });
 
+  // Add DELETE endpoint for products
+  app.delete("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+
+    const productId = parseInt(req.params.id);
+
+    // First verify the product belongs to the authenticated user
+    const [product] = await db.select()
+      .from(products)
+      .where(
+        eq(products.id, productId),
+        eq(products.userId, req.user.id)
+      )
+      .limit(1);
+
+    if (!product) {
+      return res.status(404).json({ error: "Product not found or access denied" });
+    }
+
+    // Delete the product
+    await db.delete(products)
+      .where(eq(products.id, productId));
+
+    res.sendStatus(200);
+  });
+
   // Gemini API endpoint with enhanced rate limiting
   app.post("/api/analyze-images", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);

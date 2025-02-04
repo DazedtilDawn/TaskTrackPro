@@ -193,6 +193,43 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Add the DELETE product endpoint after the POST endpoint
+  app.delete("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const productId = parseInt(req.params.id);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+
+      // First delete associated watchlist items
+      await db.delete(watchlist)
+        .where(eq(watchlist.productId, productId));
+
+      // Then delete the product
+      const result = await db.delete(products)
+        .where(eq(products.id, productId))
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      res.status(200).json({ 
+        message: "Product deleted successfully",
+        deletedProduct: result[0]
+      });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

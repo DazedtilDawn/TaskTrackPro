@@ -40,11 +40,13 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
     try {
       if (inWatchlist) {
         console.log(`Attempting to delete product ${product.id} from watchlist`);
-
         const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
         const result = await response.json();
-
         console.log('Delete response:', result);
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
 
         // Force refetch instead of just invalidating
         await Promise.all([
@@ -55,10 +57,14 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         console.log('Queries refetched after deletion');
       } else {
         console.log(`Attempting to add product ${product.id} to watchlist`);
-
-        await apiRequest("POST", "/api/watchlist", { 
+        const response = await apiRequest("POST", "/api/watchlist", { 
           productId: product.id 
         });
+        const result = await response.json();
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
 
         await Promise.all([
           queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
@@ -82,14 +88,21 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
 
   const deleteProduct = async () => {
     try {
-      await apiRequest("DELETE", `/api/products/${product.id}`);
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
+      const response = await apiRequest("DELETE", `/api/products/${product.id}`);
+      const result = await response.json();
+
+      // Force refetch both queries to ensure UI is updated
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/watchlist"] })
+      ]);
+
       toast({
         title: "Product deleted",
         description: product.name,
       });
     } catch (error) {
+      console.error('Product deletion failed:', error);
       toast({
         title: "Error",
         description: "Failed to delete product",

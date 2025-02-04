@@ -1,0 +1,52 @@
+Based on the logs and code you provided, here are some potential reasons why a product that “says it’s successfully deleted” still appears in the UI:
+
+1. **Missing or Misconfigured DELETE Endpoint:**  
+   In your client code (in `ProductCard.tsx`), you call  
+   ```ts
+   await apiRequest("DELETE", `/api/products/${product.id}`);
+   ```  
+   However, in your server routes (in `server/routes.ts`), there isn’t a defined DELETE route for `/api/products/:id`. Without a proper route, the DELETE request might fall through to a catch‑all handler (or be handled by static file serving) and return an HTML page (as indicated by the “Unexpected token '<'” error) instead of actually removing the product from your database.
+
+2. **Caching / Query Invalidation Issues:**  
+   Your client calls `queryClient.invalidateQueries({ queryKey: ["/api/products"] })` and `queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })` after deletion. If the DELETE request isn’t actually removing the product in the backend, then even if the cache is invalidated, the GET request will return the same data—including the product that should have been deleted.
+
+3. **Response Format Mismatch:**  
+   The fact that you see errors like “Unexpected token '<'” when parsing the response suggests that the DELETE request is returning HTML (likely an error page or fallback page) instead of valid JSON. This might mislead your client into showing a success toast even though the underlying deletion operation didn’t occur as expected.
+
+### Next Steps to Troubleshoot and Fix
+
+- **Implement the DELETE Route:**  
+  Make sure you define a DELETE endpoint in your server (for example, in `server/routes.ts`) that uses your ORM (Drizzle) to remove the product record from the database. For example:
+  ```ts
+  app.delete("/api/products/:id", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const productId = parseInt(req.params.id);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+      const result = await db.delete(products)
+        .where(eq(products.id, productId))
+        .returning();
+      if (!result.length) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+      res.status(200).json({ message: "Product deleted", deletedProduct: result[0] });
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      res.status(500).json({
+        error: "Failed to delete product",
+        details: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+  ```
+  This ensures that the API call from the client actually removes the product from the database.
+
+- **Verify the Response Format:**  
+  After implementing the DELETE route, confirm (using your browser’s network tools) that the DELETE request returns a proper JSON response. This avoids the JSON parsing error and ensures your client can correctly update its cache.
+
+- **Check Cache Invalidation:**  
+  If the deletion is successful, ensure that the queries for `/api/products` and `/api/watchlist` are properly invalidated or refetched so that the UI reflects the updated state without the deleted product.
+
+By addressing these areas, you should resolve the discrepancy between the success message and the UI still showing the deleted product.

@@ -11,11 +11,13 @@ import { type SelectProduct } from "@db/schema";
 import ProductForm from "@/components/product-form";
 
 interface WatchlistItem {
-  id: number;
-  userId: number;
-  productId: number;
-  product: SelectProduct | null;
-  createdAt: string;
+  watchlist: {
+    id: number;
+    userId: number;
+    productId: number;
+    createdAt: string;
+  };
+  products: SelectProduct;
 }
 
 export default function Watchlist() {
@@ -28,15 +30,11 @@ export default function Watchlist() {
   });
 
   const filteredWatchlist = watchlist
-    .filter((item): item is WatchlistItem & { product: SelectProduct } => {
-      // First filter out items with null products
-      if (!item.product) return false;
-
-      // Then filter by search term
+    .filter((item) => {
       const searchTerm = search.toLowerCase();
       return (
-        item.product.name.toLowerCase().includes(searchTerm) ||
-        (item.product.sku?.toLowerCase() || '').includes(searchTerm)
+        item.products.name.toLowerCase().includes(searchTerm) ||
+        (item.products.sku?.toLowerCase() || '').includes(searchTerm)
       );
     });
 
@@ -75,8 +73,8 @@ export default function Watchlist() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredWatchlist.map((item) => (
               <ProductCard
-                key={item.product.id}
-                product={item.product}
+                key={item.products.id}
+                product={item.products}
                 onEdit={handleEdit}
                 inWatchlist={true}
               />

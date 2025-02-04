@@ -24,10 +24,12 @@ export default function SmartListingModal({
 
   const handleAnalyze = useCallback(async () => {
     try {
+      console.log('Starting image analysis...');
       setLoading(true);
       setError(null);
 
       const analysis = await generateSmartListing(files);
+      console.log('Analysis completed:', analysis);
       onAnalysisComplete(analysis);
       onOpenChange(false);
 

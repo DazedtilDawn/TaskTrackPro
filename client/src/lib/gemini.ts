@@ -58,14 +58,23 @@ async function fileToGenerativePart(file: File): Promise<{
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      resolve({
-        inlineData: {
-          data: (reader.result as string).split(",")[1],
-          mimeType: file.type,
-        },
-      });
+      try {
+        const base64Data = (reader.result as string).split(",")[1];
+        if (!base64Data) {
+          reject(new Error("Failed to read image data"));
+          return;
+        }
+        resolve({
+          inlineData: {
+            data: base64Data,
+            mimeType: file.type,
+          },
+        });
+      } catch (error) {
+        reject(new Error("Failed to process image data"));
+      }
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error("Failed to read file"));
     reader.readAsDataURL(file);
   });
 }
@@ -74,10 +83,13 @@ export async function generateSmartListing(
   files: File[]
 ): Promise<SmartListingAnalysis> {
   try {
+    console.log('Initializing Gemini...');
     const genAI = await initializeGemini();
     const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
 
+    console.log('Processing image files...');
     const imageParts = await Promise.all(files.map(fileToGenerativePart));
+    console.log('Image files processed successfully');
 
     const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 
@@ -108,12 +120,15 @@ Format your response as a JSON object with the following structure:
   "suggestions": string[]
 }`;
 
+    console.log('Sending request to Gemini...');
     const result = await model.generateContent([prompt, ...imageParts]);
     const response = await result.response;
     const text = response.text();
+    console.log('Received response from Gemini');
 
     try {
       const analysis = JSON.parse(text);
+      console.log('Successfully parsed analysis:', analysis);
       return analysis;
     } catch (parseError) {
       console.error("Failed to parse AI response:", text);

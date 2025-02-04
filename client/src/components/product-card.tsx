@@ -163,8 +163,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   }, [onEdit, product]);
 
   const handleConvertDialog = useCallback((e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
+    if (e) {
+      e.stopPropagation();
+      e.preventDefault();
+    }
     setShowConvertDialog(true);
   }, []);
 
@@ -524,14 +526,11 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
           </Button>
         </CardFooter>
       </div>
-
-      {showConvertDialog && (
-        <ConvertWatchlistDialog
-          product={product}
-          open={showConvertDialog}
-          onOpenChange={setShowConvertDialog}
-        />
-      )}
+      <ConvertWatchlistDialog
+        product={product}
+        open={showConvertDialog}
+        onOpenChange={setShowConvertDialog}
+      />
     </Card>
   );
 }

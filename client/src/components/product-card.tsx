@@ -7,7 +7,13 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import { useState } from "react";
 import ConvertWatchlistDialog from "./convert-watchlist-dialog";
-import {ScrollArea} from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Progress } from "@/components/ui/progress";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 
 

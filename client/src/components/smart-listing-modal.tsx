@@ -24,19 +24,19 @@ export default function SmartListingModal({
   const { toast } = useToast();
   const analysisInProgress = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const analysisTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  const cleanupRequest = useCallback(() => {
+  const cleanupAnalysis = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
-    if (retryTimeoutRef.current) {
-      clearTimeout(retryTimeoutRef.current);
-      retryTimeoutRef.current = null;
+    if (analysisTimeoutRef.current) {
+      clearTimeout(analysisTimeoutRef.current);
+      analysisTimeoutRef.current = null;
     }
-    setLoading(false);
     analysisInProgress.current = false;
+    setLoading(false);
     setProgress(0);
   }, []);
 
@@ -45,27 +45,26 @@ export default function SmartListingModal({
       return;
     }
 
-    cleanupRequest();
-    analysisInProgress.current = true;
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
     try {
+      // Cleanup any existing analysis
+      cleanupAnalysis();
+
+      // Set up new analysis state
+      analysisInProgress.current = true;
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       setLoading(true);
       setError(null);
       setProgress(0);
 
-      // Initial delay to prevent rapid retries
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      if (signal.aborted) throw new Error('Analysis cancelled');
-
       // Validate files
       const validationErrors: string[] = [];
-      const MAX_TOTAL_SIZE = 10 * 1024 * 1024; // 10MB total
+      const MAX_TOTAL_SIZE = 10 * 1024 * 1024;
       let totalSize = 0;
 
       for (let i = 0; i < files.length; i++) {
-        if (signal.aborted) throw new Error('Analysis cancelled');
+        if (signal.aborted) return;
 
         const file = files[i];
         if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
@@ -86,7 +85,7 @@ export default function SmartListingModal({
         throw new Error(`Validation errors:\n${validationErrors.join('\n')}`);
       }
 
-      if (signal.aborted) throw new Error('Analysis cancelled');
+      if (signal.aborted) return;
 
       toast({
         title: "Analysis started",
@@ -95,7 +94,7 @@ export default function SmartListingModal({
 
       const analysis = await generateSmartListing(files);
 
-      if (signal.aborted) throw new Error('Analysis cancelled');
+      if (signal.aborted) return;
 
       setProgress(100);
       onAnalysisComplete(analysis);
@@ -106,13 +105,8 @@ export default function SmartListingModal({
         description: "Product details have been analyzed successfully",
       });
     } catch (err) {
-      if (signal.aborted) {
+      if (abortControllerRef.current?.signal.aborted) {
         setError('Analysis was cancelled');
-        toast({
-          title: "Analysis cancelled",
-          description: "The analysis process was cancelled",
-          variant: "destructive",
-        });
       } else {
         console.error('Analysis error:', err);
         const errorMessage = err instanceof Error ? err.message : 'Failed to analyze';
@@ -126,23 +120,21 @@ export default function SmartListingModal({
         });
       }
     } finally {
-      cleanupRequest();
+      cleanupAnalysis();
     }
-  }, [files, onAnalysisComplete, onOpenChange, toast, cleanupRequest]);
+  }, [files, onAnalysisComplete, onOpenChange, toast, cleanupAnalysis]);
 
+  // Start analysis when modal opens
   useEffect(() => {
-    // Only start analysis if modal is open and we have files
     if (open && files.length > 0 && !loading && !analysisInProgress.current) {
-      handleAnalyze();
+      // Add delay before starting analysis to prevent rapid retries
+      analysisTimeoutRef.current = setTimeout(handleAnalyze, 500);
     }
 
-    // Cleanup function
-    return () => {
-      cleanupRequest();
-    };
-  }, [open, files, handleAnalyze, loading, cleanupRequest]);
+    return cleanupAnalysis;
+  }, [open, files, handleAnalyze, loading, cleanupAnalysis]);
 
-  // Close modal if there are no files
+  // Handle no files case
   useEffect(() => {
     if (open && files.length === 0) {
       onOpenChange(false);
@@ -154,12 +146,13 @@ export default function SmartListingModal({
     }
   }, [open, files.length, onOpenChange, toast]);
 
-  const handleCancel = useCallback(() => {
-    cleanupRequest();
-  }, [cleanupRequest]);
-
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen) {
+        cleanupAnalysis();
+      }
+      onOpenChange(newOpen);
+    }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Smart Listing Analysis</DialogTitle>
@@ -183,14 +176,6 @@ export default function SmartListingModal({
                  progress < 80 ? 'Analyzing content...' :
                  'Finalizing results...'}
               </p>
-              <Button
-                variant="outline"
-                onClick={handleCancel}
-                className="mt-4"
-                size="sm"
-              >
-                Cancel
-              </Button>
             </div>
           )}
           {error && !loading && (

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Edit, Trash2, Sparkles } from "lucide-react";
+import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Progress } from "@/components/ui/progress";
 
 interface ProductCardProps {
   product: SelectProduct;
@@ -58,6 +59,10 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
   };
 
   const hasAnalysis = product.aiAnalysis && Object.keys(product.aiAnalysis).length > 0;
+  const currentPrice = Number(product.price) || 0;
+  const isUnderpriced = hasAnalysis && currentPrice < product.aiAnalysis?.marketAnalysis?.priceSuggestion?.min;
+  const isOverpriced = hasAnalysis && currentPrice > product.aiAnalysis?.marketAnalysis?.priceSuggestion?.max;
+  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
 
   return (
     <Card className="overflow-hidden">
@@ -79,24 +84,75 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-80">
-                <div className="space-y-2">
-                  <h4 className="font-medium">AI Analysis</h4>
-                  <div className="text-sm space-y-1">
-                    <p><span className="font-medium">Category:</span> {product.aiAnalysis.category}</p>
-                    <p><span className="font-medium">Demand Score:</span> {product.aiAnalysis.marketAnalysis.demandScore}/100</p>
-                    <p><span className="font-medium">Competition:</span> {product.aiAnalysis.marketAnalysis.competitionLevel}</p>
-                    <p><span className="font-medium">Suggested Price Range:</span> ${product.aiAnalysis.marketAnalysis.priceSuggestion.min} - ${product.aiAnalysis.marketAnalysis.priceSuggestion.max}</p>
-                    <div>
-                      <p className="font-medium">Suggestions:</p>
-                      <ul className="list-disc pl-4">
-                        {product.aiAnalysis.suggestions.slice(0, 3).map((suggestion, index) => (
-                          <li key={index}>{suggestion}</li>
-                        ))}
-                      </ul>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-lg">AI Analysis</h4>
+                    <span className="text-sm text-muted-foreground">{product.aiAnalysis.category}</span>
+                  </div>
+
+                  <div className="p-4 bg-secondary/20 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Market Demand</span>
+                      <span className="text-sm font-medium">{product.aiAnalysis.marketAnalysis.demandScore}/100</span>
                     </div>
-                    <div>
-                      <p className="font-medium">SEO Keywords:</p>
-                      <p className="text-muted-foreground">{product.aiAnalysis.seoKeywords.join(", ")}</p>
+                    <Progress value={product.aiAnalysis.marketAnalysis.demandScore} className="h-2" />
+
+                    <div className="flex items-center gap-2 mt-2">
+                      <BarChart className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Competition: {product.aiAnalysis.marketAnalysis.competitionLevel}</span>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4" />
+                      <h5 className="font-medium">Price Analysis</h5>
+                    </div>
+
+                    <div className="pl-6 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">Suggested Range:</span>
+                        <span className="font-medium">${product.aiAnalysis.marketAnalysis.priceSuggestion.min} - ${product.aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                      </div>
+
+                      <div className={`text-sm px-3 py-1.5 rounded-md ${
+                        isUnderpriced ? 'bg-yellow-500/10 text-yellow-600' :
+                        isOverpriced ? 'bg-red-500/10 text-red-600' :
+                        'bg-green-500/10 text-green-600'
+                      }`}>
+                        {isUnderpriced ? '⚠️ Currently underpriced' :
+                         isOverpriced ? '⚠️ Currently overpriced' :
+                         '✓ Optimal price range'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4" />
+                      <h5 className="font-medium">Top Suggestions</h5>
+                    </div>
+                    <ul className="space-y-1.5 pl-6">
+                      {product.aiAnalysis.suggestions.slice(0, 3).map((suggestion, index) => (
+                        <li key={index} className="text-sm text-muted-foreground list-disc">{suggestion}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <div className="flex items-center gap-2">
+                      <Box className="h-4 w-4" />
+                      <h5 className="font-medium">SEO Keywords</h5>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {product.aiAnalysis.seoKeywords.map((keyword, index) => (
+                        <span
+                          key={index}
+                          className="inline-flex items-center px-2 py-1 rounded-md bg-primary/10 text-xs font-medium"
+                        >
+                          {keyword}
+                        </span>
+                      ))}
                     </div>
                   </div>
                 </div>

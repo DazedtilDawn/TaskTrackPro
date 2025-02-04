@@ -278,24 +278,34 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         <div className="space-y-2">
           <div className="flex items-baseline justify-between">
             <div className="space-y-1">
-              <div className="text-lg font-semibold">
+              <div className="text-sm text-muted-foreground font-medium">
+                Selling Price
+              </div>
+              <div className="text-xl font-semibold text-primary">
                 ${Number(product.price).toFixed(2)}
               </div>
               {product.buyPrice && (
-                <div className="text-sm text-muted-foreground">
-                  Bought for ${Number(product.buyPrice).toFixed(2)}
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-sm text-muted-foreground">Purchase Price:</span>
+                  <span className="text-sm font-medium">
+                    ${Number(product.buyPrice).toFixed(2)}
+                  </span>
                 </div>
               )}
             </div>
             {product.ebayPrice && (
-              <div className="text-sm bg-secondary/20 px-2 py-1 rounded">
-                eBay: ${Number(product.ebayPrice).toFixed(2)}
+              <div className="flex flex-col items-end">
+                <span className="text-sm text-muted-foreground">eBay Price</span>
+                <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
+                  ${Number(product.ebayPrice).toFixed(2)}
+                </span>
               </div>
             )}
           </div>
           {product.condition && (
-            <div className="text-sm text-muted-foreground capitalize">
-              Condition: {product.condition.replace(/_/g, ' ')}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Condition:</span>
+              <span className="capitalize">{product.condition.replace(/_/g, ' ')}</span>
             </div>
           )}
         </div>

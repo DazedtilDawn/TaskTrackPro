@@ -127,6 +127,41 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     }
   }, [product.id, product.name, inWatchlist, toast, location]);
 
+  const deleteProduct = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      const response = await apiRequest("DELETE", `/api/products/${product.id}`);
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+      ]);
+
+      toast({
+        title: "Product deleted",
+        description: product.name,
+      });
+    } catch (error) {
+      console.error('Product deletion failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
+    }
+  }, [product.id, product.name, toast]);
+
+  const handleEdit = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onEdit(product);
+  }, [onEdit, product]);
+
   const handleConvertDialog = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();

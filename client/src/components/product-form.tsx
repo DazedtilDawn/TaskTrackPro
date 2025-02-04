@@ -10,6 +10,21 @@ import { analyzeProduct } from "@/lib/gemini";
 import { getEbayPrice } from "@/lib/ebay";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const productFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  description: z.string().optional(),
+  sku: z.string().optional(),
+  price: z.number().min(0).optional(),
+  quantity: z.number().min(0).default(0),
+  imageUrl: z.string().optional(),
+  aiAnalysis: z.any().optional(),
+  ebayPrice: z.number().optional(),
+});
+
+type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: SelectProduct;
@@ -19,18 +34,22 @@ interface ProductFormProps {
 export default function ProductForm({ product, onComplete }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  
-  const form = useForm<InsertProduct>({
-    defaultValues: product || {
-      name: "",
-      description: "",
-      sku: "",
-      price: undefined,
-      quantity: 0,
+
+  const form = useForm<ProductFormData>({
+    resolver: zodResolver(productFormSchema),
+    defaultValues: {
+      name: product?.name ?? "",
+      description: product?.description ?? "",
+      sku: product?.sku ?? "",
+      price: product?.price ? Number(product.price) : undefined,
+      quantity: product?.quantity ?? 0,
+      imageUrl: product?.imageUrl ?? "",
+      aiAnalysis: product?.aiAnalysis,
+      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : undefined,
     },
   });
 
-  const onSubmit = async (data: InsertProduct) => {
+  const onSubmit = async (data: ProductFormData) => {
     try {
       if (product) {
         await apiRequest("PATCH", `/api/products/${product.id}`, data);
@@ -102,7 +121,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ''} />
               </FormControl>
             </FormItem>
           )}
@@ -114,7 +133,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
-                <Textarea {...field} />
+                <Textarea {...field} value={field.value ?? ''} />
               </FormControl>
             </FormItem>
           )}
@@ -126,7 +145,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             <FormItem>
               <FormLabel>SKU</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ''} />
               </FormControl>
             </FormItem>
           )}
@@ -139,7 +158,13 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Price</FormLabel>
                 <FormControl>
-                  <Input type="number" step="0.01" {...field} />
+                  <Input 
+                    type="number" 
+                    step="0.01" 
+                    {...field}
+                    value={field.value ?? ''} 
+                    onChange={e => field.onChange(e.target.value ? Number(e.target.value) : undefined)}
+                  />
                 </FormControl>
               </FormItem>
             )}
@@ -151,7 +176,12 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
               <FormItem>
                 <FormLabel>Quantity</FormLabel>
                 <FormControl>
-                  <Input type="number" {...field} />
+                  <Input 
+                    type="number"
+                    {...field}
+                    value={field.value ?? 0}
+                    onChange={e => field.onChange(Number(e.target.value))}
+                  />
                 </FormControl>
               </FormItem>
             )}
@@ -164,7 +194,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
             <FormItem>
               <FormLabel>Image URL</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} value={field.value ?? ''} />
               </FormControl>
             </FormItem>
           )}

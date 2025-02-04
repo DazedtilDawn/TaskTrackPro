@@ -5,9 +5,19 @@ import { db } from "@db";
 import { products, watchlist, orders, orderItems } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import bodyParser from "body-parser";
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
+
+  // Configure bodyParser for larger file uploads
+  app.use(bodyParser.json({
+    limit: '50mb', // Increase payload size limit
+    verify: (req, res, buf) => {
+      // Store raw body for verification if needed
+      req.rawBody = buf;
+    }
+  }));
 
   // Products
   app.get("/api/products", async (req, res) => {

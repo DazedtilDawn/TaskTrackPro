@@ -85,6 +85,9 @@ export default function SmartListingModal({
         description: `Analyzing ${files.length} image${files.length > 1 ? 's' : ''}...`,
       });
 
+      // Add debounce delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
       // Start analysis with progress updates
       const analysis = await generateSmartListing(files);
 
@@ -114,7 +117,7 @@ export default function SmartListingModal({
         });
       } else {
         console.error('Analysis error:', err);
-        const errorMessage = err instanceof Error ? err.message : 'Failed to analyze product';
+        const errorMessage = err instanceof Error ? err.message : 'Failed to analyze';
         setError(errorMessage);
 
         toast({
@@ -140,10 +143,11 @@ export default function SmartListingModal({
 
     // Cleanup function
     return () => {
-      if (loading) {
-        setLoading(false);
-        analysisInProgress.current = false;
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
+      setLoading(false);
+      analysisInProgress.current = false;
     };
   }, [open, files, handleAnalyze, loading]);
 
@@ -158,16 +162,6 @@ export default function SmartListingModal({
       });
     }
   }, [open, files.length, onOpenChange, toast]);
-
-  // Add cleanup function
-  useEffect(() => {
-    return () => {
-      // Cleanup on unmount
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-    };
-  }, []);
 
   const handleCancel = useCallback(() => {
     if (abortControllerRef.current) {

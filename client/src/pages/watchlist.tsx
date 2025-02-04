@@ -6,18 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
-import { Search, Plus } from "lucide-react";
+import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import ProductForm from "@/components/product-form";
 
 interface WatchlistItem {
-  watchlist: {
-    id: number;
-    userId: number;
-    productId: number;
-    createdAt: string;
-  };
-  products: SelectProduct | null;
+  id: number;
+  userId: number;
+  productId: number;
+  createdAt: string;
+  product: SelectProduct;
 }
 
 export default function Watchlist() {
@@ -25,18 +23,17 @@ export default function Watchlist() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
 
-  const { data: watchlist = [] } = useQuery<WatchlistItem[]>({
+  const { data: watchlist = [], isLoading } = useQuery<WatchlistItem[]>({
     queryKey: ["/api/watchlist"],
   });
 
   const filteredWatchlist = watchlist
-    .filter((item) => item.products !== null)
+    .filter((item) => item.product)
     .filter((item) => {
       const searchTerm = search.toLowerCase();
-      const product = item.products!;
       return (
-        product.name.toLowerCase().includes(searchTerm) ||
-        (product.sku?.toLowerCase() || '').includes(searchTerm)
+        item.product.name.toLowerCase().includes(searchTerm) ||
+        (item.product.sku?.toLowerCase() || '').includes(searchTerm)
       );
     });
 
@@ -72,24 +69,35 @@ export default function Watchlist() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filteredWatchlist.map((item) => (
-              <ProductCard
-                key={item.products!.id}
-                product={item.products!}
-                onEdit={handleEdit}
-                inWatchlist={true}
-              />
-            ))}
-          </div>
-
-          {filteredWatchlist.length === 0 && (
-            <div className="text-center text-muted-foreground mt-12">
-              <p>No products in your watchlist</p>
-              <p className="text-sm mt-2">
-                Add products to your watchlist to monitor them
-              </p>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-[200px]">
+              <div className="animate-spin">
+                <PackageSearch className="h-8 w-8 text-muted-foreground" />
+              </div>
             </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredWatchlist.map((item) => (
+                  <ProductCard
+                    key={item.id}
+                    product={item.product}
+                    onEdit={handleEdit}
+                    inWatchlist={true}
+                  />
+                ))}
+              </div>
+
+              {filteredWatchlist.length === 0 && (
+                <div className="text-center text-muted-foreground mt-12">
+                  <PackageSearch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                  <p className="text-lg font-medium">No products in your watchlist</p>
+                  <p className="text-sm mt-2">
+                    Add products to your watchlist to monitor them
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>

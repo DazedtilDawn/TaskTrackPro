@@ -446,18 +446,42 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
     try {
       const items = await db.select({
-        watchlist: watchlist,
-        products: products
+        id: watchlist.id,
+        userId: watchlist.userId,
+        productId: watchlist.productId,
+        createdAt: watchlist.createdAt,
+        product: {
+          id: products.id,
+          name: products.name,
+          description: products.description,
+          sku: products.sku,
+          price: products.price,
+          quantity: products.quantity,
+          condition: products.condition,
+          brand: products.brand,
+          category: products.category,
+          imageUrl: products.imageUrl,
+          aiAnalysis: products.aiAnalysis,
+          ebayPrice: products.ebayPrice
+        }
       })
-        .from(watchlist)
-        .leftJoin(products, eq(watchlist.productId, products.id))
-        .where(eq(watchlist.userId, req.user!.id))
-        .orderBy(watchlist.createdAt);
+      .from(watchlist)
+      .leftJoin(products, eq(watchlist.productId, products.id))
+      .where(
+        and(
+          eq(watchlist.userId, req.user!.id),
+          eq(products.sold, false)
+        )
+      )
+      .orderBy(watchlist.createdAt);
 
       res.json(items);
     } catch (error) {
       console.error('Error fetching watchlist:', error);
-      res.status(500).json({ error: "Failed to fetch watchlist" });
+      res.status(500).json({ 
+        error: "Failed to fetch watchlist",
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
     }
   });
 

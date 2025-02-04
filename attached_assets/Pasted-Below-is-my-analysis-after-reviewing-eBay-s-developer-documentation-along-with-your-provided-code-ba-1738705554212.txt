@@ -1,0 +1,265 @@
+Below is my analysis after reviewing eBay’s developer documentation along with your provided code base. In summary, the integration involves the following major parts:
+
+1. **Registering Your eBay Developer Account & Obtaining API Credentials:**  
+   – Create an account on the [eBay Developers Program](https://developer.ebay.com/).  
+   – Register a new application to obtain your Client ID (App ID), Client Secret (Cert ID), and configure your OAuth Redirect URI (RuName).  
+   – Decide which OAuth scopes you need (for example, to access inventory, pricing, or sold item data) and enable them in your application settings.
+
+2. **Implementing OAuth in Your Express Backend:**  
+   – Use the eBay OAuth 2.0 Authorization Code Flow to let sellers connect their eBay accounts.  
+   – Add routes (for example, `/auth/ebay` and `/auth/ebay/callback`) in your Express server to redirect the user to eBay’s login/consent screen and to handle the callback.  
+   – Exchange the authorization code for an access token (and refresh token) by POSTing to eBay’s token endpoint.  
+   – Store these tokens securely (for example, in your PostgreSQL database) so that subsequent API calls include the required `Authorization: Bearer <token>` header.  
+
+3. **Making eBay API Calls to Retrieve Inventory & Pricing Data:**  
+   – Choose the API(s) you need. For example:  
+     - The **Feed API** can be used to request an ActiveInventoryReport (via `/sell/feed/v1/inventory_task`) which will bulk-deliver your current listings (including pricing and SKU data).  
+     - Alternatively, the **Inventory API** or **Browse API** can be used to fetch details on active listings.  
+   – In your Express server, create “client” functions (for instance, in a module like `services/ebayClient.js`) that call eBay’s endpoints.  
+   – Handle pagination, rate limits, and token expiration (by refreshing tokens when needed).
+
+4. **Updating Your PostgreSQL Database via Drizzle-ORM:**  
+   – Use your Drizzle-ORM schema (for example, the `products` table and related tables) to upsert or update product records.  
+   – For example, when a feed report is fetched from eBay, parse its CSV/JSON and update your Items (products) table, logging any price changes into a history table if desired.
+
+5. **Integrating AI Price Recommendations with the Gemini API:**  
+   – In your backend, add a service (e.g. in `services/aiClient.js` or as part of your existing routes) that uses the Gemini API to generate a recommended price based on product details and market data.  
+   – Construct a prompt that includes key information (product title, condition, recent pricing trends, etc.) and send it to the Gemini API.  
+   – Parse the response (preferably in a structured JSON format) and store or return the recommended price to the frontend.
+
+6. **Connecting Your Frontend UI to the Backend:**  
+   – Use your existing React components (for example, the ProductCard, ProductForm, and view toggle components) to display inventory data that now includes eBay listings and AI recommendations.  
+   – Provide controls (buttons) to let users refresh data, mark products as “sold,” or even push new price recommendations back to eBay via your backend.
+
+7. **Testing, Debugging & Handling Edge Cases:**  
+   – Make sure that you test the OAuth flow thoroughly in eBay’s sandbox environment before moving to production.  
+   – Use robust error handling in your API client functions (handle HTTP 401, 429 errors, etc.).  
+   – Monitor performance (for example, if the feed report is large, consider a background job with status notifications to the frontend).
+
+---
+
+Below is a step-by-step guide with sample code snippets illustrating how you can integrate eBay into your current code base.
+
+---
+
+## Step 1: Register Your eBay Developer Application
+
+- Visit [eBay Developers Program](https://developer.ebay.com/) and register your app.
+- Copy your **Client ID** and **Client Secret**.
+- Set up your OAuth redirect URI (make sure it matches your Express callback route).
+
+---
+
+## Step 2: Implement the eBay OAuth Flow
+
+In your Express server (for example, in a new file like `server/ebay-auth.ts`), add routes such as:
+
+```js
+// server/ebay-auth.ts
+import express from "express";
+import axios from "axios";
+const router = express.Router();
+
+router.get("/auth/ebay", (req, res) => {
+  const clientId = process.env.EBAY_CLIENT_ID;
+  const ruName = process.env.EBAY_REDIRECT_URI;
+  // Define the scopes required by your app:
+  const scopes = [
+    "https://api.ebay.com/oauth/api_scope/sell.inventory",
+    "https://api.ebay.com/oauth/api_scope/sell.analytics.readonly"
+    // Add additional scopes as needed
+  ];
+  const scopeParam = encodeURIComponent(scopes.join(" "));
+  // Use eBay’s sandbox or production URL as appropriate:
+  const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${ruName}&response_type=code&scope=${scopeParam}`;
+  res.redirect(authUrl);
+});
+
+router.get("/auth/ebay/callback", async (req, res) => {
+  const code = req.query.code;
+  if (!code) {
+    return res.status(400).send("Missing code");
+  }
+  const creds = Buffer.from(`${process.env.EBAY_CLIENT_ID}:${process.env.EBAY_CLIENT_SECRET}`).toString("base64");
+  try {
+    const tokenRes = await axios.post(
+      "https://api.ebay.com/identity/v1/oauth2/token",
+      `grant_type=authorization_code&code=${code}&redirect_uri=${process.env.EBAY_REDIRECT_URI}`,
+      {
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": `Basic ${creds}`
+        }
+      }
+    );
+    const tokens = tokenRes.data;
+    console.log("eBay tokens acquired:", tokens);
+    // Save tokens (access and refresh tokens) in your database associated with the user
+    res.redirect("/dashboard");
+  } catch (err) {
+    console.error("Token exchange error:", err.response?.data || err.message);
+    res.status(500).send("eBay authorization failed");
+  }
+});
+
+export default router;
+```
+
+Then mount this router in your main Express app (e.g., in `server/index.ts`):
+
+```js
+import ebayAuthRoutes from "./ebay-auth";
+// ...
+app.use(ebayAuthRoutes);
+```
+
+---
+
+## Step 3: Fetch Inventory & Pricing Data from eBay
+
+Create a module (for example, `server/ebayClient.ts`) that handles eBay API calls. For instance:
+
+```js
+// server/ebayClient.ts
+import axios from "axios";
+
+// Example function to fetch active listings via the Feed API
+export async function fetchActiveInventory(token: string): Promise<any> {
+  const url = "https://api.ebay.com/sell/feed/v1/inventory_task";
+  // Construct the request body as per eBay Feed API documentation.
+  const body = {
+    feedType: "LMS_ACTIVE_INVENTORY_REPORT"
+  };
+  const res = await axios.post(url, body, {
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    }
+  });
+  // Handle asynchronous processing: poll the task until complete, then download the file.
+  return res.data;
+}
+```
+
+You can later parse the report (CSV or JSON) and then upsert the product data into your PostgreSQL database using Drizzle-ORM.
+
+---
+
+## Step 4: Update Your Database with eBay Data
+
+Your existing Drizzle-ORM schema (in `db/schema.ts`) already defines tables for users and products. When new data is fetched from eBay, update or insert records into your `products` table. For example:
+
+```ts
+// server/updateInventory.ts
+import { db } from "@db";
+import { products } from "@db/schema";
+import { eq } from "drizzle-orm";
+
+export async function syncEbayInventory(ebayData: any) {
+  // For each listing from eBay:
+  for (const listing of ebayData.listings) {
+    // Extract relevant fields (item id, title, price, quantity, etc.)
+    const { itemId, title, price, quantity, sku, condition } = listing;
+    // Upsert product: update if exists, or insert if new.
+    const [existingProduct] = await db
+      .select()
+      .from(products)
+      .where(eq(products.ebayPrice, sku)) // or use a dedicated ebay_item_id field
+      .limit(1);
+    if (existingProduct) {
+      await db.update(products)
+        .set({ title, currentPrice: price, quantityAvailable: quantity })
+        .where(eq(products.ebayPrice, sku));
+    } else {
+      await db.insert(products).values({
+        ebayItemId: itemId,
+        title,
+        currentPrice: price,
+        quantityAvailable: quantity,
+        condition,
+        // ...other fields as needed
+      });
+    }
+  }
+}
+```
+
+*Note:* You may want to extend your schema to include fields such as `ebayItemId` so that you can uniquely identify each listing from eBay.
+
+---
+
+## Step 5: Integrate AI Recommendations with Gemini API
+
+You already have a module for Gemini (see your `client/src/lib/gemini.ts`). On the backend, create an endpoint (for example, `/api/generate-sale-price`) that:
+  
+1. Gathers product details (from your DB or request body).  
+2. Constructs a prompt that includes market data, product condition, and recent sales data.  
+3. Calls the Gemini API and parses the response.  
+4. Returns the recommended sale price to the frontend.
+
+An example endpoint might look like this:
+
+```js
+// In your routes (server/routes.ts)
+app.post("/api/generate-sale-price", async (req, res) => {
+  const { productId, buyPrice, currentPrice, condition, category } = req.body;
+  const prompt = `Given a product with:
+- Buy Price: $${buyPrice}
+- Current Market Price: $${currentPrice || 'unknown'}
+- Condition: ${condition || 'unknown'}
+- Category: ${category || 'unknown'}
+Recommend a competitive sale price ensuring a healthy profit margin.
+Format your answer as JSON:
+{"recommendedSalePrice": number}`;
+  try {
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
+        maxOutputTokens: 100,
+        temperature: 0.7,
+      },
+    });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No JSON object found in response");
+    }
+    const recommendation = JSON.parse(jsonMatch[0]);
+    res.json(recommendation);
+  } catch (error) {
+    res.status(500).json({ error: error instanceof Error ? error.message : "Unknown error" });
+  }
+});
+```
+
+---
+
+## Step 6: Connect Your Frontend
+
+Your React code already includes pages for Dashboard, Inventory, Orders, and Watchlist. Update the product listing pages to include the following:
+  
+- **Display Data from eBay:** Products stored in your database (which now include eBay listings) are fetched via your `/api/products` endpoint (already in your queryClient).
+- **Show AI Recommendations:** For example, in your ProductCard component you can display a recommended price if available.
+- **Provide Actions:** Buttons (e.g. “Mark as Sold” or “Update Price”) that call your backend endpoints to push updates back to eBay via the API.
+
+Your UI components (in `client/src/components/...`) can remain largely the same—you just ensure that they use the new data fields you update from eBay.
+
+---
+
+## Step 7: Testing and Monitoring
+
+- **Test the OAuth flow in eBay’s sandbox** before switching to production credentials.
+- **Monitor API responses and errors:** Check for 401 (unauthorized) or 429 (rate limit) responses.
+- **Ensure that your token refreshing logic works** so that your backend always has a valid token when making eBay API calls.
+- **Log responses and errors** (as in the sample code) so that you can troubleshoot any issues quickly.
+
+---
+
+### Final Thoughts
+
+By following these steps and using your current code base as a foundation, you can integrate eBay data into your inventory/reseller application. Start by implementing and testing the OAuth flow, then work on fetching and storing eBay inventory data. Once that’s working, layer in the AI recommendations (using your Gemini API integration) and adjust your frontend to display the new data. Test each part in isolation before fully integrating them.
+
+If you need further assistance with a specific step or run into issues, feel free to ask for more detailed guidance on that portion.
+
+Happy coding!

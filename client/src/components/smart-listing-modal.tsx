@@ -44,7 +44,13 @@ export default function SmartListingModal({
 
   // Analysis function
   const runAnalysis = useCallback(async () => {
-    if (analysisLock.current || !mounted.current) return;
+    console.log('SmartListingModal: Starting analysis process');
+    console.log('Files to analyze:', files.length);
+
+    if (analysisLock.current || !mounted.current) {
+      console.log('Analysis locked or component unmounted');
+      return;
+    }
 
     try {
       cleanup();
@@ -55,7 +61,9 @@ export default function SmartListingModal({
       setError(null);
       setProgress(0);
 
+      console.log('SmartListingModal: Calling generateSmartListing');
       const analysis = await generateSmartListing(files);
+      console.log('SmartListingModal: Analysis completed successfully');
 
       if (!mounted.current) return;
 
@@ -68,9 +76,9 @@ export default function SmartListingModal({
         description: "Product details have been analyzed successfully"
       });
     } catch (err) {
+      console.error('SmartListingModal: Analysis error:', err);
       if (!mounted.current) return;
 
-      console.error('Analysis error:', err);
       setError(err instanceof Error ? err.message : 'Analysis failed');
 
       toast({
@@ -88,7 +96,9 @@ export default function SmartListingModal({
   }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
 
   useEffect(() => {
+    console.log('SmartListingModal: Modal state changed', { open, filesCount: files.length });
     if (open && files.length > 0 && !analysisLock.current) {
+      console.log('SmartListingModal: Scheduling analysis');
       analysisTimeout.current = setTimeout(runAnalysis, 1000);
     }
 
@@ -100,6 +110,7 @@ export default function SmartListingModal({
 
   useEffect(() => {
     if (open && files.length === 0) {
+      console.log('SmartListingModal: No files provided');
       onOpenChange(false);
       toast({
         title: "No images selected",
@@ -117,6 +128,7 @@ export default function SmartListingModal({
 
   return (
     <Dialog open={open} onOpenChange={(newOpen) => {
+      console.log('SmartListingModal: Dialog state changing to:', newOpen);
       if (!newOpen) {
         cleanup();
       }
@@ -171,6 +183,7 @@ export default function SmartListingModal({
               <Button
                 variant="outline"
                 onClick={() => {
+                  console.log('SmartListingModal: Retrying analysis');
                   if (!analysisLock.current) {
                     runAnalysis();
                   }

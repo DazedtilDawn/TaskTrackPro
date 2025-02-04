@@ -52,20 +52,120 @@ async function initializeGemini() {
   return genAI;
 }
 
+export async function generateSmartListing(
+  files: File[]
+): Promise<SmartListingAnalysis> {
+  console.log('generateSmartListing: Starting with files:', files.map(f => ({ name: f.name, type: f.type, size: f.size })));
+
+  if (!files.length) {
+    console.error('generateSmartListing: No files provided');
+    throw new Error("No files provided for analysis");
+  }
+
+  try {
+    console.log('generateSmartListing: Processing image files...');
+    const processedImages: string[] = [];
+
+    for (const file of files) {
+      console.log(`Processing file: ${file.name}, type: ${file.type}, size: ${file.size}`);
+
+      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
+        console.error(`Invalid file type: ${file.type}`);
+        throw new Error(`Invalid file type: ${file.type}. Only JPEG, PNG, and WebP are supported.`);
+      }
+      if (file.size > 4 * 1024 * 1024) {
+        console.error(`File too large: ${file.name} (${file.size} bytes)`);
+        throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
+      }
+
+      console.log(`Converting ${file.name} to base64...`);
+      const base64Data = await fileToBase64(file);
+      console.log(`Successfully converted ${file.name} to base64 (${base64Data.length} chars)`);
+      processedImages.push(base64Data);
+
+      if (files.length > 1) {
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+
+    console.log('generateSmartListing: All images processed successfully');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    let retries = 0;
+    const maxRetries = 3;
+    const retryDelay = 3000;
+
+    while (retries < maxRetries) {
+      try {
+        console.log(`generateSmartListing: Sending analysis request (attempt ${retries + 1}/${maxRetries})`);
+        const response = await apiRequest(
+          "POST",
+          "/api/analyze-images",
+          { images: processedImages }
+        );
+
+        console.log('generateSmartListing: Received response:', {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries())
+        });
+
+        if (response.status === 429) {
+          console.log(`Rate limited, attempt ${retries + 1} of ${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * (retries + 1)));
+          retries++;
+          continue;
+        }
+
+        const text = await response.text();
+        console.log('generateSmartListing: Response text:', text.substring(0, 200) + '...');
+
+        try {
+          const analysis = JSON.parse(text);
+          if (!analysis || typeof analysis.error === 'string') {
+            console.error('generateSmartListing: Invalid analysis response:', analysis);
+            throw new Error(analysis.error || 'Failed to analyze images');
+          }
+          console.log('generateSmartListing: Successfully parsed analysis');
+          return analysis;
+        } catch (parseError) {
+          console.error('generateSmartListing: Failed to parse API response:', text);
+          throw new Error('Failed to parse analysis results');
+        }
+      } catch (error) {
+        console.error(`generateSmartListing: Request error (attempt ${retries + 1}):`, error);
+        if (retries === maxRetries - 1) throw error;
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, retryDelay * retries));
+      }
+    }
+
+    throw new Error('Maximum retry attempts reached');
+  } catch (error) {
+    console.error("generateSmartListing: Fatal error:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("Failed to generate smart listing");
+  }
+}
+
+// Helper function to compress image
 async function compressImage(file: File): Promise<Blob> {
+  console.log(`compressImage: Starting compression for ${file.name}`);
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
       URL.revokeObjectURL(img.src);
+      console.log(`Original dimensions: ${img.width}x${img.height}`);
 
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
       if (!ctx) {
+        console.error('Could not get canvas context');
         reject(new Error('Could not get canvas context'));
         return;
       }
 
-      // Calculate new dimensions while maintaining aspect ratio
       let width = img.width;
       let height = img.height;
       const MAX_DIMENSION = 600;
@@ -78,13 +178,14 @@ async function compressImage(file: File): Promise<Blob> {
         height = MAX_DIMENSION;
       }
 
+      console.log(`Resized dimensions: ${width}x${height}`);
+
       canvas.width = width;
       canvas.height = height;
 
       ctx.imageSmoothingEnabled = true;
       ctx.imageSmoothingQuality = 'high';
 
-      // Draw image with white background
       ctx.fillStyle = '#FFFFFF';
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
@@ -92,9 +193,11 @@ async function compressImage(file: File): Promise<Blob> {
       canvas.toBlob(
         (blob) => {
           if (!blob) {
+            console.error('Failed to create blob from canvas');
             reject(new Error('Failed to compress image'));
             return;
           }
+          console.log(`Compressed size: ${blob.size} bytes`);
           resolve(blob);
         },
         'image/jpeg',
@@ -102,7 +205,8 @@ async function compressImage(file: File): Promise<Blob> {
       );
     };
 
-    img.onerror = () => {
+    img.onerror = (err) => {
+      console.error('Failed to load image:', err);
       URL.revokeObjectURL(img.src);
       reject(new Error('Failed to load image for compression'));
     };
@@ -111,101 +215,33 @@ async function compressImage(file: File): Promise<Blob> {
   });
 }
 
+// Helper function to convert file to base64
 async function fileToBase64(file: File): Promise<string> {
+  console.log(`fileToBase64: Converting ${file.name} to base64`);
   const compressedBlob = await compressImage(file);
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       if (!reader.result) {
+        console.error('Failed to read file');
         reject(new Error("Failed to read file"));
         return;
       }
       const base64Data = (reader.result as string).split(",")[1];
       if (!base64Data) {
+        console.error('Failed to extract base64 data');
         reject(new Error("Failed to extract base64 data"));
         return;
       }
+      console.log(`Base64 conversion complete: ${base64Data.length} chars`);
       resolve(base64Data);
     };
-    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.onerror = () => {
+      console.error('FileReader error:', reader.error);
+      reject(new Error("Failed to read file"));
+    };
     reader.readAsDataURL(compressedBlob);
   });
-}
-
-export async function generateSmartListing(
-  files: File[]
-): Promise<SmartListingAnalysis> {
-  if (!files.length) {
-    throw new Error("No files provided for analysis");
-  }
-
-  try {
-    console.log('Processing image files...');
-    const processedImages: string[] = [];
-
-    for (const file of files) {
-      if (!file.type.match(/^image\/(jpeg|png|webp)$/)) {
-        throw new Error(`Invalid file type: ${file.type}. Only JPEG, PNG, and WebP are supported.`);
-      }
-      if (file.size > 4 * 1024 * 1024) {
-        throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
-      }
-
-      const base64Data = await fileToBase64(file);
-      processedImages.push(base64Data);
-
-      if (files.length > 1) {
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-
-    console.log('Images processed successfully');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    let retries = 0;
-    const maxRetries = 3;
-    const retryDelay = 3000; // 3 seconds between retries
-
-    while (retries < maxRetries) {
-      try {
-        const response = await apiRequest(
-          "POST",
-          "/api/analyze-images",
-          { images: processedImages }
-        );
-
-        if (response.status === 429) {
-          console.log(`Rate limited, attempt ${retries + 1} of ${maxRetries}`);
-          await new Promise(resolve => setTimeout(resolve, retryDelay * (retries + 1)));
-          retries++;
-          continue;
-        }
-
-        const text = await response.text();
-        try {
-          const analysis = JSON.parse(text);
-          if (!analysis || typeof analysis.error === 'string') {
-            throw new Error(analysis.error || 'Failed to analyze images');
-          }
-          return analysis;
-        } catch (parseError) {
-          console.error('Failed to parse API response:', text);
-          throw new Error('Failed to parse analysis results');
-        }
-      } catch (error) {
-        if (retries === maxRetries - 1) throw error;
-        retries++;
-        await new Promise(resolve => setTimeout(resolve, retryDelay * retries));
-      }
-    }
-
-    throw new Error('Maximum retry attempts reached');
-  } catch (error) {
-    console.error("Smart listing generation error:", error);
-    throw error instanceof Error
-      ? error
-      : new Error("Failed to generate smart listing");
-  }
 }
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {

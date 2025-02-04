@@ -294,10 +294,22 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         total: orders.total,
         createdAt: orders.createdAt,
         updatedAt: orders.updatedAt,
-        items: orderItems
+        items: {
+          id: orderItems.id,
+          quantity: orderItems.quantity,
+          price: orderItems.price,
+          product: {
+            id: products.id,
+            name: products.name,
+            description: products.description,
+            sku: products.sku,
+            imageUrl: products.imageUrl
+          }
+        }
       })
       .from(orders)
       .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+      .leftJoin(products, eq(orderItems.productId, products.id))
       .where(eq(orders.userId, req.user!.id))
       .orderBy(desc(orders.createdAt));
 
@@ -305,13 +317,13 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       const groupedOrders = userOrders.reduce((acc: any[], order) => {
         const existingOrder = acc.find(o => o.id === order.id);
         if (existingOrder) {
-          if (order.items) {
+          if (order.items?.id) { // Only add if items exist
             existingOrder.items.push(order.items);
           }
         } else {
           acc.push({
             ...order,
-            items: order.items ? [order.items] : []
+            items: order.items?.id ? [order.items] : [] // Only include if items exist
           });
         }
         return acc;

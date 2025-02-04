@@ -161,17 +161,46 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
 
   const handleAnalysisComplete = (analysis: any) => {
     setIsAnalyzing(false);
-    form.setValue("aiAnalysis", analysis);
 
-    // Pre-fill form fields based on AI analysis
-    if (analysis.title) {
-      form.setValue("name", analysis.title);
+    // Sanitize: keep only essential fields
+    const sanitizedAnalysis = {
+      title: analysis?.title,
+      description: analysis?.description,
+      category: analysis?.category,
+      marketAnalysis: {
+        demandScore: analysis?.marketAnalysis?.demandScore,
+        competitionLevel: analysis?.marketAnalysis?.competitionLevel,
+        priceSuggestion: {
+          min: analysis?.marketAnalysis?.priceSuggestion?.min,
+          max: analysis?.marketAnalysis?.priceSuggestion?.max,
+        }
+      },
+      seoKeywords: analysis?.seoKeywords?.slice(0, 5),
+      suggestions: analysis?.suggestions?.slice(0, 3),
+    };
+
+    form.setValue("aiAnalysis", sanitizedAnalysis);
+
+    // Pre-fill form fields based on sanitized AI analysis
+    if (sanitizedAnalysis.title) {
+      form.setValue("name", sanitizedAnalysis.title);
     }
-    if (analysis.description) {
-      form.setValue("description", analysis.description);
+    if (sanitizedAnalysis.description) {
+      form.setValue("description", sanitizedAnalysis.description);
     }
-    if (analysis.marketAnalysis?.priceSuggestion?.min) {
-      form.setValue("price", analysis.marketAnalysis.priceSuggestion.min);
+    if (sanitizedAnalysis.category) {
+      form.setValue("category", sanitizedAnalysis.category);
+    }
+    if (sanitizedAnalysis.marketAnalysis?.priceSuggestion?.min) {
+      const condition = form.getValues("condition");
+      const conditionData = conditionOptions.find(opt => opt.value === condition);
+      const conditionDiscount = conditionData?.discount ?? 1;
+
+      // Apply condition-based discount to suggested price
+      const adjustedPrice = Math.floor(
+        sanitizedAnalysis.marketAnalysis.priceSuggestion.min * conditionDiscount
+      );
+      form.setValue("price", adjustedPrice);
     }
   };
 
@@ -284,8 +313,8 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                             isPricedRight && "bg-green-500/10 text-green-600"
                           )}>
                             {isUnderpriced ? 'Consider Increasing Price' :
-                             isOverpriced ? 'Consider Reducing Price' :
-                             'Optimal Price Range'}
+                              isOverpriced ? 'Consider Reducing Price' :
+                                'Optimal Price Range'}
                           </div>
                         </div>
 
@@ -302,8 +331,8 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                                   <span className="text-muted-foreground">Market Demand</span>
                                   <span className="font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
                                 </div>
-                                <Progress 
-                                  value={aiAnalysis.marketAnalysis.demandScore} 
+                                <Progress
+                                  value={aiAnalysis.marketAnalysis.demandScore}
                                   className="h-2"
                                 />
                               </div>
@@ -362,7 +391,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                                   <span className="text-sm font-medium">Potential Profit Margin</span>
                                   <div className="flex items-baseline gap-2 mt-1">
                                     <span className="text-xl font-semibold text-primary">
-                                      {Math.round(((priceRange.max * 1.15) / 
+                                      {Math.round(((priceRange.max * 1.15) /
                                         (priceRange.min * 0.7) - 1) * 100)}%
                                     </span>
                                     <span className="text-sm text-muted-foreground">
@@ -391,7 +420,7 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                           </div>
                           <ul className="grid grid-cols-2 gap-3">
                             {aiAnalysis.suggestions.slice(0, 4).map((suggestion: string, index: number) => (
-                              <li 
+                              <li
                                 key={index}
                                 className="text-sm text-muted-foreground p-3 bg-secondary/20 rounded-lg"
                               >
@@ -440,9 +469,9 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                         <FormItem>
                           <FormLabel>Description</FormLabel>
                           <FormControl>
-                            <Textarea 
-                              {...field} 
-                              value={field.value ?? ''} 
+                            <Textarea
+                              {...field}
+                              value={field.value ?? ''}
                               placeholder="Describe the product's features, specifications, and condition"
                               className="min-h-[100px]"
                             />
@@ -458,8 +487,8 @@ export default function ProductForm({ product, onComplete }: ProductFormProps) {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Condition</FormLabel>
-                            <Select 
-                              onValueChange={field.onChange} 
+                            <Select
+                              onValueChange={field.onChange}
                               defaultValue={field.value}
                             >
                               <FormControl>

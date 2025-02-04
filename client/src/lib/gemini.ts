@@ -52,6 +52,37 @@ async function initializeGemini() {
   return genAI;
 }
 
+async function fileToGenerativePart(file: File): Promise<{ inlineData: { data: string; mimeType: string } }> {
+  const compressedBlob = await compressImage(file);
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (!reader.result) {
+        console.error('Failed to read file');
+        return reject(new Error("Failed to read file"));
+      }
+      // Extract the mime type from the file and keep only the base64 data
+      const resultStr = reader.result as string;
+      const parts = resultStr.split(",");
+      if (parts.length < 2) {
+        console.error('Failed to extract base64 data');
+        return reject(new Error("Failed to extract base64 data"));
+      }
+      resolve({
+        inlineData: {
+          data: parts[1],
+          mimeType: file.type,
+        },
+      });
+    };
+    reader.onerror = () => {
+      console.error('FileReader error:', reader.error);
+      reject(new Error("File reading error"));
+    };
+    reader.readAsDataURL(compressedBlob);
+  });
+}
+
 export async function generateSmartListing(
   files: File[]
 ): Promise<SmartListingAnalysis> {
@@ -64,7 +95,7 @@ export async function generateSmartListing(
 
   try {
     console.log('generateSmartListing: Processing image files...');
-    const formData = new FormData();
+    const imageParts = [];
 
     for (const file of files) {
       console.log(`Processing file: ${file.name}, type: ${file.type}, size: ${file.size}`);
@@ -78,9 +109,8 @@ export async function generateSmartListing(
         throw new Error(`File too large: ${file.name}. Maximum size is 4MB.`);
       }
 
-      // Compress the image before uploading
-      const compressedBlob = await compressImage(file);
-      formData.append('images', compressedBlob, file.name);
+      const part = await fileToGenerativePart(file);
+      imageParts.push(part);
 
       if (files.length > 1) {
         await new Promise(resolve => setTimeout(resolve, 2000));
@@ -100,7 +130,7 @@ export async function generateSmartListing(
         const response = await apiRequest(
           "POST",
           "/api/analyze-images",
-          formData
+          { images: imageParts }
         );
 
         console.log('generateSmartListing: Received response:', {
@@ -245,7 +275,7 @@ async function fileToBase64(file: File): Promise<string> {
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
   const genAI = await initializeGemini();
-  const model = genAI.getGenerativeModel({ 
+  const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash-exp",
     generationConfig: {
       maxOutputTokens: 8192,

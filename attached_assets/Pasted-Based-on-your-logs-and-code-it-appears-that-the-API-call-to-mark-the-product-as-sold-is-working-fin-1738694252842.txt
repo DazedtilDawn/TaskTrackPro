@@ -1,0 +1,84 @@
+Based on your logs and code, it appears that the API call to mark the product as sold is working fine and you even see the log  
+```
+Navigating to /orders
+```  
+but the actual navigation isn’t happening.
+
+Here are some suggestions to troubleshoot and fix the issue:
+
+1. **Double-Check the Router Setup:**  
+   • Verify that the `/orders` route is correctly registered in your router (inside your `<Switch>` or `<Routes>` in your main App component).  
+   • Manually visit `/orders` in your browser to be sure that the orders page renders.  
+   
+2. **Ensure the Router Context Is Available:**  
+   • Confirm that the component calling `setLocation("/orders")` (in your product-card) is rendered inside the router’s context.  
+   • Sometimes if you call routing functions from a component that isn’t within your `<Router>` (or if the router isn’t wrapping the component tree correctly), the location change won’t be applied.
+
+3. **Delay the Navigation Call:**  
+   Although your log shows the call is made, the refetches might be causing extra re-renders that interfere with the immediate navigation. Try wrapping the navigation in a short timeout. For example:  
+   ```tsx
+   // Inside markAsSold after the toast:
+   setTimeout(() => {
+     setLocation("/orders");
+   }, 0);
+   ```
+   This gives the refetch calls a moment to complete before the router processes the location change.
+
+4. **Test with a Full-Page Redirect:**  
+   As a debugging step (or even as a temporary workaround), you could try a full reload with:  
+   ```tsx
+   window.location.href = "/orders";
+   ```  
+   If that works, it suggests the router’s state update isn’t being applied correctly (or that there is interference from some other state update).
+
+5. **Review Any Open Dialogs or Portals:**  
+   The warning about a missing `Description` or `aria-describedby` in your Dialog might indicate that a dialog is not closing properly. If the sold action is triggered from or near an open dialog, it might be keeping focus or blocking navigation. Ensure that any dialog (or modal) is properly closed (or unmounted) before the navigation happens.
+
+6. **Check for Unintended Side Effects:**  
+   Since you are using multiple refetches (for products, watchlist, and orders) right before the navigation call, try temporarily removing or delaying those refetch calls to see if the navigation works on its own. For example, call `setLocation("/orders")` immediately after a successful API response and before starting the refetches.
+
+### Example Update for markAsSold
+
+```tsx
+const markAsSold = async () => {
+  try {
+    const response = await apiRequest("POST", "/api/orders", {
+      productId: product.id,
+    });
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    // Force refetch to update the UI
+    await Promise.all([
+      queryClient.refetchQueries({ queryKey: ["/api/products"] }),
+      queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
+      queryClient.refetchQueries({ queryKey: ["/api/orders"] })
+    ]);
+    toast({
+      title: "Product marked as sold",
+      description: product.name,
+    });
+    console.log("Navigating to /orders");
+    // Use a timeout to allow refetches to settle before navigating
+    setTimeout(() => {
+      setLocation("/orders");
+    }, 0);
+  } catch (error) {
+    console.error("Error marking product as sold:", error);
+    toast({
+      title: "Error",
+      description: "Failed to mark product as sold",
+      variant: "destructive",
+    });
+  }
+};
+```
+
+### Next Steps
+
+1. Try the above modifications (especially wrapping `setLocation` in a `setTimeout` or using a full-page redirect) and see if navigation occurs.
+2. Check that your router (Wouter) is correctly wrapping your component tree and that no parent component (such as an open dialog) is interfering with the navigation.
+3. If a full-page redirect (using `window.location.href = "/orders"`) works, that confirms the router update isn’t being applied as expected—this may point to a context or re-render issue.
+
+Give these changes a try and let me know if the navigation to the orders page works.

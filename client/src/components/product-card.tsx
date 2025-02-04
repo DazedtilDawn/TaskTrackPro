@@ -49,7 +49,16 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         throw new Error(result.error);
       }
 
-      // Force refetch to update the UI
+      // Log navigation attempt
+      console.log("Attempting navigation to /orders");
+
+      // Navigate immediately after successful API call
+      setTimeout(() => {
+        console.log("Executing navigation to /orders");
+        setLocation("/orders");
+      }, 0);
+
+      // Force refetch to update the UI after navigation
       await Promise.all([
         queryClient.refetchQueries({ queryKey: ["/api/products"] }),
         queryClient.refetchQueries({ queryKey: ["/api/watchlist"] }),
@@ -61,13 +70,6 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
         description: product.name,
       });
 
-      // Log navigation attempt
-      console.log("Navigating to /orders");
-
-      // Use setTimeout to ensure navigation happens after state updates
-      setTimeout(() => {
-        setLocation("/orders");
-      }, 0);
     } catch (error) {
       console.error('Error marking product as sold:', error);
       toast({

@@ -39,23 +39,28 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
   const toggleWatchlist = async () => {
     try {
       if (inWatchlist) {
+        // Send DELETE request with product ID
         await apiRequest("DELETE", `/api/watchlist/${product.id}`);
+        // Invalidate both watchlist and products queries to ensure UI updates
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+        ]);
       } else {
-        await apiRequest("POST", "/api/watchlist", { 
-          productId: product.id 
-        }, { 
-          headers: { 'Content-Type': 'application/json' } 
-        });
+        await apiRequest("POST", "/api/watchlist", { productId: product.id });
+        // Invalidate queries after adding to watchlist
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+        ]);
       }
-
-      queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
 
       toast({
         title: inWatchlist ? "Removed from watchlist" : "Added to watchlist",
         description: product.name,
       });
     } catch (error) {
+      console.error('Watchlist operation failed:', error);
       toast({
         title: "Error",
         description: "Failed to update watchlist",

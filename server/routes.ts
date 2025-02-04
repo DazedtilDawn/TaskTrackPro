@@ -269,17 +269,31 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      await db.delete(watchlist)
+      const productId = parseInt(req.params.id);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+
+      const result = await db.delete(watchlist)
         .where(
           and(
-            eq(watchlist.productId, parseInt(req.params.id)),
+            eq(watchlist.productId, productId),
             eq(watchlist.userId, req.user!.id)
           )
-        );
-      res.status(200).json({ message: "Item removed from watchlist" });
+        )
+        .returning();
+
+      if (!result.length) {
+        return res.status(404).json({ error: "Watchlist item not found" });
+      }
+
+      res.status(200).json({ message: "Item removed from watchlist", deletedItem: result[0] });
     } catch (error) {
       console.error('Error removing from watchlist:', error);
-      res.status(500).json({ error: "Failed to remove item from watchlist" });
+      res.status(500).json({ 
+        error: "Failed to remove item from watchlist",
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
     }
   });
 

@@ -1,5 +1,23 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+let genAI: GoogleGenerativeAI | null = null;
+
+interface SmartListingAnalysis {
+  title: string;
+  description: string;
+  category: string;
+  marketAnalysis: {
+    demandScore: number;
+    competitionLevel: string;
+    priceSuggestion: {
+      min: number;
+      max: number;
+    };
+  };
+  seoKeywords: string[];
+  suggestions: string[];
+}
+
 interface ProductAnalysis {
   name: string;
   description: string;
@@ -22,20 +40,95 @@ interface AIAnalysisResult {
   improvementAreas: string[];
 }
 
-let genAI: GoogleGenerativeAI;
 
-function initializeGemini() {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not set");
+async function initializeGemini() {
+  if (!genAI) {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not set");
+    }
+    genAI = new GoogleGenerativeAI(apiKey);
   }
-  genAI = new GoogleGenerativeAI(apiKey);
+  return genAI;
+}
+
+async function fileToGenerativePart(file: File): Promise<{
+  inlineData: { data: string; mimeType: string };
+}> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve({
+        inlineData: {
+          data: (reader.result as string).split(",")[1],
+          mimeType: file.type,
+        },
+      });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export async function generateSmartListing(
+  files: File[]
+): Promise<SmartListingAnalysis> {
+  try {
+    const genAI = await initializeGemini();
+    const model = genAI.getGenerativeModel({ model: "gemini-pro-vision" });
+
+    const imageParts = await Promise.all(files.map(fileToGenerativePart));
+
+    const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
+
+1. A compelling product title that would work well for online marketplaces
+2. A detailed, SEO-friendly product description
+3. Product category classification
+4. Market analysis including:
+   - Demand score (0-100)
+   - Competition level (low/medium/high)
+   - Suggested price range (min and max) based on perceived quality and features
+5. 5-7 relevant SEO keywords
+6. 3-5 specific suggestions to improve the listing
+
+Format your response as a JSON object with the following structure:
+{
+  "title": string,
+  "description": string,
+  "category": string,
+  "marketAnalysis": {
+    "demandScore": number,
+    "competitionLevel": string,
+    "priceSuggestion": {
+      "min": number,
+      "max": number
+    }
+  },
+  "seoKeywords": string[],
+  "suggestions": string[]
+}`;
+
+    const result = await model.generateContent([prompt, ...imageParts]);
+    const response = await result.response;
+    const text = response.text();
+
+    try {
+      const analysis = JSON.parse(text);
+      return analysis;
+    } catch (parseError) {
+      console.error("Failed to parse AI response:", text);
+      throw new Error("Failed to parse AI analysis result");
+    }
+  } catch (error) {
+    console.error("Smart listing generation error:", error);
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to generate smart listing"
+    );
+  }
 }
 
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
-  if (!genAI) {
-    initializeGemini();
-  }
+  const genAI = await initializeGemini();
 
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
   const results = new Map<string, AIAnalysisResult>();

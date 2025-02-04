@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { generateSmartListing } from "@/lib/gemini";
 
 interface SmartListingModalProps {
   open: boolean;
@@ -26,30 +27,8 @@ export default function SmartListingModal({
       setLoading(true);
       setError(null);
 
-      // TODO: Implement AI analysis here using Gemini API
-      // This will be implemented in the next step
-      const mockAnalysis = {
-        title: "Sample Product",
-        description: "A detailed description will be generated",
-        category: "Test Category",
-        suggestedPrice: 99.99,
-        marketAnalysis: {
-          demandScore: 85,
-          competitionLevel: "medium",
-          priceSuggestion: {
-            min: 89.99,
-            max: 109.99
-          }
-        },
-        seoKeywords: ["test", "sample", "product"],
-        suggestions: [
-          "Add more product images",
-          "Include detailed specifications",
-          "Highlight unique features"
-        ]
-      };
-
-      onAnalysisComplete(mockAnalysis);
+      const analysis = await generateSmartListing(files);
+      onAnalysisComplete(analysis);
       onOpenChange(false);
 
       toast({
@@ -87,6 +66,9 @@ export default function SmartListingModal({
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
               <p className="text-sm text-muted-foreground">
                 Analyzing your product images...
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">
+                This may take a few moments as we generate detailed product insights
               </p>
             </div>
           )}

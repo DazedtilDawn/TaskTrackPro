@@ -6,6 +6,18 @@ import { products, watchlist, orders, orderItems } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
+import multer from 'multer';
+import path from 'path';
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: 'uploads/',
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+  }
+});
+
+const upload = multer({ storage: storage });
 
 // Rate limiting setup
 const requestQueue: Array<() => Promise<any>> = [];
@@ -40,8 +52,7 @@ async function processQueue() {
   } finally {
     isProcessing = false;
     if (requestQueue.length > 0) {
-      // Add delay between requests within the rate limit
-      setTimeout(processQueue, 6000); // 6 seconds between requests to stay under 10 RPM
+      setTimeout(processQueue, 6000);
     }
   }
 }
@@ -66,36 +77,40 @@ export function registerRoutes(app: Express): Server {
     res.json(allProducts);
   });
 
-  app.post("/api/products", async (req, res) => {
+  app.post("/api/products", upload.single('image'), async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    // Validate required fields
-    const { name, description, price, quantity } = req.body;
+    console.log('Request body:', req.body);
 
-    // Debug logging
-    console.log('Received product creation request:', {
-      name,
-      description: description?.length,
-      price,
-      quantity
-    });
+    // Validate required fields from form data
+    const { name, description, price, quantity } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ error: "Product name is required" });
     }
 
     try {
+      // Process file if uploaded
+      const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+
+      const productData = {
+        name: name.trim(),
+        description: description || null,
+        price: price ? parseFloat(price) : null,
+        quantity: quantity ? parseInt(quantity) : 0,
+        imageUrl,
+        userId: req.user.id,
+        // Add other fields from req.body
+        ...req.body,
+      };
+
+      console.log('Creating product with data:', productData);
+
       const [product] = await db
         .insert(products)
-        .values({ 
-          ...req.body,
-          name: name.trim(),
-          description: description || null,
-          price: price || null,
-          quantity: quantity || 0,
-          userId: req.user.id 
-        })
+        .values(productData)
         .returning();
+
       res.json(product);
     } catch (error) {
       console.error('Failed to create product:', error);

@@ -44,7 +44,7 @@ export function registerRoutes(app: Express): Server {
 
   // Image Analysis Endpoint
   app.post("/api/analyze-images", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
       const { images } = req.body;
@@ -156,9 +156,46 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Product endpoints
+  app.post("/api/products", upload.single('image'), async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      // Extract form data
+      const productData = {
+        name: req.body.name,
+        description: req.body.description || null,
+        sku: req.body.sku || null,
+        price: req.body.price || null,
+        quantity: parseInt(req.body.quantity) || 0,
+        condition: req.body.condition || 'used_good',
+        brand: req.body.brand || null,
+        category: req.body.category || null,
+        imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
+        aiAnalysis: req.body.aiAnalysis ? JSON.parse(req.body.aiAnalysis) : null,
+        ebayPrice: req.body.ebayPrice || null,
+        userId: req.user!.id,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      const [product] = await db.insert(products)
+        .values(productData)
+        .returning();
+
+      res.status(201).json(product);
+    } catch (error) {
+      console.error('Error creating product:', error);
+      res.status(500).json({ 
+        error: "Failed to create product",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
       const { productId } = req.body;
@@ -209,13 +246,15 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
   app.get("/api/watchlist", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
       const items = await db.select()
         .from(watchlist)
+        .leftJoin(products, eq(watchlist.productId, products.id))
         .where(eq(watchlist.userId, req.user!.id))
         .orderBy(watchlist.createdAt);
+
       res.json(items);
     } catch (error) {
       console.error('Error fetching watchlist:', error);
@@ -224,7 +263,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
   app.delete("/api/watchlist/:id", async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
       await db.delete(watchlist)
@@ -234,7 +273,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
             eq(watchlist.userId, req.user!.id)
           )
         );
-      res.sendStatus(200);
+      res.status(200).json({ message: "Item removed from watchlist" });
     } catch (error) {
       console.error('Error removing from watchlist:', error);
       res.status(500).json({ error: "Failed to remove item from watchlist" });

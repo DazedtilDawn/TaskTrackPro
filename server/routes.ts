@@ -327,6 +327,56 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Add this before the watchlist routes
+  // Delete order endpoint
+  app.delete("/api/orders/:id", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const orderId = parseInt(req.params.id);
+      if (isNaN(orderId)) {
+        return res.status(400).json({ error: "Invalid order ID" });
+      }
+
+      // Verify the order exists and belongs to the user
+      const [existingOrder] = await db.select()
+        .from(orders)
+        .where(
+          and(
+            eq(orders.id, orderId),
+            eq(orders.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (!existingOrder) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Delete associated order items first
+      await db.delete(orderItems)
+        .where(eq(orderItems.orderId, orderId));
+
+      // Delete the order
+      const [deletedOrder] = await db.delete(orders)
+        .where(eq(orders.id, orderId))
+        .returning();
+
+      res.json({
+        message: "Order deleted successfully",
+        deletedOrder
+      });
+    } catch (error) {
+      console.error("Error deleting order:", error);
+      res.status(500).json({ 
+        error: "Failed to delete order",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

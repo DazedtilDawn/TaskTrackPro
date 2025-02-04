@@ -275,23 +275,29 @@ export default function ProductCard({ product, onEdit, inWatchlist }: ProductCar
 
         <p className="text-muted-foreground text-sm mb-4">{product.description}</p>
 
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <div className="flex flex-col">
-              <span className="text-lg font-semibold">${currentPrice}</span>
+        <div className="space-y-2">
+          <div className="flex items-baseline justify-between">
+            <div className="space-y-1">
+              <div className="text-lg font-semibold">
+                ${Number(product.price).toFixed(2)}
+              </div>
               {product.buyPrice && (
-                <span className="text-sm text-muted-foreground">
-                  Paid: ${product.buyPrice}
-                </span>
+                <div className="text-sm text-muted-foreground">
+                  Bought for ${Number(product.buyPrice).toFixed(2)}
+                </div>
               )}
             </div>
             {product.ebayPrice && (
-              <div className="text-sm text-muted-foreground">
-                eBay: ${product.ebayPrice}
+              <div className="text-sm bg-secondary/20 px-2 py-1 rounded">
+                eBay: ${Number(product.ebayPrice).toFixed(2)}
               </div>
             )}
           </div>
-          <span className="text-sm text-muted-foreground">SKU: {product.sku}</span>
+          {product.condition && (
+            <div className="text-sm text-muted-foreground capitalize">
+              Condition: {product.condition.replace(/_/g, ' ')}
+            </div>
+          )}
         </div>
       </CardContent>
 

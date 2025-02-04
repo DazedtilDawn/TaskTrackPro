@@ -111,6 +111,8 @@ export default function SmartListingModal({
 
   // Handle modal open/close and initial analysis
   useEffect(() => {
+    if (!open || files.length === 0) return;
+
     console.log('SmartListingModal: Effect triggered', {
       open,
       filesCount: files.length,
@@ -118,7 +120,7 @@ export default function SmartListingModal({
       isLoading: loading
     });
 
-    if (open && files.length > 0 && !analysisLock.current && !loading) {
+    if (!analysisLock.current && !loading) {
       console.log('SmartListingModal: Scheduling analysis');
       analysisTimeout.current = setTimeout(() => {
         if (isMounted.current) {
@@ -155,12 +157,6 @@ export default function SmartListingModal({
     };
   }, [cleanup]);
 
-  const dialogDescription = loading 
-    ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''}`
-    : error 
-    ? "Analysis encountered an error. Please try again."
-    : "AI-powered analysis for optimizing your product listings";
-
   return (
     <Dialog 
       open={open} 
@@ -172,16 +168,18 @@ export default function SmartListingModal({
         onOpenChange(newOpen);
       }}
     >
-      <DialogContent 
-        className="max-w-2xl"
-        aria-describedby="dialog-description"
-      >
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>Smart Listing Analysis</DialogTitle>
-          <DialogDescription id="dialog-description">
-            {dialogDescription}
+          <DialogDescription>
+            {loading 
+              ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''}`
+              : error 
+                ? "Analysis encountered an error. Please try again."
+                : "AI-powered analysis for optimizing your product listings"}
           </DialogDescription>
         </DialogHeader>
+
         <div className="space-y-4">
           {loading && (
             <div 
@@ -201,9 +199,6 @@ export default function SmartListingModal({
               </div>
               <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
               <p className="text-sm text-muted-foreground">
-                Analyzing {files.length} product image{files.length !== 1 ? 's' : ''}...
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
                 {progress < 20 ? 'Validating images...' :
                  progress < 50 ? 'Processing images...' :
                  progress < 80 ? 'Analyzing content...' :
@@ -211,6 +206,7 @@ export default function SmartListingModal({
               </p>
             </div>
           )}
+
           {error && !loading && (
             <div 
               className="text-center space-y-4" 

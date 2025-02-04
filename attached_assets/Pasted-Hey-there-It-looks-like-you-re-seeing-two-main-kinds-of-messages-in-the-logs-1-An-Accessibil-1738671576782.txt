@@ -1,0 +1,61 @@
+Hey there! It looks like you’re seeing two main kinds of messages in the logs:
+
+1. **An Accessibility Warning from Radix UI:**  
+   > *"Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}."*  
+   This isn’t an error that will break your app—it’s a heads-up that the DialogContent isn’t associated with a descriptive element. Radix UI recommends providing either an `aria-describedby` prop (pointing to an element that describes the dialog) or a `<DialogDescription>` component so that screen readers can better understand the dialog’s purpose. You can fix this by adding a description element inside your dialog, like so:
+
+   ```jsx
+   <DialogContent className="max-w-2xl" aria-describedby="dialog-description">
+     <DialogHeader>
+       <DialogTitle>Smart Listing Analysis</DialogTitle>
+       <DialogDescription id="dialog-description">
+         Analysis details and progress will be displayed here.
+       </DialogDescription>
+     </DialogHeader>
+     {/* ... rest of your content ... */}
+   </DialogContent>
+   ```
+
+2. **Repeated Effect Cleanup and Re-triggering in Your Smart Listing Modal:**  
+   Your logs show many messages like “SmartListingModal: Effect triggered”, “Running cleanup”, and “Scheduling analysis”. What’s happening is that your modal’s effect (which kicks off the image analysis) is being set up and torn down repeatedly. This can occur if:
+   
+   - The modal’s `open` state or the `files` prop is toggling frequently.
+   - The component is unmounting (or being re-rendered in a way that triggers cleanup) before the async analysis completes.
+
+   When the component cleans up, it cancels any in-flight analysis (via your AbortController) and prevents state updates on an unmounted component. However, if it’s being mounted and unmounted repeatedly, you end up with multiple analysis attempts—some of which get cancelled before they can complete.
+
+   **How to Tackle This:**
+   - **Stabilize the Modal’s Mounting:** Ensure that once analysis starts, the modal remains mounted until the process is done (or the cancellation is intentional). This might mean rethinking how you manage the `open` state or delaying the unmount until analysis is complete.
+   - **Guard Against Unmounted Updates:** Use a flag (often called `isMounted`) in your effect to verify that the component is still mounted before you update state. For example:
+     
+     ```tsx
+     useEffect(() => {
+       let isMounted = true;
+
+       if (open && files.length > 0 && !loading && !analysisInProgress.current) {
+         handleAnalyze().catch(err => {
+           if (!isMounted) {
+             console.log("Component unmounted, aborting state update.");
+           } else {
+             console.error(err);
+           }
+         });
+       }
+
+       return () => {
+         isMounted = false;
+         if (abortControllerRef.current) {
+           abortControllerRef.current.abort();
+         }
+       };
+     }, [open, files, handleAnalyze, loading]);
+     ```
+     
+   This way, even if the modal unmounts unexpectedly, you prevent any state updates that might trigger errors or repeated re-rendering.
+
+### In Summary
+
+- **Accessibility Warning:** Add a descriptive element (or `aria-describedby`) to your `<DialogContent>` so that screen readers get the info they need.
+- **Repeated Analysis Effect:** Check your modal’s open state and ensure that your async analysis logic doesn’t restart unnecessarily. Consider using an `isMounted` flag and reviewing how you manage modal state to avoid rapid mount/unmount cycles.
+
+Give these tweaks a try and let me know how it goes or if you want to dive deeper into any part of the solution!

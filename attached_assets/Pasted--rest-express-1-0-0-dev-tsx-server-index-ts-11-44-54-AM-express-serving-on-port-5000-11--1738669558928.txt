@@ -1,0 +1,385 @@
+
+> rest-express@1.0.0 dev
+> tsx server/index.ts
+
+11:44:54 AM [express] serving on port 5000
+11:44:57 AM [express] GET /api/user 401 in 2ms
+11:45:04 AM [express] GET /api/user 304 in 209ms :: {"id":1,"username":"akoski83@gmail.com","password…
+11:45:04 AM [express] GET /api/products 304 in 292ms :: [{"id":1,"userId":1,"name":"test","descriptio…
+11:45:04 AM [express] GET /api/watchlist 304 in 293ms :: []
+11:45:04 AM [express] GET /api/orders 304 in 293ms :: []
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Leather Camera Bag - Retro Style Shoulder Bag for DSLR/Mirrorless Cameras",
+  "description": "This vintage-style leather camera bag is the perfect blend of classic design and modern functionality. Crafted from high-quality genuine leather, this shoulder bag offers exceptional durability and a timeless aesthetic.  It's spacious enough to comfortably hold your DSLR or mirrorless camera, along with extra lenses, accessories, and personal belongings.  The adjustable shoulder strap ensures a comfortable carry, while the secure closure protects your equipment from the elements.  Its retro design makes it a stylish accessory for photographers who appreciate both form and function. Perfect for everyday use, travel, or special occasions.  Upgrade your photography gear today with this sophisticated and practical leather camera bag.",
+  "category": "Cameras & Photo > Camera Bags & Cases > Shoulder Bags",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 79,
+      "max": 149
+    }
+  },
+  "seoKeywords": [
+    "leather camera bag",
+    "vintage camera bag",
+    "retro camera bag",
+    "DSLR camera bag",
+    "mirrorless camera bag",
+    "shoulder camera bag",
+    "camera bag leather"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showcasing the bag from different angles, highlighting its features (interior, material, stitching).",
+    "Add customer reviews to build trust and social proof.",
+    "Specify the exact dimensions and interior capacity of the bag.",
+    "Mention the type of leather (e.g., full-grain, top-grain) and its origin if applicable.",
+    "Offer various color options if available."
+  ]
+}
+```
+
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Leather Camera Bag - Retro Style Shoulder Bag for DSLR, Mirrorless & Accessories",
+  "description": "This vintage-style leather camera bag is the perfect blend of retro aesthetics and modern functionality.  Crafted from high-quality genuine leather, this durable and stylish bag offers ample space for your DSLR camera, mirrorless camera, or other photography equipment.  The spacious interior features padded compartments to protect your valuable gear, while the adjustable shoulder strap provides comfortable carrying. Its classic design makes it suitable for everyday use or professional photography shoots.  This timeless piece adds a touch of sophistication to your everyday look while ensuring the safety of your camera and accessories.  Ideal for photographers, filmmakers, and anyone who appreciates quality craftsmanship and retro design.  Order yours today and experience the perfect fusion of style and protection.",
+  "category": "Cameras & Photo > Camera Bags & Cases > Shoulder Bags",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 75,
+      "max": 150
+    }
+  },
+  "seoKeywords": [
+    "leather camera bag",
+    "vintage camera bag",
+    "retro camera bag",
+    "DSLR camera bag",
+    "mirrorless camera bag",
+    "camera shoulder bag",
+    "padded camera bag"
+  ],
+  "suggestions": [
+    "Include more detailed images showing the interior compartments and the bag's capacity.",
+    "Add customer reviews to build trust and social proof.",
+    "Specify the dimensions of the bag in the description and product specifications.",
+    "Mention the type of leather used (e.g., full-grain, top-grain).",
+    "Offer different color options if available."
+  ]
+}
+```
+
+11:45:22 AM [express] POST /api/analyze-images 500 in 4413ms :: {"error":"Failed to parse AI response…
+11:45:22 AM [express] POST /api/analyze-images 500 in 4221ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Style Leather Camera Bag - Retro Shoulder Bag for DSLR/Mirrorless Cameras",
+  "description": "This vintage-style leather camera bag is the perfect blend of classic aesthetics and modern functionality.  Crafted from high-quality genuine leather, this shoulder bag offers a timeless look while securely protecting your precious DSLR or mirrorless camera and accessories.  Its spacious interior provides ample room for your camera body, lenses, and other essentials, while the adjustable shoulder strap ensures comfortable carrying throughout the day.  The retro design makes it a stylish statement piece, perfect for photographers who appreciate both quality and style.  This durable and versatile bag is ideal for travel, everyday use, or special occasions.  Add a touch of vintage charm to your photography gear with this exquisite leather camera bag.",
+  "category": "Cameras & Photo > Camera Bags & Cases > Shoulder Bags",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 70,
+      "max": 150
+    }
+  },
+  "seoKeywords": [
+    "leather camera bag",
+    "vintage camera bag",
+    "DSLR camera bag",
+    "mirrorless camera bag",
+    "shoulder camera bag",
+    "retro camera bag",
+    "camera bag leather"
+  ],
+  "suggestions": [
+    "Include detailed dimensions of the bag in the description.",
+    "Add multiple high-quality images showcasing the bag from different angles, including interior shots.",
+    "Specify the type of leather used (e.g., full-grain, top-grain) and its origin (if applicable).",
+    "Provide information on the bag's capacity (e.g., number of lenses it can fit).",
+    "Highlight any unique features or selling points, such as specialized compartments or water resistance."
+  ]
+}
+```
+
+11:45:22 AM [express] POST /api/analyze-images 500 in 4095ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Leather Camera Strap - Brown - Adjustable & Durable - For DSLR, SLR, Mirrorless Cameras",
+  "description": "This vintage-style leather camera strap adds a touch of classic elegance to your photography gear.  Crafted from high-quality, durable leather, this strap provides comfortable carrying for your DSLR, SLR, or mirrorless camera.  Its adjustable length ensures a perfect fit for any photographer, and the sturdy construction guarantees long-lasting use.  The rich brown color complements any camera style, making it a perfect accessory for both professional and amateur photographers.  Upgrade your camera's look and feel with this stylish and functional leather strap.  The strap features reinforced stitching for extra durability and a comfortable padded design to prevent shoulder fatigue during extended shooting sessions.  Protect your valuable equipment in style with this timeless accessory.",
+  "category": "Camera & Photo > Camera Accessories > Camera Straps",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 25,
+      "max": 45
+    }
+  },
+  "seoKeywords": [
+    "leather camera strap",
+    "vintage camera strap",
+    "DSLR strap",
+    "SLR strap",
+    "mirrorless camera strap",
+    "adjustable camera strap",
+    "durable camera strap"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showing the strap from different angles, highlighting the leather texture and details.",
+    "Add customer reviews to build trust and social proof.",
+    "Specify the exact leather type (e.g., genuine leather, full-grain leather) and dimensions in the description.",
+    "Consider offering different color options to expand the target audience.",
+    "Use A/B testing to optimize the title and description for better conversion rates."
+  ]
+}
+```
+
+11:45:23 AM [express] POST /api/analyze-images 500 in 3804ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Retro Sunburst Wall Clock - Mid-Century Modern Home Decor",
+  "description": "Add a touch of mid-century modern style to your home with this stunning vintage retro sunburst wall clock.  This eye-catching timepiece features a unique sunburst design with [mention specific details like color, material, size, etc. from the image, e.g., a rich mahogany finish and a diameter of 24 inches], making it a perfect addition to any living room, bedroom, or office. Crafted with high-quality [mention material, e.g., solid wood and glass], this clock is built to last. The classic design complements a variety of interior styles, adding a touch of timeless elegance.  Its easy-to-read numerals ensure accurate timekeeping.  Perfect as a housewarming gift or a treat for yourself, this wall clock is a statement piece that will elevate your home decor. This unique and stylish clock will turn heads and become a cherished piece in your home.",
+  "category": "Home & Kitchen > Home Decor > Clocks > Wall Clocks",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 45,
+      "max": 80
+    }
+  },
+  "seoKeywords": [
+    "sunburst clock",
+    "mid-century modern clock",
+    "retro wall clock",
+    "vintage wall clock",
+    "wood wall clock",
+    "home decor",
+    "wall clock decor"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showcasing the clock from different angles, including close-ups of the details.",
+    "Specify the clock's mechanism (quartz, battery-operated, etc.) and dimensions in the description.",
+    "Add customer reviews to build trust and social proof.",
+    "Offer various color or material options if available.",
+    "Use A+ content (if available on the platform) to showcase the clock's features and benefits in a visually appealing way."
+  ]
+}
+```
+
+11:45:24 AM [express] POST /api/analyze-images 500 in 4605ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Stunning Himalayan Pink Salt Lamp - Natural Air Purifier & Mood Light",
+  "description": "Create a serene and healthy atmosphere with our exquisite Himalayan Pink Salt Lamp. Hand-carved from 100% pure Himalayan pink salt crystals, this lamp not only emits a warm, calming glow but also acts as a natural air purifier.  The lamp's gentle heat draws in moisture from the air, attracting and neutralizing airborne allergens and pollutants, contributing to improved respiratory health and better sleep.  Perfect for bedrooms, living rooms, offices, or yoga studios, this beautiful lamp adds a touch of natural elegance to any space.  Its unique color variations and intricate craftsmanship make each lamp a one-of-a-kind piece.  Includes a sturdy wooden base and a replaceable bulb.  Enhance your well-being and brighten your home with the soothing ambiance of a Himalayan Pink Salt Lamp.",
+  "category": "Home & Living > Lighting > Lamps, Shades & Accessories > Salt Lamps",
+  "marketAnalysis": {
+    "demandScore": 85,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 25,
+      "max": 75
+    }
+  },
+  "seoKeywords": [
+    "Himalayan pink salt lamp",
+    "salt lamp",
+    "air purifier",
+    "mood light",
+    "natural air purifier",
+    "Himalayan salt lamp benefits",
+    "night light"
+  ],
+  "suggestions": [
+    "Include more high-quality images showing the lamp from different angles and in different settings (e.g., bedroom, living room).",
+    "Add customer reviews and testimonials to build trust and credibility.",
+    "Specify the size and weight of the lamp in the description.",
+    "Offer different sizes or variations of the lamp to cater to a wider range of customer preferences.",
+    "Consider offering a bundle deal with additional accessories like a dimmer switch or replacement bulbs."
+  ]
+}
+```
+
+11:45:24 AM [express] POST /api/analyze-images 500 in 4273ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Retro Sunburst Wall Clock - Mid-Century Modern Home Decor",
+  "description": "Add a touch of retro charm to your home with this stunning vintage sunburst wall clock.  This mid-century modern-inspired timepiece features a classic sunburst design, perfect for adding a unique and stylish accent to any room. Crafted with high-quality materials for lasting durability, this clock is not just functional but a beautiful piece of art. The elegant design complements a variety of interior styles, from minimalist to bohemian. Its easy-to-read numerals ensure accurate timekeeping.  Upgrade your home decor and make a statement with this timeless piece.  Perfect as a housewarming gift or a treat for yourself! #vintagesunburstclock #midcenturymodern #wallclock #homedecor #retrodecor #sunburstclock #vintageclock #homeaccessories",
+  "category": "Home & Kitchen > Home Decor > Clocks",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 25,
+      "max": 75
+    }
+  },
+  "seoKeywords": [
+    "vintage sunburst clock",
+    "mid century modern clock",
+    "retro wall clock",
+    "home decor clock",
+    "sunburst wall clock",
+    "vintage clock",
+    "wall clock decor"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showing the clock from different angles and in different settings.",
+    "Specify the clock's dimensions and materials in the description.",
+    "Add customer reviews to build trust and social proof.",
+    "Consider offering different color options or sizes to expand appeal.",
+    "Use A+ content (if available on the platform) to showcase the clock's design details and highlight its features."
+  ]
+}
+```
+
+11:45:26 AM [express] POST /api/analyze-images 500 in 3936ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Leather Camera Bag - Retro Style Shoulder Bag for DSLR, Mirrorless & Accessories",
+  "description": "This vintage-style leather camera bag is the perfect blend of retro aesthetics and modern functionality. Crafted from high-quality genuine leather, this shoulder bag offers secure and stylish storage for your DSLR, mirrorless camera, lenses, and other accessories.  Its spacious interior and multiple compartments keep your gear organized and protected. The adjustable shoulder strap provides comfortable carrying, while the classic design makes a statement wherever you go.  Ideal for photographers who appreciate both style and practicality.  This durable and timeless bag is a must-have for any photography enthusiast.  Protect your investment and elevate your photography game with this exceptional leather camera bag.  Suitable for travel, everyday use, and photo shoots.",
+  "category": "Camera & Photo > Camera Bags & Cases > Shoulder Bags",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 80,
+      "max": 150
+    }
+  },
+  "seoKeywords": [
+    "leather camera bag",
+    "vintage camera bag",
+    "DSLR camera bag",
+    "mirrorless camera bag",
+    "camera shoulder bag",
+    "photography bag",
+    "retro camera bag"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showcasing the bag from different angles, highlighting its features (compartments, interior, etc.).",
+    "Add customer reviews to build trust and social proof.",
+    "Specify the dimensions and exact internal capacity of the bag.",
+    "Consider offering different color options of the bag.",
+    "Use A+ content (if available on the platform) to further detail the bag's features and craftsmanship."
+  ]
+}
+```
+
+11:45:26 AM [express] POST /api/analyze-images 500 in 3817ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Style Leather Wallet - Bifold Wallet for Men with RFID Blocking",
+  "description": "This vintage-style leather bifold wallet is a classic accessory for the modern man.  Crafted from high-quality, durable leather, this wallet offers a timeless look and feel.  Its compact design is perfect for everyday carry, while the multiple card slots and cash compartment provide ample storage.  The built-in RFID blocking technology protects your credit cards and personal information from electronic theft.  This men's wallet makes a great gift for birthdays, anniversaries, or any special occasion.  Experience the luxury and security of this sophisticated leather wallet.",
+  "category": "Men's Fashion > Accessories > Wallets",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 35,
+      "max": 75
+    }
+  },
+  "seoKeywords": [
+    "leather wallet",
+    "bifold wallet",
+    "men's wallet",
+    "RFID blocking wallet",
+    "vintage wallet",
+    "leather bifold",
+    "men's leather wallet"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showcasing the wallet from different angles, including close-ups of the details and the RFID blocking lining.",
+    "Add customer reviews to build trust and social proof.",
+    "Specify the type of leather (e.g., genuine leather, full-grain leather) and its origin (if applicable) for better product description.",
+    "Provide precise measurements of the wallet (length, width, thickness).",
+    "Offer various color options if available."
+  ]
+}
+```
+
+11:45:26 AM [express] POST /api/analyze-images 500 in 3698ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Leather Camera Bag - Handmade Brown Leather Shoulder Bag for DSLR & Mirrorless Cameras",
+  "description": "This handcrafted vintage leather camera bag is the perfect blend of style and functionality. Made from genuine, high-quality brown leather, this shoulder bag offers a classic look while providing ample protection for your DSLR or mirrorless camera and accessories.  The spacious interior features padded compartments to safeguard your equipment, and multiple pockets for lenses, memory cards, and other essentials.  The adjustable shoulder strap ensures comfortable carrying, whether you're shooting on location or exploring a new city. This timeless camera bag is more than just a carrying case; it's a statement piece that reflects your passion for photography.  Its durable construction ensures long-lasting use, developing a unique patina over time. Upgrade your photography experience with this elegant and practical leather camera bag.  Perfect for professional photographers, enthusiasts, or anyone who appreciates quality craftsmanship and timeless design.  Order yours today!",
+  "category": "Cameras & Photo > Camera Bags & Cases > Shoulder Bags",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 70,
+      "max": 150
+    }
+  },
+  "seoKeywords": [
+    "leather camera bag",
+    "vintage camera bag",
+    "handmade camera bag",
+    "DSLR camera bag",
+    "mirrorless camera bag",
+    "shoulder camera bag",
+    "brown leather bag"
+  ],
+  "suggestions": [
+    "Include multiple high-quality images showcasing the bag from different angles, highlighting its features (interior compartments, stitching, etc.).",
+    "Add customer reviews to build trust and social proof.",
+    "Specify the exact dimensions of the bag and the size of cameras/equipment it can accommodate.",
+    "Mention the type of leather (e.g., full-grain, top-grain) and its origin (if applicable) for better quality description.",
+    "Consider offering different color options or variations of the bag."
+  ]
+}
+```
+
+11:45:26 AM [express] POST /api/analyze-images 500 in 4118ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Leather Camera Bag - Retro Style Shoulder Bag for DSLR & Mirrorless Cameras",
+  "description": "This vintage-style leather camera bag is the perfect blend of retro aesthetics and modern functionality.  Crafted from high-quality genuine leather, this shoulder bag offers secure and stylish storage for your DSLR or mirrorless camera, lenses, and accessories. Its spacious interior and multiple compartments keep your equipment organized and protected, while the adjustable shoulder strap ensures comfortable carrying. The distressed leather finish adds a unique, vintage charm, making it a statement piece for photographers who appreciate both style and practicality.  Ideal for everyday use, travel, or special occasions, this timeless camera bag is a must-have for any serious photographer.  Features include: genuine leather construction, adjustable shoulder strap, multiple compartments, spacious interior, retro design, and protective padding. Perfect for DSLR cameras, mirrorless cameras, and various lenses and accessories.  Order yours today!",
+  "category": "Cameras & Photo > Camera Bags & Cases > Shoulder Bags",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 75,
+      "max": 150
+    }
+  },
+  "seoKeywords": [
+    "leather camera bag",
+    "vintage camera bag",
+    "DSLR camera bag",
+    "mirrorless camera bag",
+    "shoulder camera bag",
+    "retro camera bag",
+    "camera bag leather"
+  ],
+  "suggestions": [
+    "Include high-resolution images showing the bag from multiple angles, highlighting its features and details.",
+    "Add customer reviews to build trust and social proof.",
+    "Provide detailed dimensions and weight specifications.",
+    "Consider offering different color options to appeal to a wider audience.",
+    "Showcase the bag's interior compartments with images of camera equipment neatly arranged inside."
+  ]
+}
+```
+
+11:45:28 AM [express] POST /api/analyze-images 500 in 3847ms :: {"error":"Failed to parse AI response…
+Failed to parse Gemini response: ```json
+{
+  "title": "Vintage Retro Sunglasses - Classic Oval Shape, UV Protection",
+  "description": "Step back in time with these stylish vintage retro sunglasses! Featuring a classic oval shape, these shades offer superior UV protection while adding a touch of retro flair to any outfit.  The lightweight and durable frame ensures comfortable all-day wear. Perfect for men and women, these sunglasses are a must-have accessory for sunny days and fashionable nights.  Enhance your look with a timeless piece that blends classic style with modern functionality.  These sunglasses are not only fashionable but also offer 100% UV400 protection, shielding your eyes from harmful sun rays.  Order yours today and experience the perfect blend of vintage charm and modern protection.",
+  "category": "Apparel & Accessories > Accessories > Sunglasses > Women's Sunglasses",
+  "marketAnalysis": {
+    "demandScore": 75,
+    "competitionLevel": "Medium",
+    "priceSuggestion": {
+      "min": 15,
+      "max": 35
+    }

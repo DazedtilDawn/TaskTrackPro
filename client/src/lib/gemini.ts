@@ -142,7 +142,6 @@ export async function generateSmartListing(
 
   try {
     console.log('Processing image files...');
-    // Process one image at a time
     const processedImages: string[] = [];
 
     for (const file of files) {
@@ -168,24 +167,44 @@ export async function generateSmartListing(
     // Add delay before making the API request
     await new Promise(resolve => setTimeout(resolve, 1000));
 
-    const response = await apiRequest(
-      "POST",
-      "/api/analyze-images",
-      { images: processedImages }
-    );
+    let retries = 0;
+    const maxRetries = 3;
+    const retryDelay = 2000; // 2 seconds
 
-    const text = await response.text();
+    while (retries < maxRetries) {
+      try {
+        const response = await apiRequest(
+          "POST",
+          "/api/analyze-images",
+          { images: processedImages }
+        );
 
-    try {
-      const analysis = JSON.parse(text);
-      if (!analysis || typeof analysis.error === 'string') {
-        throw new Error(analysis.error || 'Failed to analyze images');
+        if (response.status === 429) {
+          console.log(`Rate limited, attempt ${retries + 1} of ${maxRetries}`);
+          await new Promise(resolve => setTimeout(resolve, retryDelay * (retries + 1)));
+          retries++;
+          continue;
+        }
+
+        const text = await response.text();
+        try {
+          const analysis = JSON.parse(text);
+          if (!analysis || typeof analysis.error === 'string') {
+            throw new Error(analysis.error || 'Failed to analyze images');
+          }
+          return analysis;
+        } catch (parseError) {
+          console.error('Failed to parse API response:', text);
+          throw new Error('Failed to parse analysis results');
+        }
+      } catch (error) {
+        if (retries === maxRetries - 1) throw error;
+        retries++;
+        await new Promise(resolve => setTimeout(resolve, retryDelay * retries));
       }
-      return analysis;
-    } catch (parseError) {
-      console.error('Failed to parse API response:', text);
-      throw new Error('Failed to parse analysis results');
     }
+
+    throw new Error('Maximum retry attempts reached');
   } catch (error) {
     console.error("Smart listing generation error:", error);
     throw error instanceof Error

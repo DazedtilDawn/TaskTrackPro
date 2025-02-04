@@ -7,14 +7,35 @@ import { eq } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
 
+// Rate limiting setup
+const requestQueue: Array<() => Promise<any>> = [];
+let isProcessing = false;
+
+async function processQueue() {
+  if (isProcessing || requestQueue.length === 0) return;
+
+  isProcessing = true;
+  try {
+    const nextRequest = requestQueue.shift();
+    if (nextRequest) {
+      await nextRequest();
+    }
+  } finally {
+    isProcessing = false;
+    if (requestQueue.length > 0) {
+      // Add delay between requests
+      setTimeout(processQueue, 1000);
+    }
+  }
+}
+
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
-  // Configure bodyParser for larger file uploads
   app.use(bodyParser.json({
-    limit: '50mb', // Increase payload size limit
+    limit: '50mb',
     verify: (req, res, buf) => {
-      // Store raw body for verification if needed
+      // @ts-ignore
       req.rawBody = buf;
     }
   }));
@@ -47,25 +68,26 @@ export function registerRoutes(app: Express): Server {
     res.json(product);
   });
 
-  // Gemini API endpoint
+  // Gemini API endpoint with rate limiting and retries
   app.post("/api/analyze-images", async (req, res) => {
     if (!req.isAuthenticated()) return res.sendStatus(401);
 
-    try {
-      const { images } = req.body;
-      if (!images || !Array.isArray(images)) {
-        return res.status(400).json({ error: "Invalid image data provided" });
-      }
+    const analyzeRequest = async () => {
+      try {
+        const { images } = req.body;
+        if (!images || !Array.isArray(images)) {
+          return res.status(400).json({ error: "Invalid image data provided" });
+        }
 
-      const apiKey = process.env.GEMINI_API_KEY;
-      if (!apiKey) {
-        return res.status(500).json({ error: "Gemini API key not configured" });
-      }
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+          return res.status(500).json({ error: "Gemini API key not configured" });
+        }
 
-      const genAI = new GoogleGenerativeAI(apiKey);
-      const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-      const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
+        const prompt = `Analyze these product images for an e-commerce listing. Provide a detailed analysis including:
 1. A compelling product title
 2. A detailed, SEO-friendly product description
 3. Product category classification
@@ -93,26 +115,36 @@ Format your response as a valid JSON object with the following structure:
   "suggestions": string[]
 }`;
 
-      const result = await model.generateContent([prompt, ...images]);
-      const response = await result.response;
-      const text = response.text();
+        const result = await model.generateContent([prompt, ...images]);
+        const response = await result.response;
+        const text = await response.text();
 
-      // Ensure we get valid JSON
-      try {
-        const analysis = JSON.parse(text);
-        res.json(analysis);
-      } catch (parseError) {
-        console.error('Failed to parse Gemini response:', text);
+        try {
+          const analysis = JSON.parse(text.replace(/```json\n|\n```/g, ''));
+          res.json(analysis);
+        } catch (parseError) {
+          console.error('Failed to parse Gemini response:', text);
+          res.status(500).json({
+            error: "Failed to parse AI response into valid JSON"
+          });
+        }
+      } catch (error) {
+        console.error('Analysis error:', error);
+        if (error.status === 429) {
+          // Add back to queue for retry
+          requestQueue.push(analyzeRequest);
+          return res.status(429).json({
+            error: "Rate limit exceeded. Request queued for retry."
+          });
+        }
         res.status(500).json({
-          error: "Failed to parse AI response into valid JSON"
+          error: error instanceof Error ? error.message : "Failed to analyze images"
         });
       }
-    } catch (error) {
-      console.error('Analysis error:', error);
-      res.status(500).json({
-        error: error instanceof Error ? error.message : "Failed to analyze images"
-      });
-    }
+    };
+
+    requestQueue.push(analyzeRequest);
+    processQueue();
   });
 
   // Watchlist

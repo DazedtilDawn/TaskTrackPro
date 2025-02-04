@@ -156,6 +156,23 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
+  // Add GET products endpoint before the POST endpoint
+  app.get("/api/products", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const productsList = await db.select().from(products)
+        .where(eq(products.userId, req.user!.id))
+        .orderBy(products.createdAt);
+      res.json(productsList);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch products",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Product endpoints
   app.post("/api/products", upload.single('image'), async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

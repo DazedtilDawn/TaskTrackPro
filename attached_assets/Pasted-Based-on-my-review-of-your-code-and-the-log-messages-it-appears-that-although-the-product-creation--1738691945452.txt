@@ -1,0 +1,42 @@
+Based on my review of your code and the log messages, it appears that although the product‐creation logic is working (your POST to `/api/products` returns a success and a product object), the newly added product isn’t showing up in your inventory page because the product list isn’t being fetched properly. In other words, the GET endpoint for products isn’t defined or isn’t returning the newly added data.
+
+### Key Points:
+
+1. **Missing GET Route for Products:**  
+   In your server’s routes file (`server/routes.ts`), you define the POST endpoint to add a product but there isn’t a corresponding GET endpoint for `/api/products`. (Your queries on the client side use the key `"/api/products"`, but no route returns the product list.) This means that when the client issues a GET request to fetch products, it may either get an empty response or a fallback (e.g. the index.html) that isn’t parsed as product data.
+
+2. **Cache Invalidation Doesn’t Help If Data Isn’t Fetched:**  
+   Even though you call `queryClient.invalidateQueries({ queryKey: ["/api/products"] })` after a successful POST, if the GET endpoint isn’t implemented or returns no data, the UI won’t update with the new product.
+
+3. **Log Warnings About Dialog Content:**  
+   The warnings about missing `Description` or `aria-describedby` for `{DialogContent}` are coming from Radix UI and—while they should be fixed for accessibility—are not directly related to the product list not updating.
+
+### Recommended Steps to Fix the Issue:
+
+- **Implement a GET Route for Products:**  
+  In your `server/routes.ts` file, add a route similar to the following:
+  ```ts
+  app.get("/api/products", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    try {
+      const productsList = await db.select().from(products).where(eq(products.userId, req.user!.id));
+      res.json(productsList);
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      res.status(500).json({ error: "Failed to fetch products" });
+    }
+  });
+  ```
+  This will allow your client’s react-query hook to fetch and display the current list of products.
+
+- **Ensure Consistency with Authenticated User:**  
+  Make sure that when a product is created, it’s assigned the correct `userId` (which you already do) and that the GET route filters based on the current user. This way, the inventory page shows only the products for the logged‑in user.
+
+- **Test with DevTools:**  
+  Use your browser’s network tab (and React DevTools) to verify that after adding a product, a subsequent GET to `/api/products` returns the expected list and that the product card components render correctly.
+
+### In Summary
+
+Your “success” toast is being shown because the POST request completes successfully, but since the GET route for `/api/products` is missing (or not returning the new data), your inventory page doesn’t update with the new product. Implementing the GET endpoint should resolve the issue.
+
+Let me know if you have any further questions or need additional help!

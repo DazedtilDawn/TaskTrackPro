@@ -510,7 +510,8 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         userId: req.user!.id,
         createdAt: new Date(),
         updatedAt: new Date(),
-        sold: false // Added sold status
+        sold: false,
+        listedAt: new Date() //Added listedAt
       };
 
       const [product] = await db.insert(products)
@@ -666,7 +667,66 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
 
-  // Mark product as sold endpoint
+  // Add GET endpoint for sale velocity analytics
+  app.get("/api/analytics/sale-velocity", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      // Fetch all sold products with their listing and sale times
+      const soldProducts = await db.select({
+        id: products.id,
+        name: products.name,
+        listedAt: products.listedAt,
+        soldAt: products.soldAt,
+        price: products.price,
+      })
+        .from(products)
+        .where(
+          and(
+            eq(products.userId, req.user!.id),
+            eq(products.sold, true),
+            products.soldAt.isNotNull()
+          )
+        );
+
+      // Calculate time to sell for each product
+      const productsWithVelocity = soldProducts.map(product => {
+        const timeToSell = product.soldAt && product.listedAt
+          ? (new Date(product.soldAt).getTime() - new Date(product.listedAt).getTime()) / (1000 * 60 * 60 * 24) // Convert to days
+          : null;
+
+        return {
+          ...product,
+          timeToSell
+        };
+      });
+
+      // Sort by time to sell
+      const sortedByVelocity = [...productsWithVelocity].sort((a, b) => {
+        if (!a.timeToSell || !b.timeToSell) return 0;
+        return a.timeToSell - b.timeToSell;
+      });
+
+      // Calculate analytics
+      const analytics = {
+        fastestSellers: sortedByVelocity.slice(0, 5),
+        slowestSellers: sortedByVelocity.slice(-5).reverse(),
+        averageTimeToSell: sortedByVelocity.reduce((acc, curr) =>
+          curr.timeToSell ? acc + curr.timeToSell : acc, 0) / sortedByVelocity.length,
+        totalProducts: sortedByVelocity.length
+      };
+
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching sale velocity analytics:", error);
+      res.status(500).json({
+        error: "Failed to fetch sale velocity analytics",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Update the mark as sold endpoint to set soldAt timestamp
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
@@ -685,183 +745,55 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // Create an order record
-      const [order] = await db.insert(orders)
-        .values({
-          userId: req.user!.id,
-          status: "completed",
-          total: product.price || "0",
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } as const)
-        .returning();
+      // Start transaction for atomic updates
+      const result = await db.transaction(async (tx) => {
+        // Create an order record
+        const [order] = await tx.insert(orders)
+          .values({
+            userId: req.user!.id,
+            status: "completed",
+            total: product.price || "0",
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as const)
+          .returning();
 
-      // Create order item
-      await db.insert(orderItems)
-        .values({
-          orderId: order.id,
-          productId: product.id,
-          price: product.price || "0",
-          quantity: 1,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } as const)
-        .returning();
+        // Create order item
+        await tx.insert(orderItems)
+          .values({
+            orderId: order.id,
+            productId: product.id,
+            price: product.price || "0",
+            quantity: 1,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as const);
 
-      // Mark product as sold instead of deleting
-      await db.update(products)
-        .set({
-          sold: true,
-          updatedAt: new Date()
-        })
-        .where(eq(products.id, productId));
+        // Mark product as sold and set soldAt timestamp
+        await tx.update(products)
+          .set({
+            sold: true,
+            soldAt: new Date(),
+            updatedAt: new Date()
+          })
+          .where(eq(products.id, productId));
 
-      // Remove from any watchlists
-      await db.delete(watchlist)
-        .where(eq(watchlist.productId, productId));
+        // Remove from any watchlists
+        await tx.delete(watchlist)
+          .where(eq(watchlist.productId, productId));
+
+        return order;
+      });
 
       res.status(201).json({
         message: "Product marked as sold",
-        order,
+        order: result,
       });
     } catch (error) {
       console.error('Error marking product as sold:', error);
       res.status(500).json({
         error: "Failed to mark product as sold",
         details: error instanceof Error ? error.message : "Unknown error",
-      });
-    }
-  });
-
-  // Get orders endpoint
-  app.get("/api/orders", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    try {
-      // Simplified query structure to avoid recursion
-      const orderResults = await db
-        .select({
-          orderId: orders.id,
-          status: orders.status,
-          total: orders.total,
-          createdAt: orders.createdAt,
-          updatedAt: orders.updatedAt,
-          itemId: orderItems.id,
-          quantity: orderItems.quantity,
-          price: orderItems.price,
-          productId: products.id,
-          productName: products.name,
-          productDescription: products.description,
-          productSku: products.sku,
-          productImageUrl: products.imageUrl
-        })
-        .from(orders)
-        .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-        .leftJoin(products, eq(orderItems.productId, products.id))
-        .where(eq(orders.userId, req.user!.id))
-        .orderBy(desc(orders.createdAt));
-
-      // Manually structure the response to avoid recursion
-      const groupedOrders = orderResults.reduce((acc: any[], curr) => {
-        const existingOrder = acc.find(o => o.id === curr.orderId);
-        if (existingOrder) {
-          if (curr.itemId) {
-            existingOrder.items.push({
-              id: curr.itemId,
-              quantity: curr.quantity,
-              price: curr.price,
-              product: {
-                id: curr.productId,
-                name: curr.productName,
-                description: curr.productDescription,
-                sku: curr.productSku,
-                imageUrl: curr.productImageUrl
-              }
-            });
-          }
-        } else {
-          const items = curr.itemId ? [{
-            id: curr.itemId,
-            quantity: curr.quantity,
-            price: curr.price,
-            product: {
-              id: curr.productId,
-              name: curr.productName,
-              description: curr.productDescription,
-              sku: curr.productSku,
-              imageUrl: curr.productImageUrl
-            }
-          }] : [];
-
-          acc.push({
-            id: curr.orderId,
-            status: curr.status,
-            total: curr.total,
-            createdAt: curr.createdAt,
-            updatedAt: curr.updatedAt,
-            items
-          });
-        }
-        return acc;
-      }, []);
-
-      res.json(groupedOrders);
-    } catch (error) {
-      console.error("Error fetching orders:", error);
-      res.status(500).json({
-        error: "Failed to fetch orders",
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
-  // Delete order endpoint
-  app.delete("/api/orders/:id", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    try {
-      const orderId = parseInt(req.params.id);
-      if (isNaN(orderId)) {
-        return res.status(400).json({ error: "Invalid order ID" });
-      }
-
-      // Verify the order exists and belongs to the user
-      const [existingOrder] = await db.select()
-        .from(orders)
-        .where(
-          and(
-            eq(orders.id, orderId),
-            eq(orders.userId, req.user!.id)
-          )
-        )
-        .limit(1);
-
-      if (!existingOrder) {
-        return res.status(404).json({ error: "Order not found" });
-      }
-
-      // Delete associated order items first
-      await db.delete(orderItems)
-        .where(eq(orderItems.orderId, orderId));
-
-      // Delete the order
-      const [deletedOrder] = await db.delete(orders)
-        .where(eq(orders.id, orderId))
-        .returning();
-
-      res.json({
-        message: "Order deleted successfully",
-        deletedOrder
-      });
-    } catch (error) {
-      console.error("Error deleting order:", error);
-      res.status(500).json({
-        error: "Failed to delete order",
-        details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
@@ -918,7 +850,8 @@ Do not include any additional text.`;
         const jsonStr = jsonMatch[0];
         recommendation = JSON.parse(jsonStr);
       } catch (jsonError) {
-        console.error("Failed to parse JSON from AI response:", jsonError);        return res.status(500).json({
+        console.error("Failed to parse JSON from AI response:", jsonError);
+        return res.status(500).json({
           error: "Failed to parse sale price recommendation",
           details: jsonError instanceof Error ? jsonError.message : "Unknown error",
         });

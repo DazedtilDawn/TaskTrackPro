@@ -26,6 +26,8 @@ export const products = pgTable("products", {
   ebayPrice: decimal("ebay_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  listedAt: timestamp("listed_at").defaultNow().notNull(), // Track when item was listed
+  soldAt: timestamp("sold_at"), // Track when item was sold
   sold: boolean("sold").default(false).notNull(),
   condition: text("condition").default("used_good").notNull(),
   brand: text("brand"),

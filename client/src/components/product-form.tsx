@@ -344,6 +344,66 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     });
   };
 
+  // Handle form submission with file upload
+  const onSubmit = async (data: ProductFormData) => {
+    try {
+      const formData = new FormData();
+
+      // Append all form fields
+      Object.entries(data).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+          if (typeof value === 'object') {
+            formData.append(key, JSON.stringify(value));
+          } else {
+            formData.append(key, String(value));
+          }
+        }
+      });
+
+      // Append image files if any
+      if (imageFiles.length > 0) {
+        formData.append('image', imageFiles[0]); // Upload first image for now
+      }
+
+      // Add isWatchlistItem to the payload
+      formData.append('isWatchlistItem', isWatchlistItem ? "true" : "false");
+
+      // Submit the form data
+      const endpoint = product ? `/api/products/${product.id}` : "/api/products";
+      const method = product ? "PATCH" : "POST";
+
+      // Use fetch directly for multipart/form-data
+      const response = await fetch(endpoint, {
+        method,
+        body: formData,
+        // Don't set Content-Type header, let the browser set it with the boundary
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save product");
+      }
+
+      // Invalidate both products and watchlist queries to ensure UI updates
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+      ]);
+
+      toast({
+        title: product ? "Product updated" : "Product created",
+        description: data.name.trim(),
+      });
+      onComplete();
+    } catch (error) {
+      console.error('Form submission error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to save product",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DialogContent className="max-w-2xl overflow-hidden">
       <DialogHeader>
@@ -359,46 +419,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       <ScrollArea className="max-h-[80vh]">
         <div className="p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(async (data) => {
-              try {
-                // Add isWatchlistItem to the payload
-                const payload = {
-                  ...data,
-                  isWatchlistItem: isWatchlistItem ? "true" : "false",
-                };
-
-                // Submit the form data
-                const endpoint = product
-                  ? `/api/products/${product.id}`
-                  : "/api/products";
-
-                const method = product ? "PATCH" : "POST";
-
-                const response = await apiRequest(method, endpoint, payload);
-                if (!response.ok) {
-                  throw new Error("Failed to save product");
-                }
-
-                // Invalidate both products and watchlist queries to ensure UI updates
-                await Promise.all([
-                  queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
-                  queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
-                ]);
-
-                toast({
-                  title: product ? "Product updated" : "Product created",
-                  description: data.name.trim(),
-                });
-                onComplete();
-              } catch (error) {
-                console.error('Form submission error:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to save product",
-                  variant: "destructive",
-                });
-              }
-            })} className="space-y-8">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
               {/* Analysis Toolbar */}
               <AnalysisToolbar
                 isAnalyzing={isAnalyzing}

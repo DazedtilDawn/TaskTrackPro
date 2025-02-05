@@ -164,13 +164,10 @@ function calculateOptimalPrice(ebayData: EbayPriceData, aiAnalysis: any): number
 
   // Consider AI analysis if available
   if (aiAnalysis?.marketAnalysis?.priceSuggestion) {
-    const aiPriceSuggestion = aiAnalysis.marketAnalysis.priceSuggestion;
-    console.log("[eBay Price Calculation] AI price suggestion:", aiPriceSuggestion);
-
-    // Calculate average of min and max for AI price
-    const aiAveragePrice = (aiPriceSuggestion.min + aiPriceSuggestion.max) / 2;
+    const aiPrice = aiAnalysis.marketAnalysis.priceSuggestion;
+    console.log("[eBay Price Calculation] AI price suggestion:", aiPrice);
     // Weighted average between eBay and AI suggestions
-    basePrice = (basePrice * 0.6) + (aiAveragePrice * 0.4);
+    basePrice = (basePrice * 0.6) + (aiPrice * 0.4);
     console.log("[eBay Price Calculation] After AI weighted adjustment:", basePrice);
   }
 

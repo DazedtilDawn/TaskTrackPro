@@ -45,7 +45,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const aiAnalysis = parseAiAnalysis(product.aiAnalysis);
   const hasAnalysis = Boolean(aiAnalysis);
   const currentPrice = Number(product.price) || 0;
-  const ebayPrice = product.ebayPrice ? Number(product.ebayPrice) : null;
   const { isUnderpriced, isOverpriced, isPricedRight } = calculatePriceStatus(currentPrice, aiAnalysis);
 
   const markAsSold = useCallback(async (e?: React.MouseEvent) => {
@@ -298,7 +297,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
           <div className="flex-shrink-0 w-[120px]">
             <div className="text-sm font-medium">
-              {formatPrice(currentPrice)}
+              {formatPrice(product.price)}
             </div>
             <div className="text-xs text-muted-foreground">
               {inWatchlist ? "Recommended" : "List Price"}
@@ -306,10 +305,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
           </div>
 
           <div className="flex-shrink-0 w-[120px]">
-            {ebayPrice ? (
+            {product.ebayPrice ? (
               <>
                 <div className="text-sm font-medium">
-                  {formatPrice(ebayPrice)}
+                  {formatPrice(product.ebayPrice)}
                 </div>
                 <div className="text-xs text-muted-foreground">eBay Price</div>
               </>

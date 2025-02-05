@@ -96,7 +96,19 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    const PORT = Number(process.env.PORT) || 3000;
+    const PORT = Number(process.env.PORT) || 4000; // Changed to 4000 to avoid conflicts
+
+    // Try to start the server with better error handling
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`[Server] Port ${PORT} is already in use. Please try a different port.`);
+        process.exit(1);
+      } else {
+        console.error('[Server] Failed to start:', error);
+        process.exit(1);
+      }
+    });
+
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server is running on port ${PORT}`);
     });

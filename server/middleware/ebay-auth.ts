@@ -6,7 +6,13 @@ export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
 
   // Skip check if user is not authenticated
   if (!req.isAuthenticated()) {
-    console.log(`[eBay Auth] User not authenticated, skipping eBay check`);
+    console.log(`[eBay Auth] User not authenticated, returning 401`);
+    return res.status(401).json({ error: "Authentication required" });
+  }
+
+  // If this is the auth URL endpoint, skip the token check
+  if (req.path === "/api/ebay/auth-url") {
+    console.log("[eBay Auth] Skipping token check for auth URL endpoint");
     return next();
   }
 
@@ -15,6 +21,12 @@ export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
     console.log(`[eBay Auth] eBay-related endpoint detected`);
     console.log(`[eBay Auth] User eBay token:`, req.user?.ebayAuthToken ? 'Present' : 'Missing');
     console.log(`[eBay Auth] Token expiry:`, req.user?.ebayTokenExpiry);
+
+    // Skip token check for callback endpoint
+    if (req.path === "/api/ebay/callback") {
+      console.log("[eBay Auth] Skipping token check for callback endpoint");
+      return next();
+    }
 
     if (!req.user?.ebayAuthToken || new Date(req.user.ebayTokenExpiry!) < new Date()) {
       console.log(`[eBay Auth] Invalid or expired eBay token, returning 403`);

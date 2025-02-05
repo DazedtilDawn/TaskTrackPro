@@ -8,15 +8,22 @@ import { AlertCircle, CheckCircle2, RefreshCcw } from "lucide-react";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
+interface User {
+  id: string;
+  username: string;
+  ebayAuthToken?: string;
+  ebayTokenExpiry?: string;
+}
+
 export default function EbayAuthSettings() {
   const { toast } = useToast();
   const [location] = useLocation();
-  
-  const { data: user } = useQuery({
+
+  const { data: user } = useQuery<User>({
     queryKey: ["/api/user"],
   });
 
-  const isConnected = user?.ebayAuthToken && new Date(user.ebayTokenExpiry) > new Date();
+  const isConnected = user?.ebayAuthToken && new Date(user.ebayTokenExpiry || '') > new Date();
 
   // Handle status messages from callback
   useEffect(() => {
@@ -63,7 +70,7 @@ export default function EbayAuthSettings() {
         <main className="flex-1 overflow-y-auto p-6">
           <div className="max-w-2xl mx-auto">
             <h1 className="text-2xl font-bold mb-6">eBay Integration Settings</h1>
-            
+
             <Card className="p-6">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
@@ -81,7 +88,7 @@ export default function EbayAuthSettings() {
                   <>
                     <p className="text-sm text-muted-foreground">
                       Your eBay account is connected and active. Token expires: {' '}
-                      {new Date(user.ebayTokenExpiry).toLocaleString()}
+                      {user?.ebayTokenExpiry && new Date(user.ebayTokenExpiry).toLocaleString()}
                     </p>
                     <div className="flex gap-2">
                       <Button

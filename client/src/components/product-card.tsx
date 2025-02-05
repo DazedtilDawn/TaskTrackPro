@@ -25,6 +25,12 @@ import {
   type AiAnalysis
 } from "@/lib/json-utils";
 
+// Helper function to get image URL
+const getImageUrl = (imageUrl: string | null): string | undefined => {
+  if (!imageUrl) return undefined;
+  return imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`;
+};
+
 interface ProductCardProps {
   product: SelectProduct;
   onEdit: (product: SelectProduct) => void;
@@ -37,6 +43,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   const aiAnalysis = parseAiAnalysis(product.aiAnalysis);
   const hasAnalysis = Boolean(aiAnalysis);
@@ -228,11 +235,12 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors">
           {/* Product Image */}
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-            {product.imageUrl ? (
+            {!imageError && product.imageUrl ? (
               <img
-                src={product.imageUrl}
+                src={getImageUrl(product.imageUrl)}
                 alt={product.name}
                 className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
               />
             ) : (
               <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
@@ -402,34 +410,44 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         isPricedRight && "border-green-500/50",
         view === "list" && "flex"
       )}>
-        {product.imageUrl && (
-          <div className={cn(
-            "relative",
-            view === "grid" ? "w-full" : "w-48 shrink-0"
-          )}>
-            {product.imageUrl ? (
-              <img
-                src={product.imageUrl.startsWith('http') ? product.imageUrl : `/uploads/${product.imageUrl}`}
-                alt={product.name}
-                className={cn(
-                  "object-cover",
-                  view === "grid" ? "w-full h-48" : "w-48 h-full"
-                )}
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.src = 'https://placehold.co/200';
-                }}
-              />
-            ) : (
-              <div className={cn(
-                "bg-secondary/20 flex items-center justify-center",
+        {/* Image Section */}
+        <div className={cn(
+          "relative",
+          view === "grid" ? "w-full" : "w-48 shrink-0"
+        )}>
+          {!imageError && product.imageUrl ? (
+            <img
+              src={getImageUrl(product.imageUrl)}
+              alt={product.name}
+              className={cn(
+                "object-cover",
                 view === "grid" ? "w-full h-48" : "w-48 h-full"
-              )}>
-                <Box className="w-8 h-8 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-        )}
+              )}
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className={cn(
+              "bg-secondary/20 flex items-center justify-center",
+              view === "grid" ? "w-full h-48" : "w-48 h-full"
+            )}>
+              <Box className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )}
+
+          {/* Price Status Badge */}
+          {hasAnalysis && (
+            <div className={cn(
+              "absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium",
+              isUnderpriced && "bg-yellow-500/90 text-yellow-50",
+              isOverpriced && "bg-red-500/90 text-red-50",
+              isPricedRight && "bg-green-500/90 text-green-50"
+            )}>
+              {isUnderpriced ? 'Underpriced' :
+                isOverpriced ? 'Overpriced' :
+                  'Optimal Price'}
+            </div>
+          )}
+        </div>
         <div className={cn(
           view === "list" && "flex-1 flex flex-col"
         )}>

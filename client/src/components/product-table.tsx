@@ -28,6 +28,12 @@ import {
   parseAiAnalysis 
 } from "@/lib/json-utils";
 
+// Helper function to get image URL
+const getImageUrl = (imageUrl: string | null): string | null => {
+  if (!imageUrl) return null;
+  return imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`;
+};
+
 interface ProductTableProps {
   products: SelectProduct[];
   onEdit: (product: SelectProduct) => void;
@@ -44,6 +50,7 @@ export function ProductTable({
   inWatchlist,
 }: ProductTableProps) {
   const [columnVisibility, setColumnVisibility] = useState({
+    imageUrl: true,
     name: true,
     sku: true,
     price: true,
@@ -52,7 +59,6 @@ export function ProductTable({
     brand: true,
     category: true,
     status: true,
-    imageUrl: true,
   });
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | null>(null);
 
@@ -66,7 +72,7 @@ export function ProductTable({
       header: "Image",
       cell: ({ row }) => {
         const imageUrl = row.original.imageUrl;
-        const displayUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`) : null;
+        const displayUrl = getImageUrl(imageUrl);
 
         return (
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">

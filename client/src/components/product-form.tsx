@@ -361,11 +361,25 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           <Form {...form}>
             <form onSubmit={form.handleSubmit(async (data) => {
               try {
-                // Add isWatchlistItem to the payload
-                const payload = {
-                  ...data,
-                  isWatchlistItem: isWatchlistItem ? "true" : "false",
-                };
+                // Create FormData instance for multipart/form-data
+                const formData = new FormData();
+
+                // Add all form fields to FormData
+                Object.entries(data).forEach(([key, value]) => {
+                  if (key === 'aiAnalysis' && value) {
+                    formData.append(key, JSON.stringify(value));
+                  } else if (value !== null && value !== undefined) {
+                    formData.append(key, value.toString());
+                  }
+                });
+
+                // Add isWatchlistItem flag
+                formData.append('isWatchlistItem', isWatchlistItem ? 'true' : 'false');
+
+                // Add image file if present
+                if (imageFiles.length > 0) {
+                  formData.append('image', imageFiles[0]);
+                }
 
                 // Submit the form data
                 const endpoint = product
@@ -374,7 +388,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
                 const method = product ? "PATCH" : "POST";
 
-                const response = await apiRequest(method, endpoint, payload);
+                // Use fetch directly for FormData
+                const response = await fetch(endpoint, {
+                  method,
+                  body: formData,
+                  credentials: 'include'
+                });
+
                 if (!response.ok) {
                   throw new Error("Failed to save product");
                 }

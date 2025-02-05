@@ -182,6 +182,27 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       const result = await response.json();
 
       if (result.error) {
+        // Handle eBay authentication error
+        if (response.status === 403 && result.error === "eBay authentication required") {
+          toast({
+            title: "eBay Authentication Required",
+            description: "You need to connect your eBay account first.",
+            variant: "default",
+            action: (
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Redirect to eBay auth settings page
+                  window.location.href = "/settings/ebay-auth";
+                }}
+              >
+                Connect eBay
+              </Button>
+            ),
+          });
+          return;
+        }
         throw new Error(result.error);
       }
 

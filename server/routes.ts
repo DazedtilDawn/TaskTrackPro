@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
-import { products, watchlist, orders, orderItems } from "@db/schema";
+import { products, watchlist, orders, orderItems, users } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from "body-parser";
@@ -10,6 +10,7 @@ import multer from 'multer';
 import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
+import { checkEbayAuth } from "./middleware/ebay-auth";
 
 // Get directory name in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -31,6 +32,9 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
+  // Add eBay auth middleware
+  app.use(checkEbayAuth);
+
   app.use(bodyParser.json({
     limit: '50mb',
     verify: (req, res, buf) => {
@@ -41,6 +45,48 @@ export function registerRoutes(app: Express): Server {
 
   // Serve static files from uploads directory
   app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+
+  // Add eBay auth endpoints
+  app.get("/api/ebay/auth-url", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    // In a real implementation, this would generate an OAuth URL for eBay
+    // For now, we'll return a mock URL
+    res.json({
+      authUrl: `https://auth.ebay.com/oauth2/authorize?client_id=mock&response_type=code&redirect_uri=${
+        encodeURIComponent(`${process.env.APP_URL}/api/ebay/callback`)
+      }&scope=https://api.ebay.com/oauth/api_scope`
+    });
+  });
+
+  app.get("/api/ebay/callback", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      // Mock successful eBay authentication
+      const mockToken = `mock_token_${Date.now()}`;
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 30); // Token expires in 30 days
+
+      // Update user with eBay credentials
+      await db.update(users)
+        .set({
+          ebayAuthToken: mockToken,
+          ebayTokenExpiry: expiryDate,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, req.user!.id));
+
+      res.redirect("/settings/ebay-auth?status=success");
+    } catch (error) {
+      console.error("eBay auth callback error:", error);
+      res.redirect("/settings/ebay-auth?status=error");
+    }
+  });
 
   // Image Analysis Endpoint
   app.post("/api/analyze-images", async (req, res) => {
@@ -439,7 +485,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Add this before the watchlist routes
   // Delete order endpoint
   app.delete("/api/orders/:id", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -489,7 +534,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Add this before the watchlist routes
+  // generate-sale-price endpoint
   app.post("/api/generate-sale-price", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
@@ -566,7 +611,7 @@ Do not include any additional text.`;
     }
   });
 
-  // Add this before the watchlist routes
+  // generate-ebay-listing endpoint
   app.post("/api/products/:id/generate-ebay-listing", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 

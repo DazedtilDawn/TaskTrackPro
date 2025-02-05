@@ -18,18 +18,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { getImageUrl } from "@/lib/utils";
 import {
   parseAiAnalysis,
   formatPrice,
   calculatePriceStatus,
   type AiAnalysis
 } from "@/lib/json-utils";
-
-// Helper function to get image URL
-const getImageUrl = (imageUrl: string | null): string | undefined => {
-  if (!imageUrl) return undefined;
-  return imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`;
-};
 
 interface ProductCardProps {
   product: SelectProduct;

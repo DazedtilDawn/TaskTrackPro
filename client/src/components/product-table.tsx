@@ -27,12 +27,7 @@ import {
   calculatePriceStatus,
   parseAiAnalysis
 } from "@/lib/json-utils";
-
-// Helper function to get image URL
-const getImageUrl = (imageUrl: string | null): string | undefined => {
-  if (!imageUrl) return undefined;
-  return imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`;
-};
+import { getImageUrl } from "@/lib/utils";
 
 interface ProductTableProps {
   products: SelectProduct[];
@@ -72,8 +67,7 @@ export function ProductTable({
       accessorKey: "imageUrl",
       header: "Image",
       cell: ({ row }) => {
-        const imageUrl = row.original.imageUrl;
-        const displayUrl = getImageUrl(imageUrl);
+        const displayUrl = getImageUrl(row.original.imageUrl);
         const hasError = imageError[row.original.id];
 
         return (

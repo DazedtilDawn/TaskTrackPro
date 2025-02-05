@@ -604,7 +604,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  app.patch("/api/products/:id", upload.single("image"), async (req, res) => {
+  app.patch("/api/products/:id", upload.single('image'), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Unauthorized" });
     }
@@ -630,36 +630,43 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
+      console.log('[Update Product] Processing update for product:', productId);
+
       // Parse the update data, handling both JSON and form fields
       let updateData: any = {};
 
       // Handle regular form fields
       Object.keys(req.body).forEach(key => {
-        try {
-          // Try to parse JSON fields
-          if (key === 'aiAnalysis' || key === 'ebayListingData') {
-            updateData[key] = JSON.parse(req.body[key]);
-          } else {
-            updateData[key] = req.body[key];
+        if (key === 'aiAnalysis' || key === 'ebayListingData') {
+          try {
+            updateData[key] = ensureJSON(req.body[key]);
+          } catch (e) {
+            console.error(`Failed to parse JSON field ${key}:`, e);
           }
-        } catch (e) {
-          // If parsing fails, use the raw value
+        } else {
           updateData[key] = req.body[key];
         }
       });
 
       // Handle file upload if present
       if (req.file) {
-        updateData.imageUrl = `/uploads/${req.file.filename}`;
+        // Delete old image if it exists
+        if (existingProduct.imageUrl) {
+          const oldImagePath = path.join(uploadsDir, path.basename(existingProduct.imageUrl));
+          try {
+            await fs.promises.unlink(oldImagePath);
+            console.log('[Update Product] Deleted old image:', oldImagePath);
+          } catch (error) {
+            console.error('[Update Product] Failed to delete old image:', error);
+          }
+        }
+        updateData.imageUrl = getImageUrl(req.file.filename);
       }
 
       // Add update timestamp
       updateData.updatedAt = new Date();
 
-      // Remove undefined values
-      Object.keys(updateData).forEach(key =>
-        updateData[key] === undefined && delete updateData[key]
-      );
+      console.log('[Update Product] Update data prepared:', updateData);
 
       // Update the product
       const [updatedProduct] = await db.update(products)
@@ -672,7 +679,15 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         )
         .returning();
 
-      res.json(updatedProduct);
+      // Process the response
+      const processedProduct = {
+        ...updatedProduct,
+        imageUrl: getImageUrl(updatedProduct.imageUrl),
+        aiAnalysis: ensureJSON(updatedProduct.aiAnalysis),
+        ebayListingData: ensureJSON(updatedProduct.ebayListingData)
+      };
+
+      res.json(processedProduct);
     } catch (error) {
       console.error("Error updating product:", error);
       res.status(500).json({
@@ -682,7 +697,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Update the delete product endpoint to clean up analytics data
   app.delete("/api/products/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -707,21 +721,32 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
+      console.log('[Delete Product] Starting deletion process for product:', productId);
+
       // Start a transaction to ensure all cleanup operations succeed or fail together
       const result = await db.transaction(async (tx) => {
-        // Remove from any watchlists first (foreign key constraint)
+        // Remove from watchlists first (foreign key constraint)
         await tx.delete(watchlist)
           .where(eq(watchlist.productId, productId));
 
-        // Remove from any order items (maintaining order history without product details)
+        // Remove from order items (maintaining order history without product details)
         await tx.update(orderItems)
-          .set({
-            productId: null,
-            updatedAt: new Date()
-          })
+          .set({ productId: null })
           .where(eq(orderItems.productId, productId));
 
-        // Delete the product and get the deleted record
+        // Delete the product image if it exists
+        if (existingProduct.imageUrl) {
+          const imagePath = path.join(uploadsDir, path.basename(existingProduct.imageUrl));
+          try {
+            await fs.promises.unlink(imagePath);
+            console.log('[Delete Product] Deleted image file:', imagePath);
+          } catch (error) {
+            console.error('[Delete Product] Failed to delete image file:', error);
+            // Continue with product deletion even if image deletion fails
+          }
+        }
+
+        // Delete the product
         const [deletedProduct] = await tx.delete(products)
           .where(eq(products.id, productId))
           .returning();
@@ -729,6 +754,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return deletedProduct;
       });
 
+      console.log('[Delete Product] Successfully deleted product:', productId);
       res.json({
         message: "Product and related data deleted successfully",
         deletedProduct: result

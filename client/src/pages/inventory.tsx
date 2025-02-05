@@ -88,9 +88,10 @@ export default function Inventory() {
             <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
               <div className="w-12">Image</div>
               <div className="flex-1">Product Details</div>
-              <div className="w-24">SKU</div>
               <div className="w-32">Price</div>
-              <div className="w-24">Quantity</div>
+              <div className="w-24">Condition</div>
+              <div className="w-24">Weight</div>
+              <div className="w-32">Dimensions</div>
               <div className="w-32">Market Status</div>
               <div className="w-40">Actions</div>
             </div>

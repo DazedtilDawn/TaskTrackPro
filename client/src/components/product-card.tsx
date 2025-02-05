@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, 
-  BarChart, CheckCircle2, ArrowUpRight, Share2 
+  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen 
 } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -38,6 +38,16 @@ interface AIAnalysis {
   };
   suggestions: string[];
   seoKeywords: string[];
+  ebayData?: {
+    currentPrice: number;
+    averagePrice: number;
+    lowestPrice: number;
+    highestPrice: number;
+    soldCount: number;
+    activeListing: number;
+    recommendedPrice: number;
+    lastUpdated: string;
+  };
 }
 
 export default function ProductCard({ product, onEdit, inWatchlist, view = "grid" }: ProductCardProps) {
@@ -45,6 +55,24 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
+
+  // Parse aiAnalysis if it's a string
+  let aiAnalysis: AIAnalysis | undefined;
+  try {
+    if (typeof product.aiAnalysis === 'string') {
+      aiAnalysis = JSON.parse(product.aiAnalysis);
+    } else {
+      aiAnalysis = product.aiAnalysis as AIAnalysis;
+    }
+  } catch (e) {
+    console.error('Failed to parse aiAnalysis:', e);
+  }
+
+  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+  const currentPrice = Number(product.price) || 0;
+  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
+  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
+  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
 
   const markAsSold = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -83,7 +111,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const toggleWatchlist = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
 
-    // Prevent toggling if we're already in watchlist view
     if (inWatchlist && location.includes("/watchlist")) {
       return;
     }
@@ -193,7 +220,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 variant="outline" 
                 size="sm"
                 onClick={() => {
-                  // Redirect to eBay auth settings page
                   window.location.href = "/settings/ebay-auth";
                 }}
               >
@@ -215,7 +241,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
       // If we have a listing URL, open it in a new tab
       if (result.ebayListingUrl) {
-        window.open(result.ebayListingUrl ?? undefined, '_blank');
+        window.open(result.ebayListingUrl, '_blank');
       }
     } catch (error) {
       console.error('Error generating eBay listing:', error);
@@ -228,13 +254,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       setIsGeneratingListing(false);
     }
   }, [product.id, toast]);
-
-  const aiAnalysis = product.aiAnalysis as AIAnalysis | undefined;
-  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
-  const currentPrice = Number(product.price) || 0;
-  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
-  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
-  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
 
   if (view === "table") {
     return (
@@ -282,7 +301,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           )}
 
-          {/* New: Weight */}
+          {/* Weight */}
           {product.weight !== undefined && (
             <div className="flex-shrink-0 w-24">
               <div className="text-sm font-medium">
@@ -292,7 +311,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           )}
 
-          {/* New: Dimensions */}
+          {/* Dimensions */}
           {product.dimensions && (
             <div className="flex-shrink-0 w-32">
               <div className="text-sm font-medium">
@@ -371,8 +390,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
                 </Button>
               )}
-
-              {/* Add eBay listing button - now always visible for non-watchlist items */}
               {!inWatchlist && (
                 <>
                   {!product.ebayListingUrl && (
@@ -391,7 +408,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl ?? undefined, '_blank')}
+                      onClick={() => window.open(product.ebayListingUrl, '_blank')}
                       className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
                     >
@@ -523,13 +540,48 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                             </div>
                           </div>
 
+                          {aiAnalysis.ebayData && (
+                            <div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <PackageOpen className="h-4 w-4" />
+                                <h5 className="font-medium">eBay Data</h5>
+                              </div>
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-muted-foreground">Current Price:</span>
+                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.currentPrice}</span>
+                                  <span className="text-sm text-muted-foreground">Average Price:</span>
+                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.averagePrice}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-muted-foreground">Lowest Price:</span>
+                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.lowestPrice}</span>
+                                  <span className="text-sm text-muted-foreground">Highest Price:</span>
+                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.highestPrice}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-muted-foreground">Sold:</span>
+                                  <span className="text-sm font-medium">{aiAnalysis.ebayData.soldCount}</span>
+                                  <span className="text-sm text-muted-foreground">Active Listings:</span>
+                                  <span className="text-sm font-medium">{aiAnalysis.ebayData.activeListing}</span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-muted-foreground">Recommended Price:</span>
+                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.recommendedPrice}</span>
+                                  <span className="text-sm text-muted-foreground">Last Updated:</span>
+                                  <span className="text-sm font-medium">{aiAnalysis.ebayData.lastUpdated}</span>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="border-t pt-3">
                             <div className="flex items-center gap-2 mb-2">
                               <TrendingUp className="h-4 w-4" />
                               <h5 className="font-medium">Optimization Tips</h5>
                             </div>
                             <ul className="space-y-2">
-                              {aiAnalysis.suggestions.map((suggestion: string, index: number) => (
+                              {aiAnalysis.suggestions.map((suggestion, index) => (
                                 <li
                                   key={index}
                                   className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
@@ -562,14 +614,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   <div className="text-xl font-semibold text-primary">
                     ${Number(product.price).toFixed(2)}
                   </div>
-                  {!inWatchlist && product.buyPrice && (
-                    <div className="flex items-baseline gap-2 mt-1">
-                      <span className="text-sm text-muted-foreground">Purchase Price:</span>
-                      <span className="text-sm font-medium">
-                        ${Number(product.buyPrice).toFixed(2)}
-                      </span>
-                    </div>
-                  )}
                 </div>
                 {product.ebayPrice && (
                   <div className="flex flex-col items-end">
@@ -581,7 +625,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 )}
               </div>
 
-              {/* New: Product Details */}
+              {/* Product Details */}
               {(product.weight || product.dimensions) && (
                 <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                   {product.weight && (
@@ -670,7 +714,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl ?? undefined, '_blank')}
+                      onClick={() => window.open(product.ebayListingUrl, '_blank')}
                       className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
                     >
@@ -698,5 +742,4 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       />
     </>
   );
-
 }

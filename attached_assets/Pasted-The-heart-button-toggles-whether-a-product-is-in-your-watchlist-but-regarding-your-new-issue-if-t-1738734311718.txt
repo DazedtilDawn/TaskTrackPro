@@ -1,0 +1,39 @@
+The heart button toggles whether a product is in your watchlist, but regarding your new issue – if the eBay/AI data isn’t showing up in your views, here are some common areas to investigate:
+
+1. **Data Format on Retrieval:**  
+   Make sure that when your product data is returned from the API (for example, in your GET /api/products endpoint), the `aiAnalysis` field is already an object rather than a JSON string. (If it’s a string you might need to parse it with `JSON.parse` before using it in your UI.)
+
+2. **Database Column Type vs. Serialization:**  
+   In your schema, the `aiAnalysis` field is defined as a JSONB column. When you update or create a product, you stringify the `aiAnalysis` data before sending it (using `JSON.stringify`). Drizzle (or your database driver) is expected to return this as an object when querying a JSONB column. Double-check that the response from your API actually contains an object in the `aiAnalysis` property.
+
+3. **Conditional Rendering in Components:**  
+   In your ProductCard (or other view components), you typically do something like:
+   ```ts
+   const aiAnalysis = product.aiAnalysis as AIAnalysis | undefined;
+   const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+   ```
+   If `aiAnalysis` isn’t being parsed correctly (or is empty), then the UI won’t render the analysis details. Try logging `product.aiAnalysis` to see what it looks like. If it’s a string (e.g. `{"category": ...}`), then update your code to parse it (for example, using `JSON.parse(product.aiAnalysis)`).
+
+4. **API Endpoints and Query Invalidation:**  
+   Verify that when you update the product (after analyzing with AI or refining with eBay), the updated product is returned from your API and that your query invalidation (using `queryClient.invalidateQueries`) is causing the UI to refetch and display the latest data.
+
+5. **SmartListing Trigger:**  
+   Although your question is about the data not showing in your views, also check that your SmartListing modal (which sets the AI analysis on image upload) is triggering correctly. In your `handleImagesUploaded` function, you set `showSmartListing` to true when files are uploaded. Make sure that the component that should trigger the smart listing (or the subsequent AI analysis) isn’t being blocked by any condition (for example, check that the `ImageUpload` component is indeed calling the callback).
+
+**Next steps:**  
+- Add some console logging (or use breakpoints) in your ProductCard and in the API response to inspect the shape and type of `aiAnalysis` (and its nested `ebayData`).  
+- If you see that the field is a string, modify your component to parse it before checking for keys. For example:
+  ```tsx
+  let aiAnalysis: AIAnalysis | undefined = product.aiAnalysis;
+  if (typeof aiAnalysis === "string") {
+    try {
+      aiAnalysis = JSON.parse(aiAnalysis);
+    } catch (e) {
+      console.error("Failed to parse aiAnalysis", e);
+    }
+  }
+  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+  ```
+- Verify your backend endpoint (GET /api/products) returns the field correctly.
+
+By ensuring the data is in the correct format and that the UI checks (like `hasAnalysis`) are working as expected, the eBay/AI data should appear in your views.

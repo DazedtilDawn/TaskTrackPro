@@ -1,0 +1,32 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+queryClient.ts:40 Fetch finished loading: GET "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/user".
+queryClient.ts:40 Fetch finished loading: GET "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/watchlist".
+ebay.ts:20 [eBay Auth] Checking eBay authentication status
+chunk-7GZJCJR5.js?v=d0fbb51e:336 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+ebay.ts:29 [eBay Auth] User data: 
+{hasToken: true, tokenExpiry: '2025-02-05T16:19:43.777Z', isValid: true}
+ebay.ts:22 Fetch finished loading: GET "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/user".
+gemini.ts:90 generateSmartListing: Starting with files: 
+[{…}]
+gemini.ts:98 generateSmartListing: Processing image files...
+gemini.ts:102 Processing file: 81N2hPEqzpL.jpg, type: image/jpeg, size: 352011
+gemini.ts:184 compressImage: Starting compression for 81N2hPEqzpL.jpg
+gemini.ts:189 Original dimensions: 1347x2560
+gemini.ts:211 Resized dimensions: 316x600
+gemini.ts:230 Compressed size: 23861 bytes
+gemini.ts:121 generateSmartListing: All images processed successfully
+gemini.ts:130 generateSmartListing: Sending analysis request (attempt 1/3)
+gemini.ts:137 generateSmartListing: Received response: 
+{status: 200, statusText: 'OK', headers: {…}}
+gemini.ts:151 generateSmartListing: Response text: {"title":"Traditional Black Forest Chalet Cuckoo Clock with Animated Figures","description":"Bring the charm of the Black Forest into your home with this beautifully handcrafted cuckoo clock. Featurin...
+gemini.ts:159 generateSmartListing: Successfully parsed analysis
+smart-listing-modal.tsx:79 Analysis error: TypeError: onAnalysisComplete is not a function
+    at smart-listing-modal.tsx:71:7
+queryClient.ts:23 Fetch finished loading: POST "https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/analyze-images".
+smart-listing-modal.tsx:146 Uncaught TypeError: onClose is not a function
+    at Object.onOpenChange [as current] (smart-listing-modal.tsx:146:9)
+chunk-RPCDYKBN.js?v=d0fbb51e:3750 Uncaught TypeError: onClose is not a function
+    at Object.onOpenChange [as current] (smart-listing-modal.tsx:146:9)
+5
+smart-listing-modal.tsx:146 Uncaught TypeError: onClose is not a function
+    at Object.onOpenChange [as current] (smart-listing-modal.tsx:146:9)

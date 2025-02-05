@@ -133,8 +133,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   useEffect(() => {
     if (buyPrice && buyPrice > 0) {
       const conditionData = conditionOptions.find(opt => opt.value === condition);
-      const markup = 1.3; // 30% markup
-      const recommendedPrice = Math.ceil(buyPrice * markup * (conditionData?.discount || 1));
+      const baseMarkup = 1.4; // 40% markup
+      // For used items, we want to apply a higher markup to account for the condition discount
+      const adjustedMarkup = condition !== 'new' ? baseMarkup / (conditionData?.discount || 1) : baseMarkup;
+      const recommendedPrice = Math.ceil(buyPrice * adjustedMarkup);
       form.setValue("price", recommendedPrice);
     }
   }, [buyPrice, condition, form]);
@@ -145,9 +147,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     if (ebayData?.recommendedPrice) {
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const adjustedPrice = Math.floor(ebayData.recommendedPrice * (conditionData?.discount || 1));
-      form.setValue("price", adjustedPrice);
+      // Ensure the price is at least 20% higher than buy price
+      const minPrice = buyPrice ? Math.ceil(buyPrice * 1.2) : adjustedPrice;
+      form.setValue("price", Math.max(adjustedPrice, minPrice));
     }
-  }, [condition, form]);
+  }, [condition, buyPrice, form]);
 
   const handleAnalyze = async () => {
     const name = form.getValues("name");
@@ -236,7 +240,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
       const adjustedPrice = Math.floor(marketAnalysis.recommendedPrice * conditionDiscount);
-      form.setValue("price", adjustedPrice);
+      // Ensure the price is at least 20% higher than buy price
+      const minPrice = buyPrice ? Math.ceil(buyPrice * 1.2) : adjustedPrice;
+      form.setValue("price", Math.max(adjustedPrice, minPrice));
 
       toast({
         title: "eBay Analysis Complete",
@@ -904,8 +910,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                                 <span>Active Listings</span>
                                 <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
                               </div>
-                            </div>
-                          </div>
+                            </div>                          </div>
                           {!fullAnalysis && (
                             <Button
                               type="button"
@@ -920,7 +925,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                                   Refining...
                                 </>
                               ) : (
-<>
+                                <>
                                   <TrendingUp className="h-4 w-4 mr-2" />
                                   Refine Pricing
                                 </>

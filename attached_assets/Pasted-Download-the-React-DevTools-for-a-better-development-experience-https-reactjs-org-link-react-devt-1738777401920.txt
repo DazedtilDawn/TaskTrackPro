@@ -1,0 +1,48 @@
+Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+ebay.ts:28 [eBay Auth] Checking eBay authentication status
+chunk-7GZJCJR5.js?v=d0fbb51e:336 Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+(anonymous) @ chunk-7GZJCJR5.js?v=d0fbb51e:336Understand this warningAI
+chunk-RPCDYKBN.js?v=d0fbb51e:521 Warning: `value` prop on `input` should not be null. Consider using an empty string to clear the component or `undefined` for uncontrolled components.
+    at input
+    at _c (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/src/components/ui/input.tsx:20:11)
+    at div
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=d0fbb51e:52:11
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=d0fbb51e:33:11
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/src/components/ui/form.tsx:127:9
+    at div
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/src/components/ui/form.tsx:71:6
+    at Controller (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=d0fbb51e:313:35)
+    at FormField (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/src/components/ui/form.tsx:32:6)
+    at div
+    at div
+    at div
+    at _c (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/src/components/ui/card.tsx:20:11)
+    at form
+    at FormProvider (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YABUFNLM.js?v=d0fbb51e:102:11)
+    at div
+    at div
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-CPFL7ZFD.js?v=d0fbb51e:41:13
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-scroll-area.js?v=d0fbb51e:112:13
+    at div
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-CPFL7ZFD.js?v=d0fbb51e:41:13
+    at Provider (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-YRL5WAL7.js?v=d0fbb51e:38:15)
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-scroll-area.js?v=d0fbb51e:50:7
+    at _c (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/src/components/ui/scroll-area.tsx:21:11)
+    at div
+    at div
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-CPFL7ZFD.js?v=d0fbb51e:41:13
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-KJ6JGVAN.js?v=d0fbb51e:59:7
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=d0fbb51e:52:11
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=d0fbb51e:33:11
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-CPFL7ZFD.js?v=d0fbb51e:41:13
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-6MYA7CMY.js?v=d0fbb51e:29:5
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-7GZJCJR5.js?v=d0fbb51e:232:13
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-7GZJCJR5.js?v=d0fbb51e:155:58
+    at Presence (https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-ZZTLKGR7.js?v=d0fbb51e:24:11)
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-7GZJCJR5.js?v=d0fbb51e:146:64
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=d0fbb51e:52:11
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-DKHUMOWT.js?v=d0fbb51e:33:11
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-CPFL7ZFD.js?v=d0fbb51e:41:13
+    at https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/@fs/home/runner/workspace/node_modules/.
+printWarning @ chunk-RPCDYKBN.js?v=d0fbb51e:521Understand this errorAI
+ebay.ts:37 [eBay Auth] User data: Object

@@ -120,6 +120,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const [showSmartListing, setShowSmartListing] = useState(false);
   const [fullAnalysis, setFullAnalysis] = useState(true); // Enabled by default
 
+  // Fix for null input values
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
@@ -129,13 +130,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       condition: product?.condition ?? "used_good",
       brand: product?.brand ?? "",
       category: product?.category ?? "",
-      price: product?.price ? Number(product.price) : null,
-      buyPrice: null,
+      price: product?.price ? Number(product.price) : undefined,
+      buyPrice: product?.buyPrice ? Number(product.buyPrice) : undefined,
       quantity: isWatchlistItem ? 0 : product?.quantity ?? 0,
       imageUrl: product?.imageUrl ?? "",
-      aiAnalysis: product?.aiAnalysis ?? null,
-      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : null,
-      weight: product?.weight ? Number(product.weight) : null,
+      aiAnalysis: product?.aiAnalysis ?? undefined, // Corrected to undefined
+      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : undefined,
+      weight: product?.weight ? Number(product.weight) : undefined,
       dimensions: product?.dimensions ?? "",
     },
   });
@@ -375,13 +376,22 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     }
   };
 
-  const handleImagesUploaded = (files: File[]) => {
+  const handleImagesUploaded = async (files: File[]) => {
     setImageFiles(files);
     if (files.length > 0) {
       setShowSmartListing(true);
-      // Trigger analysis automatically if full analysis is enabled
+      // Ensure analysis runs after state update
       if (fullAnalysis) {
-        runFullAnalysis();
+        try {
+          await runFullAnalysis();
+        } catch (error) {
+          console.error("Analysis failed:", error);
+          toast({
+            title: "Analysis Failed",
+            description: "Could not complete the analysis. Please try again.",
+            variant: "destructive",
+          });
+        }
       }
     }
   };
@@ -465,12 +475,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   };
 
   return (
-    <DialogContent className="max-w-2xl h-[90vh] flex flex-col p-0 gap-0">
-      <DialogHeader className="p-6 pb-2 border-b">
+    <DialogContent
+      className="max-w-2xl h-[90vh] flex flex-col p-0 gap-0"
+      aria-describedby="product-form-description"
+      aria-labelledby="product-form-header" // Added aria-labelledby
+    >
+      <DialogHeader className="p-6 pb-2 border-b" id="product-form-header"> {/*Added id for aria-labelledby*/}
         <h2 className="text-2xl font-semibold tracking-tight">
           {product ? "Edit Product" : "Add New Product"}
         </h2>
-        <DialogDescription>
+        <DialogDescription id="product-form-description">
           Enter product details and use AI analysis with eBay market data for optimal pricing.
           Required fields are marked with an asterisk (*).
         </DialogDescription>
@@ -864,39 +878,18 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           </div>
                         </div>
                         <div>
-                          <span className="text-sm textmuted-foreground">Market Activity</span>
+                          <span className="text-sm text-muted-foreground">Market Activity</span>
                           <div className="flex flex-col gap-1">
                             <div className="flex items-center justify-between">
-                              <span>Sold Items</span>
+                              <span className="text-sm text-muted-foreground">Sold Items</span>
                               <span className="font-medium">{form.watch("aiAnalysis.ebayData.soldCount")}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span>Active Listings</span>
+                              <span className="text-sm text-muted-foreground">Active Listings</span>
                               <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
                             </div>
                           </div>
                         </div>
-                        {!fullAnalysis && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleRefinePricing}
-                            disabled={isRefiningPrice}
-                            className="w-full mt-2"
-                          >
-                            {isRefiningPrice ? (
-                              <>
-                                <Loader2 className="h4 w-4 mr-2 animate-spin" />
-                                Refining...
-                              </>
-                            ) : (
-                              <>
-                                <TrendingUp className="h-4 w-4 mr-2" />
-                                Refine Pricing
-                              </>
-                            )}
-                          </Button>
-                        )}
                       </div>
                     </div>
                   </div>
@@ -907,10 +900,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         </ScrollArea>
       </div>
 
-      {/* Fixed Footer with Actions */}
+      {/* Fixed Footer with Action Buttons */}
       <div className="border-t bg-background p-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          {/* Analysis Actions */}
+        <div className="flex gap-2">
           <Button
             type="button"
             variant="outline"
@@ -918,11 +910,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
             disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
             className="gap-2"
           >
-            {isAnalyzing ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
+            {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {fullAnalysis ? "Run Full Analysis" : "Analyze Product"}
           </Button>
           {hasEbayAuth && !fullAnalysis && (
@@ -933,29 +921,41 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
               disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
               className="gap-2"
             >
-              {isLoadingEbay ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <BarChart2 className="h-4 w-4" />
-              )}
+              {isLoadingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
               Refine with eBay
             </Button>
           )}
+          {!fullAnalysis && form.watch("aiAnalysis") && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleRefinePricing}
+              disabled={isRefiningPrice}
+              className="gap-2"
+            >
+              {isRefiningPrice ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <TrendingUp className="h-4 w-4" />
+              )}
+              Refine Pricing
+            </Button>
+          )}
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => onComplete()}
-          >
+        <div className="flex gap-2">
+          <Button variant="outline" type="button" onClick={onComplete}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            className="gap-2"
+          <Button 
+            onClick={form.handleSubmit(handleFormSubmit)} 
+            disabled={form.formState.isSubmitting}
           >
-            <Plus className="h-4 w-4" />
-            {product ? "Update Product" : "Create Product"}
+            {form.formState.isSubmitting ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Plus className="h-4 w-4 mr-2" />
+            )}
+            {product ? "Save Changes" : "Add Product"}
           </Button>
         </div>
       </div>
@@ -963,11 +963,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       {/* Smart Listing Modal */}
       {showSmartListing && (
         <SmartListingModal
-          images={imageFiles}
-          onClose={() => setShowSmartListing(false)}
+          open={showSmartListing}
+          onOpenChange={setShowSmartListing}
           onAnalysisComplete={handleAnalysisComplete}
         />
       )}
     </DialogContent>
+
   );
 }

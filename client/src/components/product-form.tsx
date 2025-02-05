@@ -380,6 +380,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     checkAuth();
   }, []);
 
+  const handleSmartListingClose = () => {
+    setShowSmartListing(false);
+  };
+
   return (
     <DialogContent className="max-w-2xl overflow-hidden">
       <DialogHeader>
@@ -857,7 +861,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
                   <SmartListingModal
                     open={showSmartListing}
-                    onClose={() => setShowSmartListing(false)}
+                    onClose={handleSmartListingClose}
                     imageFiles={imageFiles}
                     onAnalysisComplete={handleAnalysisComplete}
                   />

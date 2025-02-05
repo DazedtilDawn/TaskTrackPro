@@ -9,15 +9,15 @@ import { cn } from "@/lib/utils";
 
 interface SmartListingModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
-  files: File[];
+  onClose: () => void;
+  imageFiles: File[];
   onAnalysisComplete: (analysis: any) => void;
 }
 
 export default function SmartListingModal({
   open,
-  onOpenChange,
-  files,
+  onClose,
+  imageFiles = [], // Add default value
   onAnalysisComplete,
 }: SmartListingModalProps) {
   const [loading, setLoading] = useState(false);
@@ -50,7 +50,7 @@ export default function SmartListingModal({
   }, []);
 
   const runAnalysis = useCallback(async () => {
-    if (!isMounted.current || analysisLock.current) return;
+    if (!isMounted.current || analysisLock.current || !imageFiles?.length) return;
 
     try {
       analysisLock.current = true;
@@ -64,12 +64,12 @@ export default function SmartListingModal({
         }
       }, 2000);
 
-      const analysis = await generateSmartListing(files);
+      const analysis = await generateSmartListing(imageFiles);
       if (!isMounted.current) return;
 
       setProgress(100);
       onAnalysisComplete(analysis);
-      onOpenChange(false);
+      onClose();
 
       toast({
         title: "Analysis complete",
@@ -88,10 +88,13 @@ export default function SmartListingModal({
     } finally {
       cleanup();
     }
-  }, [files, onAnalysisComplete, onOpenChange, toast, cleanup]);
+  }, [imageFiles, onAnalysisComplete, onClose, toast, cleanup]);
 
   useEffect(() => {
-    if (!open || files.length === 0) return;
+    if (!open || !imageFiles?.length) {
+      cleanup();
+      return;
+    }
 
     if (!analysisLock.current) {
       analysisTimeout.current = setTimeout(() => {
@@ -102,18 +105,18 @@ export default function SmartListingModal({
     }
 
     return cleanup;
-  }, [open, files, runAnalysis, cleanup]);
+  }, [open, imageFiles, runAnalysis, cleanup]);
 
   useEffect(() => {
-    if (open && files.length === 0) {
-      onOpenChange(false);
+    if (open && (!imageFiles?.length)) {
+      onClose();
       toast({
         title: "No images selected",
         description: "Please select at least one image to analyze",
         variant: "destructive",
       });
     }
-  }, [open, files.length, onOpenChange, toast]);
+  }, [open, imageFiles?.length, onClose, toast]);
 
   useEffect(() => {
     return () => {
@@ -140,7 +143,7 @@ export default function SmartListingModal({
       open={open} 
       onOpenChange={(newOpen) => {
         if (!newOpen) cleanup();
-        onOpenChange(newOpen);
+        onClose();
       }}
     >
       <DialogContent className="max-w-2xl">
@@ -151,7 +154,7 @@ export default function SmartListingModal({
           </DialogTitle>
           <DialogDescription>
             {loading 
-              ? `Analyzing ${files.length} product image${files.length !== 1 ? 's' : ''} with AI`
+              ? `Analyzing ${imageFiles?.length} product image${imageFiles?.length !== 1 ? 's' : ''} with AI`
               : error 
                 ? "Analysis encountered an error. Please try again."
                 : "AI-powered analysis for optimizing your product listings"}

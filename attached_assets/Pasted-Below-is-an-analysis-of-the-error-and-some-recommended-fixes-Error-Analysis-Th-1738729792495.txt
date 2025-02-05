@@ -1,0 +1,72 @@
+Below is an analysis of the error and some recommended fixes.
+
+---
+
+### **Error Analysis**
+
+The error message:
+
+```
+[plugin:runtime-error-plugin] Cannot read properties of undefined (reading 'length')
+/home/runner/workspace/client/src/components/smart-listing-modal.tsx:116:19
+...
+}, [open, files.length, onOpenChange, toast]);
+```
+
+indicates that when the effect runs, the prop `files` is undefined so that trying to access `files.length` causes the error.
+
+Even though your type definition for `SmartListingModalProps` specifies that `files` is a `File[]`, it appears that in some cases (or during the initial render) the parent may not pass it (or it’s undefined).  
+
+---
+
+### **Recommendations**
+
+There are a couple of ways to address this:
+
+1. **Provide a Default Value in the Component Parameter**
+
+   Modify the function parameter so that if no files are provided, it defaults to an empty array. For example:
+
+   ```tsx
+   export default function SmartListingModal({
+     open,
+     onOpenChange,
+     files = [],
+     onAnalysisComplete,
+   }: SmartListingModalProps) {
+     // ...rest of your component
+   }
+   ```
+
+   This ensures that `files` is always defined (even if it’s empty) so that `files.length` is always available.
+
+2. **Use Optional Chaining in the Dependency Array**
+
+   If for some reason you want to keep the prop potentially undefined, you can update the dependency array of your `useEffect` to safely handle an undefined value:
+
+   ```tsx
+   useEffect(() => {
+     if (open && (!files || files.length === 0)) {
+       onOpenChange(false);
+       toast({
+         title: "No images selected",
+         description: "Please select at least one image to analyze",
+         variant: "destructive",
+       });
+     }
+   }, [open, files?.length, onOpenChange, toast]);
+   ```
+
+   Here, using `files?.length` ensures that if `files` is `undefined` the expression will short-circuit rather than throwing an error.
+
+---
+
+### **Next Steps**
+
+- **Choose one approach:**  
+  If you expect that `files` should always be an array (even if empty), using a default value in the function parameters is more straightforward.
+
+- **Review all uses:**  
+  Ensure that anywhere you reference `files.length` you account for the possibility of `files` being undefined.
+
+Implementing one of these changes should resolve the runtime error. Let me know if you have any questions or need further assistance!

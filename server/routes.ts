@@ -527,11 +527,11 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Add PATCH endpoint to update a product after the POST and before DELETE endpoint
-  app.patch("/api/products/:id", async (req, res) => {
+  app.patch("/api/products/:id", upload.single("image"), async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Unauthorized" });
     }
+
     try {
       const productId = parseInt(req.params.id);
       if (isNaN(productId)) {
@@ -553,19 +553,44 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // The update data is sent in req.body
-      const updateData = req.body;
+      // Parse the update data, handling both JSON and form fields
+      let updateData: any = {};
 
-      // Update the product in the database
+      // Handle regular form fields
+      Object.keys(req.body).forEach(key => {
+        try {
+          // Try to parse JSON fields
+          if (key === 'aiAnalysis' || key === 'ebayListingData') {
+            updateData[key] = JSON.parse(req.body[key]);
+          } else {
+            updateData[key] = req.body[key];
+          }
+        } catch (e) {
+          // If parsing fails, use the raw value
+          updateData[key] = req.body[key];
+        }
+      });
+
+      // Handle file upload if present
+      if (req.file) {
+        updateData.imageUrl = `/uploads/${req.file.filename}`;
+      }
+
+      // Add update timestamp
+      updateData.updatedAt = new Date();
+
+      // Remove undefined values
+      Object.keys(updateData).forEach(key => 
+        updateData[key] === undefined && delete updateData[key]
+      );
+
+      // Update the product
       const [updatedProduct] = await db.update(products)
-        .set({
-          ...updateData,
-          updatedAt: new Date(), // Update the timestamp
-        })
+        .set(updateData)
         .where(
           and(
             eq(products.id, productId),
-            eq(products.userId, req.user!.id) // Ensure the product belongs to the user
+            eq(products.userId, req.user!.id)
           )
         )
         .returning();
@@ -870,7 +895,7 @@ Do not include any additional text.`;
       }
 
       res.json(recommendation);
-    } catch (error) {
+    } catch(error) {
       console.error("Error generating sale price:", error);
       res.status(500).json({
         error: "Failed to generate sale price",
@@ -894,7 +919,8 @@ Do not include any additional text.`;
         .from(products)
         .where(
           and(
-            eq(products.id, productId),            eq(products.userId, req.user!.id)
+            eq(products.id, productId),
+            eq(products.userId, req.user!.id)
           )
         )
         .limit(1);

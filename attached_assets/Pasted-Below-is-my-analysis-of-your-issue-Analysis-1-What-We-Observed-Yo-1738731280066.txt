@@ -1,0 +1,139 @@
+Below is my analysis of your issue:
+
+---
+
+### **Analysis**
+
+1. **What We Observed**
+
+   - Your product form (in **product-form.tsx**) calls your API endpoint for updating a product using a PATCH request. In some cases (when an image is uploaded) it sends the data as a FormData payload. In that payload you include the combined AI analysis which now contains the additional “ebayData” along with “ebayPrice”.
+   - On product creation (the POST endpoint) you correctly use the multer middleware (using `upload.single("image")`) so that your file and the rest of the FormData are properly parsed.
+   - **However**, your PATCH endpoint for updating products (in **server/routes.ts**) does not use any middleware (like multer) to parse multipart/form-data. As a result, when your client sends a FormData payload (which happens when an image file is included) the update isn’t parsed correctly. Consequently, fields such as your combined AI analysis (with its nested ebayData) and ebayPrice are not updated in the database.
+
+2. **Impact**
+
+   - Since your PATCH route isn’t parsing FormData, the new eBay data is not being saved. Even though the product form sets both `aiAnalysis` (with `ebayData`) and `ebayPrice` on the form, the backend isn’t receiving these values. That is why your UI (e.g. Product Card) is not displaying the detailed eBay pricing information.
+
+3. **The Fix**
+
+   - **Update the PATCH endpoint**: Add the same multer middleware (`upload.single("image")`) used for the POST endpoint to the PATCH route. This will enable Express to parse the multipart/FormData payload and update all product fields (including `aiAnalysis` and `ebayPrice`).
+
+   - **Optionally**, if you want to display more detailed eBay information (such as currentPrice, averagePrice, lowestPrice, highestPrice, soldCount, activeListing, etc.) in the product UI (e.g. in the popover on the Product Card), you should update the UI to check for `aiAnalysis.ebayData` and display those values.
+
+---
+
+### **Proposed Code Change**
+
+In your **server/routes.ts** file, locate your PATCH endpoint for `/api/products/:id` and modify it as follows:
+
+**Before (existing code):**
+
+```ts
+app.patch("/api/products/:id", async (req, res) => {
+  // Existing code – no file upload middleware is used.
+  try {
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: "Invalid product ID" });
+    }
+    // Verify the product exists and belongs to the user
+    const [existingProduct] = await db.select()
+      .from(products)
+      .where(
+        and(
+          eq(products.id, productId),
+          eq(products.userId, req.user!.id)
+        )
+      )
+      .limit(1);
+    if (!existingProduct) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    const updateData = req.body;
+    const [updatedProduct] = await db.update(products)
+      .set({
+        ...updateData,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(products.id, productId),
+          eq(products.userId, req.user!.id)
+        )
+      )
+      .returning();
+    res.json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({
+      error: "Failed to update product",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+```
+
+**After (with multer middleware):**
+
+```ts
+// Import your multer upload instance at the top (if not already imported)
+// import multer from 'multer';
+// const storage = multer.diskStorage({ ... });
+// const upload = multer({ storage });
+
+app.patch("/api/products/:id", upload.single("image"), async (req, res) => {
+  try {
+    const productId = parseInt(req.params.id);
+    if (isNaN(productId)) {
+      return res.status(400).json({ error: "Invalid product ID" });
+    }
+    // Verify the product exists and belongs to the user
+    const [existingProduct] = await db.select()
+      .from(products)
+      .where(
+        and(
+          eq(products.id, productId),
+          eq(products.userId, req.user!.id)
+        )
+      )
+      .limit(1);
+    if (!existingProduct) {
+      return res.status(404).json({ error: "Product not found" });
+    }
+    // If an image file is provided, update the imageUrl field
+    const updateData = { ...req.body };
+    if (req.file) {
+      updateData.imageUrl = `/uploads/${req.file.filename}`;
+    }
+    // Update the product in the database
+    const [updatedProduct] = await db.update(products)
+      .set({
+        ...updateData,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(products.id, productId),
+          eq(products.userId, req.user!.id)
+        )
+      )
+      .returning();
+    res.json(updatedProduct);
+  } catch (error) {
+    console.error("Error updating product:", error);
+    res.status(500).json({
+      error: "Failed to update product",
+      details: error instanceof Error ? error.message : "Unknown error"
+    });
+  }
+});
+```
+
+---
+
+### **Next Steps**
+
+- **Deploy and Test**: After applying the middleware change, test your product update flow by uploading a product image and ensuring that the full AI analysis—including the `ebayData` and `ebayPrice` fields—is saved and subsequently displayed.
+- **UI Enhancements (Optional)**: If you want to show more detailed eBay data (for example, in the product-card popover), update your React component to check if `product.aiAnalysis?.ebayData` exists and render its details accordingly.
+
+Let me know if you have any questions or need further assistance!

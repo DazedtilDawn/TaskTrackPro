@@ -149,16 +149,27 @@ export function registerRoutes(app: Express): Server {
 
   // Add the new eBay price endpoint after the existing eBay auth endpoints
   app.get("/api/ebay-price", checkEbayAuth, async (req, res) => {
+    console.log("[eBay Price API] Received price request");
+
     if (!req.isAuthenticated()) {
-      console.log("[eBay Price] Unauthorized request");
+      console.log("[eBay Price API] Unauthorized request");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     const { productName } = req.query;
+    console.log("[eBay Price API] Request params:", { productName });
+
     if (!productName || typeof productName !== "string") {
-      console.log("[eBay Price] Missing or invalid productName:", productName);
+      console.log("[eBay Price API] Missing or invalid productName:", productName);
       return res.status(400).json({ error: "Missing or invalid productName" });
     }
+
+    // Log authentication state
+    console.log("[eBay Price API] Authentication state:", {
+      hasToken: !!req.user?.ebayAuthToken,
+      tokenExpiry: req.user?.ebayTokenExpiry,
+      isValid: req.user?.ebayAuthToken && new Date(req.user.ebayTokenExpiry!) > new Date()
+    });
 
     // Ensure the user has valid eBay authentication
     if (
@@ -166,7 +177,7 @@ export function registerRoutes(app: Express): Server {
       !req.user?.ebayTokenExpiry ||
       new Date(req.user.ebayTokenExpiry) < new Date()
     ) {
-      console.log("[eBay Price] Invalid or expired eBay token");
+      console.log("[eBay Price API] Invalid or expired eBay token");
       return res.status(403).json({
         error: "eBay authentication required",
         details: "Please authenticate with eBay first",
@@ -175,7 +186,7 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      console.log("[eBay Price] Fetching data for:", productName);
+      console.log("[eBay Price API] Fetching data for:", productName);
       // Call the eBay Browse API
       const response = await fetch(
         `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(productName)}&limit=10`,
@@ -188,20 +199,24 @@ export function registerRoutes(app: Express): Server {
         }
       );
 
+      console.log("[eBay Price API] eBay API response status:", response.status);
+
       if (!response.ok) {
-        console.error("[eBay Price] eBay API error:", response.status, await response.text());
+        const errorText = await response.text();
+        console.error("[eBay Price API] eBay API error:", response.status, errorText);
         return res.status(response.status).json({ error: "Failed to fetch eBay data" });
       }
 
       const data = await response.json();
-      console.log("[eBay Price] Raw eBay response:", data);
+      console.log("[eBay Price API] Raw eBay response:", data);
 
       if (!data.itemSummaries?.length) {
-        console.log("[eBay Price] No items found");
+        console.log("[eBay Price API] No items found");
         return res.status(404).json({ error: "No pricing data available" });
       }
 
       // Process the returned listings
+      console.log("[eBay Price API] Processing listings");
       const prices = data.itemSummaries
         .map((item: any) => Number(item.price?.value))
         .filter((p: number) => !isNaN(p));
@@ -220,10 +235,10 @@ export function registerRoutes(app: Express): Server {
         lastUpdated: new Date().toISOString()
       };
 
-      console.log("[eBay Price] Processed price data:", priceData);
+      console.log("[eBay Price API] Processed price data:", priceData);
       res.json(priceData);
     } catch (error) {
-      console.error("[eBay Price] Error:", error);
+      console.error("[eBay Price API] Error:", error);
       res.status(500).json({
         error: "Failed to fetch eBay pricing data",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -879,8 +894,7 @@ Do not include any additional text.`;
         .from(products)
         .where(
           and(
-            eq(products.id, productId),
-            eq(products.userId, req.user!.id)
+            eq(products.id, productId),            eq(products.userId, req.user!.id)
           )
         )
         .limit(1);

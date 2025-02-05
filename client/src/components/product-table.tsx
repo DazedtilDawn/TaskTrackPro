@@ -66,12 +66,11 @@ export function ProductTable({
       header: "Image",
       cell: ({ row }) => {
         const imageUrl = row.original.imageUrl;
-        const displayUrl = 
-          imageUrl && (imageUrl.startsWith("http") || imageUrl.includes("/uploads/"))
-            ? imageUrl
-            : imageUrl
-            ? `/uploads/${imageUrl}`
-            : null;
+        const displayUrl = imageUrl && (imageUrl.startsWith("http") || imageUrl.includes("/uploads/"))
+          ? imageUrl
+          : imageUrl
+          ? `/uploads/${imageUrl}`
+          : null;
 
         return (
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">

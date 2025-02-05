@@ -102,6 +102,13 @@ const conditionOptions = [
   { value: "used_fair", label: "Used - Fair", discount: 0.6 },
 ];
 
+// Error handling helper
+const handleError = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'An unexpected error occurred';
+};
+
 export default function ProductForm({ product, onComplete, isWatchlistItem = false }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -183,15 +190,19 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const handleAnalyze = async () => {
     const name = form.getValues("name");
     const description = form.getValues("description");
+
+    // Input validation
     if (!name || !description) {
-      form.setError("name", { message: "Product name is required" });
-      form.setError("description", { message: "Description is required" });
+      if (!name) form.setError("name", { message: "Product name is required" });
+      if (!description) form.setError("description", { message: "Description is required" });
       return;
     }
+
     setIsAnalyzing(true);
     try {
       const aiResult = await analyzeProduct({ name, description });
       console.log("[Product Analysis] Initial AI analysis:", aiResult);
+
       form.setValue("aiAnalysis", aiResult);
       if (aiResult.marketAnalysis?.priceSuggestion?.min) {
         const conditionData = conditionOptions.find(opt => opt.value === condition);
@@ -199,15 +210,17 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         const adjustedPrice = Math.floor(aiResult.marketAnalysis.priceSuggestion.min * conditionDiscount);
         form.setValue("price", adjustedPrice);
       }
+
       toast({
         title: "Analysis complete",
         description: "Product details have been analyzed with AI",
       });
     } catch (error) {
       console.error("Analysis error:", error);
+      const errorMessage = handleError(error);
       toast({
         title: "Analysis failed",
-        description: "Could not analyze product details",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -218,6 +231,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const handleRefineWithEbay = async () => {
     const name = form.getValues("name");
     const currentAnalysis = form.getValues("aiAnalysis");
+
     if (!name || !currentAnalysis) {
       toast({
         title: "Missing details",
@@ -226,11 +240,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       });
       return;
     }
+
     setIsLoadingEbay(true);
     try {
       const marketAnalysis = await getEbayMarketAnalysis(name, currentAnalysis);
       console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
-      // Merge eBay data into existing analysis.
+
+      // Merge eBay data into existing analysis
       const combinedAnalysis = {
         ...currentAnalysis,
         ebayData: {
@@ -251,20 +267,25 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           },
         },
       };
+
       form.setValue("aiAnalysis", combinedAnalysis);
       form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
+
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
       const adjustedPrice = Math.floor(marketAnalysis.recommendedPrice * conditionDiscount);
       const minPrice = buyPrice ? Math.ceil(buyPrice * 1.2) : adjustedPrice;
       form.setValue("price", Math.max(adjustedPrice, minPrice));
+
       toast({
         title: "eBay Analysis Complete",
         description: "Product details have been refined with eBay market data",
       });
     } catch (error) {
       console.error("[Product Analysis] eBay market analysis error:", error);
-      if (error instanceof Error && error.message.includes("eBay authentication required")) {
+      const errorMessage = handleError(error);
+
+      if (errorMessage.includes("eBay authentication required")) {
         toast({
           title: "eBay Authentication Required",
           description: "Please connect your eBay account in Settings to include market data",
@@ -277,12 +298,34 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       } else {
         toast({
           title: "eBay Market Analysis Failed",
-          description: "Could not fetch eBay market data",
+          description: errorMessage,
           variant: "destructive",
         });
       }
     } finally {
       setIsLoadingEbay(false);
+    }
+  };
+
+  const runFullAnalysis = async () => {
+    try {
+      await handleAnalyze();
+      if (hasEbayAuth) {
+        await handleRefineWithEbay();
+        await handleRefinePricing();
+      }
+      toast({
+        title: "Full Analysis Complete",
+        description: "All analysis steps have been completed successfully",
+      });
+    } catch (error) {
+      console.error("Full analysis chain failed:", error);
+      const errorMessage = handleError(error);
+      toast({
+        title: "Analysis Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     }
   };
 
@@ -320,9 +363,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       });
     } catch (error) {
       console.error("Price refinement error:", error);
+      const errorMessage = handleError(error);
       toast({
         title: "Refinement Failed",
-        description: "Could not refine the sale price",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -333,27 +377,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const handleImagesUploaded = (files: File[]) => {
     setImageFiles(files);
     if (files.length > 0) setShowSmartListing(true);
-  };
-
-  const runFullAnalysis = async () => {
-    try {
-      await handleAnalyze();
-      if (hasEbayAuth) {
-        await handleRefineWithEbay();
-        await handleRefinePricing();
-      }
-      toast({
-        title: "Full Analysis Complete",
-        description: "All analysis steps have been completed successfully",
-      });
-    } catch (error) {
-      console.error("Full analysis chain failed:", error);
-      toast({
-        title: "Analysis Error",
-        description: error instanceof Error ? error.message : "An error occurred during analysis",
-        variant: "destructive",
-      });
-    }
   };
 
   const handleAnalysisComplete = async (analysis: any) => {
@@ -423,9 +446,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   onComplete();
                 } catch (error) {
                   console.error("Form submission error:", error);
+                  const errorMessage = handleError(error);
                   toast({
                     title: "Error",
-                    description: "Failed to save product",
+                    description: errorMessage,
                     variant: "destructive",
                   });
                 }
@@ -839,8 +863,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               <div className="flex items-center justify-between">
                                 <span>Sold Items</span>
                                 <span className="font-medium">{form.watch("aiAnalysis.ebayData.soldCount")}</span>
-                              </div>
-                              <div className="flex items-center justify-between">
+                              </div>                              <div className="flex items-center justify-between">
                                 <span>Active Listings</span>
                                 <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
                               </div>

@@ -5,7 +5,11 @@
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "node",
-    "types": ["jest", "node", "@testing-library/jest-dom"]
+    "types": [
+      "jest",
+      "node",
+      "@testing-library/jest-dom"
+    ]
   },
   "include": [
     "client/tests/**/*",
@@ -14,4 +18,4 @@
     "server/**/*",
     "db/**/*"
   ]
-} 
+}

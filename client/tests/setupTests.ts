@@ -8,7 +8,7 @@ afterEach(() => {
 
 // Mock IntersectionObserver which isn't available in test environment
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
+  constructor() { }
   observe() { return null; }
   unobserve() { return null; }
   disconnect() { return null; }

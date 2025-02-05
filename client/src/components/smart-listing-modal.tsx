@@ -14,6 +14,13 @@ interface SmartListingModalProps {
   onAnalysisComplete?: (analysis: any) => void;
 }
 
+// Error handling helper
+const handleError = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'An unexpected error occurred';
+};
+
 export default function SmartListingModal({
   open,
   onClose,
@@ -58,6 +65,15 @@ export default function SmartListingModal({
       setError(null);
       setProgress(10);
 
+      // Input validation
+      if (imageFiles.some(file => !file.type.startsWith('image/'))) {
+        throw new Error('All files must be images');
+      }
+
+      if (imageFiles.some(file => file.size > 4 * 1024 * 1024)) {
+        throw new Error('All images must be under 4MB');
+      }
+
       progressInterval.current = setInterval(() => {
         if (isMounted.current) {
           setProgress(prev => Math.min(prev + 10, 90));
@@ -75,15 +91,16 @@ export default function SmartListingModal({
 
       toast({
         title: "Analysis complete",
-        description: "Product details have been analyzed successfully"
+        description: "Product details have been analyzed successfully",
       });
     } catch (err) {
       console.error('Analysis error:', err);
       if (isMounted.current) {
-        setError(err instanceof Error ? err.message : 'Analysis failed');
+        const errorMessage = handleError(err);
+        setError(errorMessage);
         toast({
           title: "Analysis failed",
-          description: err instanceof Error ? err.message : 'Could not analyze product details',
+          description: errorMessage,
           variant: "destructive",
         });
       }
@@ -150,10 +167,16 @@ export default function SmartListingModal({
         }
       }}
     >
-      <DialogContent className="max-w-2xl" aria-describedby="modal-description">
+      <DialogContent 
+        className="max-w-2xl" 
+        aria-describedby="modal-description"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="dialog-title"
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileImage className="h-5 w-5" />
+          <DialogTitle id="dialog-title" className="flex items-center gap-2">
+            <FileImage className="h-5 w-5" aria-hidden="true" />
             Smart Listing Analysis
           </DialogTitle>
           <DialogDescription id="modal-description">

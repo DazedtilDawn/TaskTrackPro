@@ -53,16 +53,29 @@ export function registerRoutes(app: Express): Server {
   });
 
   // Add eBay auth endpoints
-  app.get("/api/ebay/auth-url", checkEbayAuth, async (req, res) => {
+  app.get("/api/ebay/auth-url", async (req, res) => {
     console.log("[eBay Auth URL] Generating auth URL");
     if (!req.isAuthenticated()) {
       console.log("[eBay Auth URL] Unauthorized request");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=mock&response_type=code&redirect_uri=${
-      encodeURIComponent(`${process.env.APP_URL}/api/ebay/callback`)
-    }&scope=https://api.ebay.com/oauth/api_scope`;
+    // Use environment variables or fallback to constructed URL
+    const redirectUri = process.env.EBAY_REDIRECT_URI || `${process.env.APP_URL}/api/ebay/callback`;
+
+    // Define required eBay API scopes
+    const scopes = [
+      'https://api.ebay.com/oauth/api_scope',
+      'https://api.ebay.com/oauth/api_scope/sell.inventory',
+      'https://api.ebay.com/oauth/api_scope/sell.marketing',
+      'https://api.ebay.com/oauth/api_scope/sell.account'
+    ].join('%20');
+
+    const authUrl = `https://auth.ebay.com/oauth2/authorize?` +
+      `client_id=${process.env.EBAY_CLIENT_ID}` +
+      `&response_type=code` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&scope=${scopes}`;
 
     console.log("[eBay Auth URL] Generated URL:", authUrl);
     res.json({ authUrl });

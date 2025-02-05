@@ -1,0 +1,71 @@
+Below is an analysis of the error message along with some recommendations to resolve it.
+
+---
+
+### **Error Analysis**
+
+The error message you received is:
+
+```json
+{"error_id":"unauthorized_client","error_description":"The OAuth client was not found.","http_status_code":401}
+```
+
+This indicates that when your application (or eBay) attempted to use your OAuth client credentials, the eBay API did not recognize your client. In other words, the OAuth client identifier (and possibly the secret) your app is using is either misconfigured or not registered with eBay.
+
+---
+
+### **Common Causes**
+
+1. **Incorrect Client ID/Secret:**
+   - Your environment variable (e.g. `EBAY_CLIENT_ID` or `EBAY_CLIENT_SECRET`) might be missing or set to an incorrect value.
+   - In your current route, it looks like a mock value (`client_id=mock`) is being used for generating the auth URL. If you intended to use your real client ID, make sure you replace the placeholder with the actual environment variable.
+
+2. **Misconfigured Redirect URI:**
+   - The redirect URI specified in your OAuth URL must match exactly (including protocol, domain, and path) what’s registered in your eBay developer account.
+   - A mismatch can sometimes trigger client-not-found errors.
+
+3. **OAuth Client Not Registered or Not Approved:**
+   - If you haven’t properly registered your OAuth client (or if it hasn’t been approved) with eBay’s developer portal, eBay will reject the authentication request.
+   - Double-check your eBay developer console to ensure that your OAuth client (with the given client ID) is active and that the redirect URIs are correctly configured.
+
+---
+
+### **Recommendations to Fix**
+
+1. **Review Your Environment Variables:**
+   - Ensure that your production (or development) environment has the correct values for:
+     - `EBAY_CLIENT_ID`
+     - `EBAY_CLIENT_SECRET`
+     - `EBAY_REDIRECT_URI` (or the value you’re using for constructing the auth URL)
+   - For example, in your `/api/ebay/callback` route, you have:
+     ```ts
+     Buffer.from(
+       `${process.env.EBAY_CLIENT_ID}:${process.env.EBAY_CLIENT_SECRET}`
+     ).toString("base64")
+     ```
+     Make sure these environment variables are defined and contain valid credentials.
+
+2. **Update Your OAuth URL Construction:**
+   - Replace any placeholder value (like `"mock"`) in the auth URL with your real client ID. For example:
+     ```ts
+     const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=${process.env.EBAY_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(`${process.env.APP_URL}/api/ebay/callback`)}&scope=https://api.ebay.com/oauth/api_scope`;
+     ```
+     This ensures that eBay receives your correct OAuth client ID.
+
+3. **Verify Redirect URI Settings:**
+   - Log in to your eBay developer account and confirm that the redirect URI used in your code exactly matches what is configured in your application settings. Even small discrepancies (such as trailing slashes or HTTP vs. HTTPS) can cause errors.
+
+4. **Test with eBay’s OAuth Playground (if available):**
+   - Use any available testing tools provided by eBay to simulate the OAuth flow using your client credentials. This can help verify that your client is registered correctly.
+
+---
+
+### **Next Steps**
+
+- **Double-check the registration and configuration** of your OAuth client in the eBay developer portal.
+- **Update your code** (especially the endpoint generating the auth URL) so that it uses the real environment variables rather than hard-coded or placeholder values.
+- **Test the flow again** to ensure that your application can successfully retrieve the auth URL and eventually complete the OAuth flow.
+
+Following these steps should help you resolve the `unauthorized_client` error and allow your app to proceed with the eBay authentication process.
+
+Let me know if you need further assistance with any of these steps!

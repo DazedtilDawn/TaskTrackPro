@@ -1,3 +1,5 @@
+import { parseISO, isAfter, addHours } from "date-fns";
+
 // eBay API integration
 interface EbayPriceData {
   currentPrice: number;
@@ -34,13 +36,26 @@ export async function checkEbayAuth(): Promise<boolean> {
     }
 
     const user = await response.json();
-    console.log("[eBay Auth] User data:", {
-      hasToken: !!user.ebayAuthToken,
-      tokenExpiry: user.ebayTokenExpiry,
-      isValid: user.ebayAuthToken && new Date(user.ebayTokenExpiry) > new Date()
+    const hasToken = !!user.ebayAuthToken;
+    const tokenExpiry = user.ebayTokenExpiry ? parseISO(user.ebayTokenExpiry) : null;
+    const now = new Date();
+
+    // Add buffer time to prevent edge cases
+    const bufferTime = addHours(now, 1);
+    const isValid = hasToken && tokenExpiry && isAfter(tokenExpiry, bufferTime);
+
+    console.log("[eBay Auth] Token status:", {
+      hasToken,
+      tokenExpiry: tokenExpiry?.toISOString(),
+      currentTime: now.toISOString(),
+      bufferTime: bufferTime.toISOString(),
+      isValid,
+      timeUntilExpiry: tokenExpiry ?
+        Math.floor((tokenExpiry.getTime() - now.getTime()) / (1000 * 60 * 60)) + ' hours' :
+        'N/A'
     });
 
-    return user.ebayAuthToken && new Date(user.ebayTokenExpiry) > new Date();
+    return isValid;
   } catch (error) {
     console.error("[eBay Auth] Error checking auth status:", error);
     return false;

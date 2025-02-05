@@ -472,6 +472,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
   const handleFormSubmit = async (data: ProductFormData) => {
     try {
+      console.log("[Product Form] Starting form submission:", {
+        isWatchlistItem,
+        hasProductId: !!product?.id,
+        formData: data
+      });
+
       const formData = new FormData();
 
       // Structured form data preparation
@@ -493,6 +499,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       const endpoint = product ? `/api/products/${product.id}` : "/api/products";
       const method = product ? "PATCH" : "POST";
 
+      console.log("[Product Form] Submitting to endpoint:", {
+        endpoint,
+        method,
+        isWatchlistItem,
+        hasImage: imageFiles.length > 0
+      });
+
       const response = await fetch(endpoint, {
         method,
         body: formData,
@@ -511,13 +524,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       ]);
 
       toast({
-        title: product ? "Product updated" : "Product created",
+        title: product ? "Product updated" : isWatchlistItem ? "Added to watchlist" : "Product created",
         description: data.name.trim(),
       });
 
       onComplete();
     } catch (error) {
-      console.error("Form submission error:", error);
+      console.error("[Product Form] Submission error:", error);
       const errorMessage = handleError(error);
       toast({
         title: "Error",

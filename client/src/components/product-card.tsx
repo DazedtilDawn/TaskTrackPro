@@ -40,9 +40,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [isMarkingAsSold, setIsMarkingAsSold] = useState(false);
   const [imageError, setImageError] = useState(false);
   const displayUrl = getImageUrl(product.imageUrl);
-  const [showAnalysis, setShowAnalysis] = useAnalysisVisibility(true); // Updated to default to true
-  const [showAiAnalysis, setShowAiAnalysis] = useState(false);
-  const [showEbayData, setShowEbayData] = useState(false);
+  const [showAnalysis, setShowAnalysis] = useAnalysisVisibility();
 
   const aiAnalysis = parseAiAnalysis(product.aiAnalysis);
   const hasAnalysis = Boolean(aiAnalysis);
@@ -518,27 +516,28 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               </div>
             </div>
 
-            {showAnalysis && (
+            {hasAnalysis && aiAnalysis && (
               <div className="mt-4 border-t pt-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                    <h4 className="font-medium text-lg">AI Analysis Results</h4>
+                    <h4 className="font-medium text-lg">Market Analysis</h4>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 hover:bg-transparent p-0"
+                      onClick={() => setShowAnalysis(!showAnalysis)}
+                    >
+                      {showAnalysis ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 hover:bg-transparent p-0"
-                    onClick={() => setShowAiAnalysis(!showAiAnalysis)}
-                  >
-                    {showAiAnalysis ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
+                  <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
                 </div>
-                {showAiAnalysis && (
+
+                {showAnalysis && (
                   <ScrollArea className="h-[400px] mt-4">
                     <div className="pr-4 space-y-4">
                       <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
@@ -589,97 +588,133 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                           </div>
                         </div>
                       )}
+
+                      {aiAnalysis?.ebayData && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <PackageOpen className="h-4 w-4" />
+                            <h5 className="font-medium">eBay Market Data</h5>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="space-y-2">
+                              <div>
+                                <span className="text-muted-foreground">Current Price:</span>
+                                <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Average Price:</span>
+                                <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div>
+                                <span className="text-muted-foreground">Price Range:</span>
+                                <span className="font-medium block">
+                                  {formatPrice(aiAnalysis.ebayData.lowestPrice)} - {formatPrice(aiAnalysis.ebayData.highestPrice)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Market Activity:</span>
+                                <span className="font-medium block">{aiAnalysis.ebayData.soldCount} sold / {aiAnalysis.ebayData.activeListing} active</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {aiAnalysis?.seoKeywords && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Search className="h-4 w-4" />
+                            <h5 className="font-medium">SEO Keywords</h5>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {aiAnalysis.seoKeywords.map((keyword, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-secondary/40 rounded-full text-xs font-medium"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {aiAnalysis?.suggestions && (
+                        <div className="border-t pt-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="h-4 w-4" />
+                            <h5 className="font-medium">Optimization Tips</h5>
+                          </div>
+                          <ul className="space-y-2">
+                            {aiAnalysis.suggestions.map((suggestion, index) => (
+                              <li
+                                key={index}
+                                className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
+                              >
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   </ScrollArea>
                 )}
               </div>
             )}
-            {aiAnalysis?.ebayData && (
-              <div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <PackageOpen className="h-4 w-4" />
-                    <h5 className="font-medium">eBay Market Data</h5>
+
+            <div className={cn(
+              "mt-4 space-y-2",
+              view === "list" && "flex items-center gap-6"
+            )}>
+              <div className={cn(
+                "flex items-baseline justify-between",
+                view === "list" && "flex-1"
+              )}>
+                <div className="space-y-1">
+                  <div className="text-sm text-muted-foreground font-medium">
+                    {inWatchlist ? "Recommended Sell Price" : "Selling Price"}
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 hover:bg-transparent p-0"
-                    onClick={() => setShowEbayData(!showEbayData)}
-                  >
-                    {showEbayData ? (
-                      <ChevronUp className="h-4 w-4 text-muted-foreground" />
-                    ) : (
-                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
-                    )}
-                  </Button>
+                  <div className="text-xl font-semibold text-primary">
+                    {formatPrice(currentPrice)}
+                  </div>
                 </div>
-                {showEbayData && (
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-muted-foreground">Current Price:</span>
-                        <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Average Price:</span>
-                        <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <div>
-                        <span className="text-muted-foreground">Price Range:</span>
-                        <span className="font-medium block">
-                          {formatPrice(aiAnalysis.ebayData.lowestPrice)} - {formatPrice(aiAnalysis.ebayData.highestPrice)}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Market Activity:</span>
-                        <span className="font-medium block">{aiAnalysis.ebayData.soldCount} sold / {aiAnalysis.ebayData.activeListing} active</span>
-                      </div>
-                    </div>
+                {product.ebayPrice && (
+                  <div className="flex flex-col items-end">
+                    <span className="text-sm text-muted-foreground">eBay Price</span>
+                    <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
+                      {formatPrice(Number(product.ebayPrice))}
+                    </span>
                   </div>
                 )}
               </div>
-            )}
 
-            {aiAnalysis?.seoKeywords && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  <h5 className="font-medium">SEO Keywords</h5>
+              {(product.weight || product.dimensions) && (
+                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                  {product.weight && (
+                    <div className="flex items-center gap-2">
+                      <span>Weight:</span>
+                      <span className="font-medium">{product.weight} lbs</span>
+                    </div>
+                  )}
+                  {product.dimensions && (
+                    <div className="flex items-center gap-2">
+                      <span>Dimensions:</span>
+                      <span className="font-medium">{product.dimensions}</span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {aiAnalysis.seoKeywords.map((keyword, index) => (
-                    <span
-                      key={index}
-                      className="px-2 py-1 bg-secondary/40 rounded-full text-xs font-medium"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
+              )}
 
-            {aiAnalysis?.suggestions && (
-              <div className="border-t pt-3">
-                <div className="flex items-center gap-2 mb-2">
-                  <TrendingUp className="h-4 w-4" />
-                  <h5 className="font-medium">Optimization Tips</h5>
+              {product.condition && (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>Condition:</span>
+                  <span className="capitalize">{product.condition.replace(/_/g, ' ')}</span>
                 </div>
-                <ul className="space-y-2">
-                  {aiAnalysis.suggestions.map((suggestion, index) => (
-                    <li
-                      key={index}
-                      className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
-                    >
-                      {suggestion}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
+              )}
+            </div>
           </CardContent>
 
           <CardFooter className={cn(

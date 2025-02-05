@@ -1,0 +1,58 @@
+Here's a concise checklist covering the key details for the product form component process:
+
+---
+
+### **Form Submission & Data Handling**
+- [ ] **Form Data Preparation:**  
+  - Use `FormData` to include all fields (including JSON-stringified `aiAnalysis` and file uploads).
+  - Append the `isWatchlistItem` flag to the request.
+  - Choose the correct HTTP method: `POST` for new products, `PATCH` for updates.
+
+- [ ] **Server Response Handling:**  
+  - Check for non-OK responses and provide descriptive error messages.
+  - Invalidate relevant queries (e.g., products and watchlist) upon successful submission.
+  - Ensure proper toast notifications for success and errors.
+
+---
+
+### **AI Analysis & eBay Data Integration**
+- [ ] **AI Analysis Triggering:**  
+  - Validate required inputs (name and description) before triggering AI analysis.
+  - Update form state with AI results (`aiAnalysis`) including title, description, category, and market analysis data.
+
+- [ ] **eBay Market Data Handling:**  
+  - Merge the eBay data into existing `aiAnalysis` (updating price suggestions and adding `ebayData`).
+  - Auto-adjust the selling price based on both buyPrice and condition-specific discounts.
+  - Replace any mock implementations with real eBay API calls.
+  - Prompt the user to connect to eBay if authentication is missing.
+
+---
+
+### **Smart Listing Modal Integration**
+- [ ] **Modal Trigger & Analysis Completion:**  
+  - Open the Smart Listing modal when image files are uploaded.
+  - Process the analysis result returned by the modal via `onAnalysisComplete`.
+  - Update the form’s fields (name, description, category, and price) based on the analysis.
+
+---
+
+### **User Feedback & Error Handling**
+- [ ] **Inline & Toast Notifications:**  
+  - Display inline errors for form validation (using `FormMessage`).
+  - Use toast notifications to inform users of analysis progress, errors, and successful actions.
+  - Provide actionable prompts (e.g., “Connect eBay” button) when required.
+
+---
+
+### **Performance & State Management**
+- [ ] **Optimized State Updates:**  
+  - Use React hooks (`useCallback`, `useMemo`) to prevent unnecessary re-renders, especially for computed values like price based on buyPrice and condition.
+  - Ensure efficient state management for asynchronous operations (analysis, eBay calls, image uploads).
+
+- [ ] **Dynamic Price Calculations:**  
+  - Auto-generate sell price on buyPrice changes.
+  - Adjust pricing based on incoming AI and eBay data while ensuring consistency with minimum thresholds.
+
+---
+
+This checklist should help ensure that all critical aspects of the product form—data handling, AI & eBay integration, user feedback, and performance—are thoroughly addressed.

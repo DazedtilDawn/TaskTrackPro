@@ -400,6 +400,63 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     }
   };
 
+  const handleFormSubmit = async (data: ProductFormData) => {
+    try {
+      const formData = new FormData();
+
+      // Structured form data preparation
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === "aiAnalysis" && value) {
+          formData.append(key, JSON.stringify(value));
+        } else if (value !== null && value !== undefined) {
+          formData.append(key, value.toString());
+        }
+      });
+
+      // Add watchlist and image data
+      formData.append("isWatchlistItem", isWatchlistItem ? "true" : "false");
+      if (imageFiles.length > 0) {
+        formData.append("image", imageFiles[0]);
+      }
+
+      // Determine endpoint and method
+      const endpoint = product ? `/api/products/${product.id}` : "/api/products";
+      const method = product ? "PATCH" : "POST";
+
+      const response = await fetch(endpoint, {
+        method,
+        body: formData,
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to save product");
+      }
+
+      // Invalidate relevant queries
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+      ]);
+
+      toast({
+        title: product ? "Product updated" : "Product created",
+        description: data.name.trim(),
+      });
+
+      onComplete();
+    } catch (error) {
+      console.error("Form submission error:", error);
+      const errorMessage = handleError(error);
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <DialogContent className="max-w-2xl overflow-hidden">
       <DialogHeader>
@@ -415,45 +472,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         <div className="p-6">
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(async (data) => {
-                try {
-                  const formData = new FormData();
-                  Object.entries(data).forEach(([key, value]) => {
-                    if (key === "aiAnalysis" && value) {
-                      formData.append(key, JSON.stringify(value));
-                    } else if (value !== null && value !== undefined) {
-                      formData.append(key, value.toString());
-                    }
-                  });
-                  formData.append("isWatchlistItem", isWatchlistItem ? "true" : "false");
-                  if (imageFiles.length > 0) formData.append("image", imageFiles[0]);
-                  const endpoint = product ? `/api/products/${product.id}` : "/api/products";
-                  const method = product ? "PATCH" : "POST";
-                  const response = await fetch(endpoint, {
-                    method,
-                    body: formData,
-                    credentials: "include",
-                  });
-                  if (!response.ok) throw new Error("Failed to save product");
-                  await Promise.all([
-                    queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
-                    queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
-                  ]);
-                  toast({
-                    title: product ? "Product updated" : "Product created",
-                    description: data.name.trim(),
-                  });
-                  onComplete();
-                } catch (error) {
-                  console.error("Form submission error:", error);
-                  const errorMessage = handleError(error);
-                  toast({
-                    title: "Error",
-                    description: errorMessage,
-                    variant: "destructive",
-                  });
-                }
-              })}
+              onSubmit={form.handleSubmit(handleFormSubmit)}
               className="space-y-8"
             >
               <div className="space-y-6">
@@ -858,12 +877,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                             </div>
                           </div>
                           <div>
-                            <span className="text-sm text-muted-foreground">Market Activity</span>
+                            <span className="text-sm textmuted-foreground">Market Activity</span>
                             <div className="flex flex-col gap-1">
                               <div className="flex items-center justify-between">
                                 <span>Sold Items</span>
                                 <span className="font-medium">{form.watch("aiAnalysis.ebayData.soldCount")}</span>
-                              </div>                              <div className="flex items-center justify-between">
+                              </div>
+                              <div className="flex items-center justify-between">
                                 <span>Active Listings</span>
                                 <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
                               </div>

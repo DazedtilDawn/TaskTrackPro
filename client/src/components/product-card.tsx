@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box,
-  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen
+  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen, Loader2
 } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -38,6 +38,9 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isUpdatingWatchlist, setIsUpdatingWatchlist] = useState(false);
+  const [isMarkingAsSold, setIsMarkingAsSold] = useState(false);
   const [imageError, setImageError] = useState(false);
   const displayUrl = getImageUrl(product.imageUrl);
 
@@ -48,14 +51,17 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
   const markAsSold = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (isMarkingAsSold) return;
+
+    setIsMarkingAsSold(true);
     try {
       const response = await apiRequest("POST", "/api/orders", {
         productId: product.id
       });
-      const result = await response.json();
 
-      if (result.error) {
-        throw new Error(result.error);
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to mark product as sold');
       }
 
       // Only update UI after successful response
@@ -78,6 +84,8 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         description: "Failed to mark product as sold",
         variant: "destructive",
       });
+    } finally {
+      setIsMarkingAsSold(false);
     }
   }, [product.id, product.name, toast, setLocation]);
 
@@ -88,19 +96,27 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       return;
     }
 
+    if (isUpdatingWatchlist) return;
+
+    setIsUpdatingWatchlist(true);
     try {
-      let response;
-      if (inWatchlist) {
-        response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
-      } else {
-        response = await apiRequest("POST", "/api/watchlist", {
-          productId: product.id
-        });
+      const response = await apiRequest(
+        inWatchlist ? "DELETE" : "POST",
+        inWatchlist ? `/api/watchlist/${product.id}` : "/api/watchlist",
+        !inWatchlist ? { productId: product.id } : undefined
+      );
+
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to update watchlist');
       }
 
-      const result = await response.json();
-      if (result.error) {
-        throw new Error(result.error);
+      // For 204 No Content responses, don't try to parse JSON
+      if (response.status !== 204) {
+        const result = await response.json();
+        if (result.error) {
+          throw new Error(result.error);
+        }
       }
 
       // Only update UI after successful response
@@ -120,15 +136,19 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         description: "Failed to update watchlist",
         variant: "destructive",
       });
+    } finally {
+      setIsUpdatingWatchlist(false);
     }
   }, [product.id, product.name, inWatchlist, toast, location]);
 
   const deleteProduct = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
+    if (isDeleting) return;
+
+    setIsDeleting(true);
     try {
       const response = await apiRequest("DELETE", `/api/products/${product.id}`);
 
-      // Handle 404 case specifically - product might be already deleted
       if (response.status === 404) {
         const result = await response.json();
         if (result.error === "Product not found") {
@@ -159,6 +179,11 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         return;
       }
 
+      if (!response.ok) {
+        const result = await response.json();
+        throw new Error(result.error || 'Failed to delete product');
+      }
+
       const result = await response.json();
       if (result.error) {
         throw new Error(result.error);
@@ -181,6 +206,8 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         description: "Failed to delete product. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsDeleting(false);
     }
   }, [product.id, product.name, toast]);
 
@@ -348,18 +375,20 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 size="icon"
                 variant="ghost"
                 onClick={deleteProduct}
+                disabled={isDeleting}
                 className="h-8 w-8 hover:scale-105 transition-transform"
               >
-                <Trash2 className="h-4 w-4" />
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </Button>
               {!inWatchlist && (
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={markAsSold}
+                  disabled={isMarkingAsSold}
                   className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
+                  {isMarkingAsSold ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 </Button>
               )}
               {inWatchlist && (
@@ -378,9 +407,14 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   size="icon"
                   variant={inWatchlist ? "secondary" : "ghost"}
                   onClick={toggleWatchlist}
+                  disabled={isUpdatingWatchlist}
                   className="h-8 w-8 hover:scale-105 transition-transform"
                 >
-                  <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+                  {isUpdatingWatchlist ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+                  )}
                 </Button>
               )}
               {!inWatchlist && (
@@ -680,18 +714,20 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 size="icon"
                 variant="ghost"
                 onClick={deleteProduct}
+                disabled={isDeleting}
                 className="hover:scale-105 transition-transform"
               >
-                <Trash2 className="h-4 w-4" />
+                {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </Button>
               {!inWatchlist && (
                 <Button
                   size="icon"
                   variant="ghost"
                   onClick={markAsSold}
+                  disabled={isMarkingAsSold}
                   className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                 >
-                  <CheckCircle2 className="h-4 w-4" />
+                  {isMarkingAsSold ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 </Button>
               )}
               {inWatchlist && (
@@ -738,9 +774,14 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               size="icon"
               variant={inWatchlist ? "secondary" : "ghost"}
               onClick={toggleWatchlist}
+              disabled={isUpdatingWatchlist}
               className="hover:scale-105 transition-transform"
             >
-              <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+              {isUpdatingWatchlist ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+              )}
             </Button>
           </CardFooter>
         </div>

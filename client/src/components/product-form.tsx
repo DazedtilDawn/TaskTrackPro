@@ -310,24 +310,33 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   };
 
   const runFullAnalysis = async () => {
+    console.log("[Full Analysis] Starting full analysis chain");
     try {
+      console.log("[Full Analysis] Step 1: Running initial analysis");
       await handleAnalyze();
+
+      console.log("[Full Analysis] Checking analysis results:", form.getValues("aiAnalysis"));
+
       if (hasEbayAuth) {
+        console.log("[Full Analysis] Step 2: Starting eBay refinement");
         await handleRefineWithEbay();
+        console.log("[Full Analysis] Step 3: Starting price refinement");
         await handleRefinePricing();
       }
+
       toast({
         title: "Full Analysis Complete",
         description: "All analysis steps have been completed successfully",
       });
     } catch (error) {
-      console.error("Full analysis chain failed:", error);
+      console.error("[Full Analysis] Chain failed:", error);
       const errorMessage = handleError(error);
       toast({
         title: "Analysis Error",
         description: errorMessage,
         variant: "destructive",
       });
+      throw error; // Re-throw to allow proper error handling in caller
     }
   };
 
@@ -397,23 +406,67 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   };
 
   const handleAnalysisComplete = async (analysis: any) => {
+    console.log("[Product Analysis] Received analysis data:", analysis);
+    console.log("[Product Analysis] Current form AI analysis:", form.getValues("aiAnalysis"));
+
+    // Validate analysis structure
+    if (!analysis || typeof analysis !== 'object') {
+      console.error("[Product Analysis] Invalid analysis data received");
+      toast({
+        title: "Analysis Error",
+        description: "Received invalid analysis data",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Update form with validated data
     form.setValue("aiAnalysis", analysis);
-    if (analysis.title) form.setValue("name", analysis.title);
-    if (analysis.description) form.setValue("description", analysis.description);
-    if (analysis.category) form.setValue("category", analysis.category);
+    console.log("[Product Analysis] Updated form AI analysis:", form.getValues("aiAnalysis"));
+
+    // Update other form fields if data is available
+    if (analysis.title) {
+      console.log("[Product Analysis] Setting product name:", analysis.title);
+      form.setValue("name", analysis.title);
+    }
+    if (analysis.description) {
+      console.log("[Product Analysis] Setting description:", analysis.description);
+      form.setValue("description", analysis.description);
+    }
+    if (analysis.category) {
+      console.log("[Product Analysis] Setting category:", analysis.category);
+      form.setValue("category", analysis.category);
+    }
     if (analysis.marketAnalysis?.priceSuggestion?.min) {
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
       const adjustedPrice = Math.floor(analysis.marketAnalysis.priceSuggestion.min * conditionDiscount);
+      console.log("[Product Analysis] Setting adjusted price:", adjustedPrice, {
+        originalPrice: analysis.marketAnalysis.priceSuggestion.min,
+        condition,
+        discount: conditionDiscount
+      });
       form.setValue("price", adjustedPrice);
     }
+
     setShowSmartListing(false);
     toast({
       title: "Analysis Complete",
       description: "Product details have been analyzed from images",
     });
+
     if (fullAnalysis && hasEbayAuth) {
-      await runFullAnalysis();
+      console.log("[Product Analysis] Starting full analysis chain");
+      try {
+        await runFullAnalysis();
+      } catch (error) {
+        console.error("[Product Analysis] Full analysis chain failed:", error);
+        toast({
+          title: "Analysis Error",
+          description: error instanceof Error ? error.message : "Failed to complete full analysis",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -839,7 +892,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   <div className="space-y-6">
                     <div className="flex items-center justify-between border-b pb-4">
                       <div className="flex items-center gap-2">
-                        <BarChart2 className="h-5 w-5 text-primary" />
+                        <BarChart2 className="h-5 w5 text-primary" />
                         <h3 className="font-semibold text-lg">eBay Market Data</h3>
                       </div>
                       <div className="text-sm text-muted-foreground">

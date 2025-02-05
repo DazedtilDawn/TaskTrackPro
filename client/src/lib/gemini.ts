@@ -277,7 +277,7 @@ async function fileToBase64(file: File): Promise<string> {
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
   const genAI = await initializeGemini();
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-2.0-flash-001", // Updated model name
     generationConfig: {
       maxOutputTokens: 8192,
       temperature: 0.7,
@@ -287,7 +287,8 @@ export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise
   });
 
   const results = new Map<string, AIAnalysisResult>();
-  const batchSize = 3; // Reduced batch size due to rate limits
+  const batchSize = 5; // Increased batch size due to higher rate limits
+  const delay = 500; // Reduced delay between batches due to higher RPM limit
 
   for (let i = 0; i < products.length; i += batchSize) {
     const batch = products.slice(i, i + batchSize);
@@ -300,7 +301,7 @@ ${product.sku ? `SKU: ${product.sku}` : ''}
 ${product.condition ? `Condition: ${product.condition}` : ''}
 
 Please provide a detailed analysis including:
-1. Product category
+1. Product category and subcategory
 2. SEO keywords (5-7 keywords)
 3. 3-5 specific suggestions to improve the listing
 4. Market analysis with:
@@ -334,9 +335,9 @@ Format the response in JSON.`;
     });
 
     await Promise.all(promises);
-    // Add a longer delay between batches to respect rate limits (10 RPM)
+    // Add a shorter delay between batches due to higher rate limits
     if (i + batchSize < products.length) {
-      await new Promise(resolve => setTimeout(resolve, 6000));
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
   }
 

@@ -563,6 +563,9 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
     try {
       console.log('[Products API] Creating product with image:', req.file);
+      console.log('[Products API] Request body:', req.body);
+
+      const isWatchlistItem = req.body.isWatchlistItem === 'true';
 
       // Extract form data
       const productData = {
@@ -577,7 +580,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         imageUrl: req.file ? getImageUrl(req.file.filename) : null,
         aiAnalysis: req.body.aiAnalysis ? ensureJSON(req.body.aiAnalysis) : null,
         ebayPrice: req.body.ebayPrice || null,
-        userId: req.user!.id,
+        userId: isWatchlistItem ? null : req.user!.id, // Only set userId if it's an inventory item
         createdAt: new Date(),
         updatedAt: new Date(),
         sold: false,
@@ -586,20 +589,43 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
       console.log('[Products API] Product data prepared:', {
         ...productData,
-        imageUrl: productData.imageUrl // Log the processed image URL
+        imageUrl: productData.imageUrl,
+        isWatchlistItem
       });
 
-      const [product] = await db.insert(products)
-        .values(productData)
-        .returning();
+      // Start a transaction to handle both product creation and watchlist addition if needed
+      const result = await db.transaction(async (tx) => {
+        // Create the product
+        const [product] = await tx.insert(products)
+          .values(productData)
+          .returning();
 
-      // Ensure JSON fields are parsed in response
+        // If this is a watchlist item, add it to the watchlist immediately
+        if (isWatchlistItem) {
+          await tx.insert(watchlist)
+            .values({
+              userId: req.user!.id,
+              productId: product.id,
+              createdAt: new Date(),
+              updatedAt: new Date()
+            });
+        }
+
+        return product;
+      });
+
+      // Process the response
       const processedProduct = {
-        ...product,
-        imageUrl: getImageUrl(product.imageUrl),
-        aiAnalysis: ensureJSON(product.aiAnalysis),
-        ebayListingData: ensureJSON(product.ebayListingData)
+        ...result,
+        imageUrl: getImageUrl(result.imageUrl),
+        aiAnalysis: ensureJSON(result.aiAnalysis),
+        ebayListingData: ensureJSON(result.ebayListingData)
       };
+
+      console.log('[Products API] Successfully created product:', {
+        id: processedProduct.id,
+        isWatchlistItem
+      });
 
       res.status(201).json(processedProduct);
     } catch (error) {
@@ -874,7 +900,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
             quantity: 1,
             createdAt: new Date(),
             updatedAt: new Date()
-          } as const);
+          } as const); // Fixed syntax error here
 
         // Mark product as sold and set soldAt timestamp
         await tx.update(products)

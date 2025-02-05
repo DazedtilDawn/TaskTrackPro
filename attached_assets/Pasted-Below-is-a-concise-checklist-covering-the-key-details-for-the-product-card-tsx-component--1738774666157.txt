@@ -1,0 +1,90 @@
+Below is a concise checklist covering the key details for the `product-card.tsx` component:
+
+---
+
+### **Delete Product**
+- [ ] **API Request:**  
+  - Call the correct endpoint (`DELETE /api/products/{id}`) with proper product ID.
+- [ ] **Response Handling:**  
+  - Check for a 204 status (success) and handle 404 responses by invalidating queries.
+  - Parse error messages from the response and throw descriptive errors if needed.
+- [ ] **User Feedback:**  
+  - Invalidate queries for both products and watchlist on success.
+  - Display appropriate toast notifications (success and error).
+
+---
+
+### **Toggle Watchlist**
+- [ ] **Action Logic:**  
+  - Use the correct API method: POST to add and DELETE to remove from the watchlist.
+  - Ensure that toggling is skipped when already in the watchlist view (e.g., when URL includes `/watchlist`).
+- [ ] **Response & State:**  
+  - Invalidate watchlist and product queries on successful update.
+  - Handle response errors with clear error messages.
+- [ ] **User Feedback:**  
+  - Show toast notifications indicating whether the product was added or removed.
+  - Use loading state to prevent multiple rapid toggles.
+
+---
+
+### **Conditional Rendering for Different View Modes**
+- [ ] **Layout Variations:**  
+  - For "table" view: Render a row with product image, details, prices, and actions.
+  - For "grid" view: Use components like `AspectRatio` for images and a card-based layout.
+  - For "list" view: Adjust layout to a horizontal card with clear separation of details.
+- [ ] **Image Handling:**  
+  - Display the product image if available.
+  - Provide a fallback (e.g., an icon) when the image fails to load.
+- [ ] **UI Controls:**  
+  - Show action buttons (edit, delete, mark as sold, watchlist toggle) only when relevant and on hover if needed.
+
+---
+
+### **Display of Product Details**
+- [ ] **Basic Details:**  
+  - Render the product name, description, and formatted selling price (using `formatPrice`).
+- [ ] **eBay Data:**  
+  - If available, display the eBay price with clear labels.
+  - Show additional eBay market data (e.g., current price, average price, price range, sold count) in a dedicated UI section.
+- [ ] **Additional Information:**  
+  - Display product condition (formatted and capitalized), weight, and dimensions.
+  - Conditionally render analytics (e.g., "Underpriced," "Overpriced," or "Optimal Price") based on computed status.
+
+---
+
+### **Mark As Sold Functionality**
+- [ ] **API Request:**  
+  - Call the correct endpoint (`POST /api/orders`) with the product ID.
+- [ ] **State Management:**  
+  - Use a loading state to disable the mark-as-sold button during processing.
+- [ ] **Response Handling & Redirection:**  
+  - Invalidate queries for products, watchlist, and orders on success.
+  - Redirect the user to the orders page (using `setLocation("/orders")`).
+- [ ] **User Feedback:**  
+  - Display toast notifications indicating successful sale or error messages on failure.
+
+---
+
+### **eBay Listing Generation & UI Enhancements**
+- [ ] **Listing Generation:**  
+  - Implement the API call to generate an eBay listing (`POST /api/products/{id}/generate-ebay-listing`).
+  - Handle 403 responses by prompting the user to connect their eBay account (with an actionable button).
+- [ ] **Response & Navigation:**  
+  - On success, invalidate product queries and, if an `ebayListingUrl` is provided, open it in a new window.
+- [ ] **UI Display:**  
+  - Present eBay market data (e.g., current price, average price, price range, sold/active counts) clearly within the card.
+  - Use icons and color cues to differentiate data (for example, showing status badges for pricing).
+
+---
+
+### **General Error Handling & Loading States**
+- [ ] **Loading Indicators:**  
+  - Use spinner icons (e.g., `<Loader2>`) on buttons during async operations.
+- [ ] **Event Handling:**  
+  - Ensure click events (like on action buttons) stop propagation to avoid unintended actions.
+- [ ] **User Notifications:**  
+  - Utilize toast notifications consistently to inform the user about successes, failures, or required actions.
+
+---
+
+This checklist should help ensure that all critical aspects—from API integration and error handling to conditional rendering and user feedback—are thoroughly addressed in the `product-card.tsx` component.

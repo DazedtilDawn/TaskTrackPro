@@ -23,6 +23,13 @@ import {
   type AiAnalysis
 } from "@/lib/json-utils";
 
+// Error handling helper
+const handleError = (error: unknown): string => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  return 'An unexpected error occurred';
+};
+
 interface ProductCardProps {
   product: SelectProduct;
   onEdit: (product: SelectProduct) => void;
@@ -76,9 +83,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       setLocation("/orders");
     } catch (error) {
       console.error('Error marking product as sold:', error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: "Failed to mark product as sold",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -89,6 +97,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const toggleWatchlist = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
 
+    // Skip if already in watchlist view
     if (inWatchlist && location.includes("/watchlist")) {
       return;
     }
@@ -126,9 +135,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       });
     } catch (error) {
       console.error('Watchlist operation failed:', error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: "Failed to update watchlist",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -193,9 +203,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       });
     } catch (error) {
       console.error('Product deletion failed:', error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: "Failed to delete product. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -259,9 +270,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       }
     } catch (error) {
       console.error('Error generating eBay listing:', error);
+      const errorMessage = handleError(error);
       toast({
         title: "Error",
-        description: "Failed to generate eBay listing",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {

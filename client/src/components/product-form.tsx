@@ -400,6 +400,150 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                 onRefinePricing={handleRefinePricing}
               />
 
+              {/* Display AI Analysis if available */}
+              {form.watch("aiAnalysis") && (
+                <Card className="p-6 border-primary/20">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-lg">AI Analysis Results</h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium mb-2">Market Analysis</h4>
+                        <div className="space-y-2">
+                          {form.watch("aiAnalysis.marketAnalysis.demandScore") && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">Demand Score</span>
+                              <div className="text-2xl font-semibold">
+                                {form.watch("aiAnalysis.marketAnalysis.demandScore")}/10
+                              </div>
+                            </div>
+                          )}
+                          {form.watch("aiAnalysis.marketAnalysis.competitionLevel") && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">Competition Level</span>
+                              <div className="text-lg font-medium">
+                                {form.watch("aiAnalysis.marketAnalysis.competitionLevel")}
+                              </div>
+                            </div>
+                          )}
+                          {form.watch("aiAnalysis.marketAnalysis.priceSuggestion") && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">Suggested Price Range</span>
+                              <div className="text-lg font-medium">
+                                ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.min").toFixed(2)} -
+                                ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.max").toFixed(2)}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        {form.watch("aiAnalysis.seoKeywords") && (
+                          <>
+                            <h4 className="font-medium mb-2">SEO Keywords</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {form.watch("aiAnalysis.seoKeywords").map((keyword: string, index: number) => (
+                                <span
+                                  key={index}
+                                  className="px-2 py-1 bg-primary/10 rounded-md text-sm"
+                                >
+                                  {keyword}
+                                </span>
+                              ))}
+                            </div>
+                          </>
+                        )}
+
+                        {form.watch("aiAnalysis.suggestions") && (
+                          <>
+                            <h4 className="font-medium mt-4 mb-2">Suggestions</h4>
+                            <ul className="space-y-1 text-sm">
+                              {form.watch("aiAnalysis.suggestions").map((suggestion: string, index: number) => (
+                                <li key={index} className="flex items-center gap-2">
+                                  <Info className="h-4 w-4 text-primary" />
+                                  {suggestion}
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Display eBay Market Data if available */}
+              {form.watch("aiAnalysis.ebayData") && (
+                <Card className="p-6 border-primary/20">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between border-b pb-4">
+                      <div className="flex items-center gap-2">
+                        <BarChart2 className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-lg">eBay Market Data</h3>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Last updated: {new Date(form.watch("aiAnalysis.ebayData.lastUpdated") || '').toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">Current Market Price</span>
+                          <div className="text-2xl font-semibold">
+                            ${form.watch("aiAnalysis.ebayData.currentPrice").toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Average Price</span>
+                          <div className="text-2xl font-semibold">
+                            ${form.watch("aiAnalysis.ebayData.averagePrice").toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Price Range</span>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-semibold">
+                              ${form.watch("aiAnalysis.ebayData.lowestPrice").toFixed(2)}
+                            </span>
+                            <span className="text-muted-foreground">-</span>
+                            <span className="text-xl font-semibold">
+                              ${form.watch("aiAnalysis.ebayData.highestPrice").toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">Items Sold</span>
+                          <div className="text-2xl font-semibold">
+                            {form.watch("aiAnalysis.ebayData.soldCount").toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Active Listings</span>
+                          <div className="text-2xl font-semibold">
+                            {form.watch("aiAnalysis.ebayData.activeListing").toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Recommended Price</span>
+                          <div className="text-2xl font-semibold text-primary">
+                            ${form.watch("aiAnalysis.ebayData.recommendedPrice").toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>

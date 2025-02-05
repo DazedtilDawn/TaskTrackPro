@@ -11,13 +11,13 @@ interface SmartListingModalProps {
   open: boolean;
   onClose: () => void;
   imageFiles: File[];
-  onAnalysisComplete: (analysis: any) => void;
+  onAnalysisComplete?: (analysis: any) => void;
 }
 
 export default function SmartListingModal({
   open,
   onClose,
-  imageFiles = [], // Add default value
+  imageFiles = [],
   onAnalysisComplete,
 }: SmartListingModalProps) {
   const [loading, setLoading] = useState(false);
@@ -68,7 +68,9 @@ export default function SmartListingModal({
       if (!isMounted.current) return;
 
       setProgress(100);
-      onAnalysisComplete(analysis);
+      if (onAnalysisComplete) {
+        onAnalysisComplete(analysis);
+      }
       onClose();
 
       toast({
@@ -141,18 +143,20 @@ export default function SmartListingModal({
   return (
     <Dialog 
       open={open} 
-      onOpenChange={(newOpen) => {
-        if (!newOpen) cleanup();
-        onClose();
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          cleanup();
+          onClose();
+        }
       }}
     >
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl" aria-describedby="modal-description">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileImage className="h-5 w-5" />
             Smart Listing Analysis
           </DialogTitle>
-          <DialogDescription>
+          <DialogDescription id="modal-description">
             {loading 
               ? `Analyzing ${imageFiles?.length} product image${imageFiles?.length !== 1 ? 's' : ''} with AI`
               : error 

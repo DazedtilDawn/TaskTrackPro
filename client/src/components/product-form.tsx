@@ -982,9 +982,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           {showSmartListing && (
             <SmartListingModal
               open={showSmartListing}
-              onOpenChange={setShowSmartListing}
+              onClose={() => setShowSmartListing(false)}
               imageFiles={imageFiles}
-              onComplete={handleAnalysisComplete}
+              onAnalysisComplete={handleAnalysisComplete}
             />
           )}
         </div>

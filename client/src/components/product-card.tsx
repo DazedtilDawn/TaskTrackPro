@@ -12,11 +12,6 @@ import { useState, useCallback } from "react";
 import ConvertWatchlistDialog from "./convert-watchlist-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { getImageUrl } from "@/lib/utils";
 import {
@@ -510,143 +505,129 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             "p-4",
             view === "list" && "flex-1"
           )}>
-            <div className="flex items-start justify-between mb-2">
+            <div className="flex items-start justify-between mb-4">
               <div className={cn(
                 view === "list" && "flex-1"
               )}>
                 <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
                 <p className="text-muted-foreground text-sm">{product.description}</p>
               </div>
-              {hasAnalysis && aiAnalysis && (
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 transition-transform hover:scale-110 shrink-0"
-                    >
-                      <Sparkles className="h-4 w-4 text-primary" />
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0">
-                    <ScrollArea className="h-[400px]">
-                      <div className="p-4 space-y-4">
-                        <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
-                          <h4 className="font-medium text-lg">Market Analysis</h4>
-                          <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
-                        </div>
-
-                        <div className="space-y-4">
-                          <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
-                            {aiAnalysis?.marketAnalysis?.demandScore && (
-                              <div>
-                                <span className="text-sm font-medium">Market Demand</span>
-                                <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
-                              </div>
-                            )}
-                            {aiAnalysis?.marketAnalysis?.demandScore && <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />}
-                            {aiAnalysis?.marketAnalysis?.competitionLevel && (
-                              <div className="flex items-center gap-2">
-                                <BarChart className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          {aiAnalysis?.marketAnalysis?.priceSuggestion && (
-                            <div className="space-y-3">
-                              <div className="flex items-center gap-2">
-                                <Tag className="h-4 w-4" />
-                                <h5 className="font-medium">Price Analysis</h5>
-                              </div>
-
-                              <div className="pl-4 space-y-2">
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-muted-foreground">Current Price:</span>
-                                  <span className={cn(
-                                    "text-lg font-semibold",
-                                    isUnderpriced && "text-yellow-600",
-                                    isOverpriced && "text-red-600",
-                                    isPricedRight && "text-green-600"
-                                  )}>
-                                    {formatPrice(currentPrice)}
-                                  </span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-muted-foreground">Suggested Range:</span>
-                                  <div className="flex items-baseline gap-2">
-                                    <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.min)}</span>
-                                    <span className="text-muted-foreground">-</span>
-                                    <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.max)}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {aiAnalysis?.ebayData && (
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <PackageOpen className="h-4 w-4" />
-                                <h5 className="font-medium">eBay Data</h5>
-                              </div>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-muted-foreground">Current Price:</span>
-                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
-                                  <span className="text-sm text-muted-foreground">Average Price:</span>
-                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-muted-foreground">Lowest Price:</span>
-                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.lowestPrice)}</span>
-                                  <span className="text-sm text-muted-foreground">Highest Price:</span>
-                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.highestPrice)}</span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-muted-foreground">Sold:</span>
-                                  <span className="text-sm font-medium">{aiAnalysis.ebayData.soldCount}</span>
-                                  <span className="text-sm text-muted-foreground">Active Listings:</span>
-                                  <span className="text-sm font-medium">{aiAnalysis.ebayData.activeListing}</span>
-                                </div>
-                                <div className="flex flex-col gap-1">
-                                  <span className="text-sm text-muted-foreground">Recommended Price:</span>
-                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.recommendedPrice)}</span>
-                                  <span className="text-sm text-muted-foreground">Last Updated:</span>
-                                  <span className="text-sm font-medium">{aiAnalysis.ebayData.lastUpdated}</span>
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {aiAnalysis?.suggestions && (
-                            <div className="border-t pt-3">
-                              <div className="flex items-center gap-2 mb-2">
-                                <TrendingUp className="h-4 w-4" />
-                                <h5 className="font-medium">Optimization Tips</h5>
-                              </div>
-                              <ul className="space-y-2">
-                                {aiAnalysis.suggestions.map((suggestion, index) => (
-                                  <li
-                                    key={index}
-                                    className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
-                                  >
-                                    {suggestion}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </ScrollArea>
-                  </PopoverContent>
-                </Popover>
-              )}
             </div>
 
+            {/* Market Analysis Section - now directly in the card */}
+            {hasAnalysis && aiAnalysis && (
+              <div className="mt-4 border-t pt-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-lg">Market Analysis</h4>
+                  <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
+                </div>
+
+                <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
+                  {aiAnalysis?.marketAnalysis?.demandScore && (
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-sm font-medium">Market Demand</span>
+                        <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
+                      </div>
+                      <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
+                    </div>
+                  )}
+                  {aiAnalysis?.marketAnalysis?.competitionLevel && (
+                    <div className="flex items-center gap-2">
+                      <BarChart className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
+                    </div>
+                  )}
+                </div>
+
+                {aiAnalysis?.marketAnalysis?.priceSuggestion && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Tag className="h-4 w-4" />
+                      <h5 className="font-medium">Price Analysis</h5>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <span className="text-sm text-muted-foreground">Current Price:</span>
+                        <span className={cn(
+                          "text-lg font-semibold block",
+                          isUnderpriced && "text-yellow-600",
+                          isOverpriced && "text-red-600",
+                          isPricedRight && "text-green-600"
+                        )}>
+                          {formatPrice(currentPrice)}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        <span className="text-sm text-muted-foreground">Suggested Range:</span>
+                        <div className="space-x-2">
+                          <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.min)}</span>
+                          <span className="text-muted-foreground">-</span>
+                          <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.max)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {aiAnalysis?.ebayData && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <PackageOpen className="h-4 w-4" />
+                      <h5 className="font-medium">eBay Market Data</h5>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 text-sm">
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-muted-foreground">Current Price:</span>
+                          <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Average Price:</span>
+                          <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <div>
+                          <span className="text-muted-foreground">Price Range:</span>
+                          <span className="font-medium block">
+                            {formatPrice(aiAnalysis.ebayData.lowestPrice)} - {formatPrice(aiAnalysis.ebayData.highestPrice)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-muted-foreground">Market Activity:</span>
+                          <span className="font-medium block">{aiAnalysis.ebayData.soldCount} sold / {aiAnalysis.ebayData.activeListing} active</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {aiAnalysis?.suggestions && (
+                  <div className="border-t pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-4 w-4" />
+                      <h5 className="font-medium">Optimization Tips</h5>
+                    </div>
+                    <ul className="space-y-2">
+                      {aiAnalysis.suggestions.map((suggestion, index) => (
+                        <li
+                          key={index}
+                          className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
+                        >
+                          {suggestion}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Price and Details Section */}
             <div className={cn(
-              "space-y-2",
+              "mt-4 space-y-2",
               view === "list" && "flex items-center gap-6"
             )}>
               <div className={cn(

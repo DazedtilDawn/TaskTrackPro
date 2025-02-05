@@ -282,6 +282,26 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           )}
 
+          {/* New: Weight */}
+          {product.weight !== undefined && (
+            <div className="flex-shrink-0 w-24">
+              <div className="text-sm font-medium">
+                {product.weight} lbs
+              </div>
+              <div className="text-xs text-muted-foreground">Weight</div>
+            </div>
+          )}
+
+          {/* New: Dimensions */}
+          {product.dimensions && (
+            <div className="flex-shrink-0 w-32">
+              <div className="text-sm font-medium">
+                {product.dimensions}
+              </div>
+              <div className="text-xs text-muted-foreground">Dimensions</div>
+            </div>
+          )}
+
           {/* Market Analysis */}
           {hasAnalysis && (
             <div className="flex-shrink-0 w-32">
@@ -560,6 +580,25 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   </div>
                 )}
               </div>
+
+              {/* New: Product Details */}
+              {(product.weight || product.dimensions) && (
+                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
+                  {product.weight && (
+                    <div className="flex items-center gap-2">
+                      <span>Weight:</span>
+                      <span className="font-medium">{product.weight} lbs</span>
+                    </div>
+                  )}
+                  {product.dimensions && (
+                    <div className="flex items-center gap-2">
+                      <span>Dimensions:</span>
+                      <span className="font-medium">{product.dimensions}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {product.condition && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>Condition:</span>
@@ -651,12 +690,13 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </Button>
           </CardFooter>
         </div>
-        <ConvertWatchlistDialog
-          product={product}
-          open={showConvertDialog}
-          onOpenChange={setShowConvertDialog}
-        />
       </Card>
+      <ConvertWatchlistDialog
+        product={product}
+        open={showConvertDialog}
+        onOpenChange={setShowConvertDialog}
+      />
     </>
   );
+
 }

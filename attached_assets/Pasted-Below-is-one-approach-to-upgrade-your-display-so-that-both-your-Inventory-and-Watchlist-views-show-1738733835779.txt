@@ -1,0 +1,182 @@
+Below is one approach to “upgrade” your display so that both your Inventory and Watchlist views show the new product fields (for example, weight, dimensions, and the AI/eBay data) along with the existing fields.
+
+In our solution we:
+
+1. **Update the ProductCard component:**  
+   - In the grid/list view we add an extra info section (if available) to show weight and dimensions.  
+   - In the table view we add extra “cells” (extra flex‐items) for weight and dimensions.  
+   - (Optionally, you might also add small summaries of the AI analysis if desired.)
+
+2. **Update the Inventory page header:**  
+   - When in “table” view we update the header row so that it shows new column titles (for Weight and Dimensions).
+
+Below are example modifications.
+
+---
+
+### 1. Update ProductCard (client/src/components/product-card.tsx)
+
+Find the section where you render the card. For example, if you have something like:
+
+```tsx
+if (view === "table") {
+  return (
+    <>
+      <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
+        {/* Thumbnail */}
+        <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+          {product.imageUrl ? (
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
+              <Box className="w-6 h-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+        {/* Name & Description */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium truncate">{product.name}</h3>
+          <p className="text-sm text-muted-foreground truncate">
+            {product.description}
+          </p>
+        </div>
+        {/* Price Info */}
+        <div className="flex-shrink-0 w-32">
+          <div className="text-sm font-medium">
+            ${Number(product.price).toFixed(2)}
+          </div>
+          <div className="text-xs text-muted-foreground">
+            {inWatchlist ? "Recommended" : "Selling Price"}
+          </div>
+        </div>
+        {/* Condition */}
+        {product.condition && (
+          <div className="flex-shrink-0 w-24">
+            <span className="text-sm capitalize">
+              {product.condition.replace(/_/g, " ")}
+            </span>
+          </div>
+        )}
+        {/* New: Weight */}
+        {product.weight !== undefined && (
+          <div className="flex-shrink-0 w-24">
+            <div className="text-sm font-medium">
+              {product.weight} lbs
+            </div>
+            <div className="text-xs text-muted-foreground">Weight</div>
+          </div>
+        )}
+        {/* New: Dimensions */}
+        {product.dimensions && (
+          <div className="flex-shrink-0 w-32">
+            <div className="text-sm font-medium">
+              {product.dimensions}
+            </div>
+            <div className="text-xs text-muted-foreground">Dimensions</div>
+          </div>
+        )}
+        {/* Market Analysis */}
+        {hasAnalysis && (
+          <div className="flex-shrink-0 w-32">
+            <div
+              className={cn(
+                "text-xs px-2 py-1 rounded-full inline-flex items-center gap-1",
+                isUnderpriced && "bg-yellow-500/10 text-yellow-700",
+                isOverpriced && "bg-red-500/10 text-red-700",
+                isPricedRight && "bg-green-500/10 text-green-700"
+              )}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current" />
+              {isUnderpriced
+                ? "Underpriced"
+                : isOverpriced
+                ? "Overpriced"
+                : "Optimal Price"}
+            </div>
+          </div>
+        )}
+        {/* Actions */}
+        <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 absolute right-4 bg-background/95 rounded-lg shadow-sm z-50">
+          {/* action buttons here */}
+        </div>
+      </div>
+    </>
+  );
+}
+```
+
+In the above “table” branch, we inserted two new blocks for weight and dimensions (conditionally rendered if the data exists).
+
+For the grid (or list) view branch (the “non‑table” branch), you can add a small info line below the product description. For example, later in your JSX you might add:
+
+```tsx
+{/* For grid/list view */}
+{view !== "table" && (product.weight || product.dimensions) && (
+  <div className="mt-2 text-xs text-muted-foreground">
+    {product.weight && <span>Weight: {product.weight} lbs</span>}
+    {product.dimensions && <span className="ml-2">Dimensions: {product.dimensions}</span>}
+  </div>
+)}
+```
+
+This ensures that whether you are in grid/list view or table view, the extra fields are visible.
+
+---
+
+### 2. Update Inventory Page (client/src/pages/inventory.tsx)
+
+When rendering a header row for the table view, update the header columns to include the new data. For example, change your header row from:
+
+```tsx
+{view === "table" && (
+  <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
+    <div className="w-12">Image</div>
+    <div className="flex-1">Product Details</div>
+    <div className="w-32">Price</div>
+    <div className="w-24">Condition</div>
+    <div className="w-32">Market Status</div>
+    <div className="w-40">Actions</div>
+  </div>
+)}
+```
+
+to something like:
+
+```tsx
+{view === "table" && (
+  <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
+    <div className="w-12">Image</div>
+    <div className="flex-1">Product Details</div>
+    <div className="w-32">Price</div>
+    <div className="w-24">Condition</div>
+    <div className="w-24">Weight</div>
+    <div className="w-32">Dimensions</div>
+    <div className="w-32">Market Status</div>
+    <div className="w-40">Actions</div>
+  </div>
+)}
+```
+
+Now the table header reserves space for the new fields. (Make sure that your ProductCard’s table branch has matching widths for weight and dimensions, as shown above.)
+
+---
+
+### 3. Watchlist Page
+
+Since your Watchlist page reuses the same ProductCard component, once you update that component the new fields (weight, dimensions, and any AI/eBay analysis data) will be shown there as well. (If you’d like to change any styling or header text on Watchlist, you can update that page similarly.)
+
+---
+
+### Summary
+
+The key issues were:
+- **SmartListing Process:** In a previous message you mentioned the image upload wasn’t triggering analysis; that was solved by ensuring the modal for smart listing is rendered.  
+- **New Data:** Now that you have additional fields (such as weight and dimensions and additional AI/eBay data) you can update the ProductCard component (and the Inventory table header) to render these values.
+
+Make sure to test by creating a new product that has weight and dimensions (and/or AI analysis with ebayData) so that you see the new info appear in both the Inventory and Watchlist views.
+
+Let me know if you need further adjustments!

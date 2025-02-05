@@ -360,6 +360,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         }
       });
 
+      // Append ebayPrice if available
+      if (data.ebayPrice) {
+        formData.append('ebayPrice', String(data.ebayPrice));
+      }
+
       // Append image files if any
       if (imageFiles.length > 0) {
         formData.append('image', imageFiles[0]); // Upload first image for now
@@ -715,6 +720,29 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   )}
                 />
               </div>
+
+              <div className="grid gap-4 grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="ebayPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>eBay Market Price</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          {...field}
+                          placeholder="0.00"
+                          value={field.value ?? ''}
+                          disabled
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+
 
               <div className="flex justify-between pt-6">
                 <Button type="button" variant="ghost" onClick={onComplete}>

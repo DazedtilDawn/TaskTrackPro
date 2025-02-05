@@ -56,7 +56,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
 
-  // Parse aiAnalysis if it's a string
   let aiAnalysis: AIAnalysis | undefined;
   try {
     if (typeof product.aiAnalysis === 'string') {
@@ -209,7 +208,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       const result = await response.json();
 
       if (result.error) {
-        // Handle eBay authentication error
         if (response.status === 403 && result.error === "eBay authentication required") {
           toast({
             title: "eBay Authentication Required",
@@ -239,7 +237,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         description: "Your product has been listed on eBay",
       });
 
-      // If we have a listing URL, open it in a new tab
       if (result.ebayListingUrl) {
         window.open(result.ebayListingUrl, '_blank');
       }
@@ -259,7 +256,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     return (
       <>
         <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
-          {/* Thumbnail */}
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
             {product.imageUrl ? (
               <img
@@ -274,7 +270,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             )}
           </div>
 
-          {/* Name & Description */}
           <div className="flex-1 min-w-0">
             <h3 className="font-medium truncate">{product.name}</h3>
             <p className="text-sm text-muted-foreground truncate">
@@ -282,7 +277,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </p>
           </div>
 
-          {/* List Price */}
           <div className="flex-shrink-0 w-32">
             <div className="text-sm font-medium">
               ${Number(product.price).toFixed(2)}
@@ -292,7 +286,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           </div>
 
-          {/* eBay Price */}
           <div className="flex-shrink-0 w-32">
             {product.ebayPrice ? (
               <>
@@ -306,14 +299,12 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             )}
           </div>
 
-          {/* Condition */}
           <div className="flex-shrink-0 w-24">
             <span className="text-sm capitalize">
               {product.condition?.replace(/_/g, ' ') || 'Not Specified'}
             </span>
           </div>
 
-          {/* Market Analysis */}
           {hasAnalysis && (
             <div className="flex-shrink-0 w-32">
               <div
@@ -329,10 +320,14 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   isOverpriced ? 'Overpriced' :
                     'Optimal Price'}
               </div>
+              {aiAnalysis?.marketAnalysis?.priceSuggestion && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  ${aiAnalysis.marketAnalysis.priceSuggestion.min} - ${aiAnalysis.marketAnalysis.priceSuggestion.max}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 absolute right-4 bg-background/95 rounded-lg shadow-sm z-50">
             <div className="flex items-center gap-1 p-1">
               <Button
@@ -617,7 +612,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 )}
               </div>
 
-              {/* Product Details */}
               {(product.weight || product.dimensions) && (
                 <div className="flex flex-col gap-2 text-sm text-muted-foreground">
                   {product.weight && (
@@ -687,7 +681,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 </Button>
               )}
 
-              {/* Add eBay listing button - now always visible for non-watchlist items */}
               {!inWatchlist && (
                 <>
                   {!product.ebayListingUrl && (

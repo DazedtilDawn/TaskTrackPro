@@ -64,21 +64,30 @@ export function ProductTable({
     {
       accessorKey: "imageUrl",
       header: "Image",
-      cell: ({ row }) => (
-        <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-          {row.original.imageUrl ? (
-            <img
-              src={row.original.imageUrl}
-              alt={row.original.name}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
-              <Box className="w-6 h-6 text-muted-foreground" />
-            </div>
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const imageUrl = row.original.imageUrl;
+        const displayUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`) : null;
+
+        return (
+          <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+            {displayUrl ? (
+              <img
+                src={displayUrl}
+                alt={row.original.name}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  const img = e.target as HTMLImageElement;
+                  img.src = 'https://placehold.co/48';
+                }}
+              />
+            ) : (
+              <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
+                <Box className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "name",
@@ -208,33 +217,6 @@ export function ProductTable({
                             header.column.columnDef.header,
                             header.getContext()
                           )}
-                      <div
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          const startX = e.pageX;
-                          const startWidth = header.getSize();
-
-                          const onMouseMove = (e: MouseEvent) => {
-                            const width = startWidth + (e.pageX - startX);
-                            if (header.column.columnDef.size !== undefined) {
-                              header.column.columnDef.size = Math.max(width, 50);
-                              table.setOptions((prev) => ({ ...prev }));
-                            }
-                          };
-
-                          const onMouseUp = () => {
-                            document.removeEventListener("mousemove", onMouseMove);
-                            document.removeEventListener("mouseup", onMouseUp);
-                          };
-
-                          document.addEventListener("mousemove", onMouseMove);
-                          document.addEventListener("mouseup", onMouseUp);
-                        }}
-                        className={cn(
-                          "absolute right-0 top-0 h-full w-1 cursor-col-resize select-none touch-none bg-primary/50 opacity-0 transition-opacity hover:opacity-100",
-                          header.column.getIsResizing() && "opacity-100"
-                        )}
-                      />
                     </th>
                   );
                 })}

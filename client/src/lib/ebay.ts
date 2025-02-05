@@ -42,7 +42,7 @@ export async function checkEbayAuth(): Promise<boolean> {
 
     // Add buffer time to prevent edge cases
     const bufferTime = addHours(now, 1);
-    const isValid = hasToken && tokenExpiry && isAfter(tokenExpiry, bufferTime);
+    const isValid = hasToken && tokenExpiry ? isAfter(tokenExpiry, bufferTime) : false;
 
     console.log("[eBay Auth] Token status:", {
       hasToken,

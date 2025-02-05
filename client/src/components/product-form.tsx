@@ -120,6 +120,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const buyPrice = form.watch("buyPrice");
   const condition = form.watch("condition");
 
+  // Check eBay auth on mount
   useEffect(() => {
     const checkAuth = async () => {
       const isAuthenticated = await checkEbayAuth();
@@ -137,6 +138,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       form.setValue("price", recommendedPrice);
     }
   }, [buyPrice, condition, form]);
+
+  // Update price when eBay data changes
+  useEffect(() => {
+    const ebayData = form.getValues("aiAnalysis.ebayData");
+    if (ebayData?.recommendedPrice) {
+      const conditionData = conditionOptions.find(opt => opt.value === condition);
+      const adjustedPrice = Math.floor(ebayData.recommendedPrice * (conditionData?.discount || 1));
+      form.setValue("price", adjustedPrice);
+    }
+  }, [condition, form]);
 
   const handleAnalyze = async () => {
     const name = form.getValues("name");
@@ -864,11 +875,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <div>
                             <span className="text-sm text-muted-foreground">Price Range</span>
                             <div className="flex items-baseline gap-2">
-                              <span className="text-xl font-semibold">
+                              <span className="text-lg font-medium">
                                 ${form.watch("aiAnalysis.ebayData.lowestPrice").toFixed(2)}
                               </span>
-                              <span className="text-muted-foreground">-</span>
-                              <span className="text-xl font-semibold">
+                              <span className="text-muted-foreground">to</span>
+                              <span className="text-lg font-medium">
                                 ${form.watch("aiAnalysis.ebayData.highestPrice").toFixed(2)}
                               </span>
                             </div>
@@ -877,23 +888,45 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
                         <div className="space-y-4">
                           <div>
-                            <span className="text-sm text-muted-foreground">Items Sold</span>
-                            <div className="text-2xl font-semibold">
-                              {form.watch("aiAnalysis.ebayData.soldCount").toLocaleString()}
-                            </div>
-                          </div>
-                          <div>
-                            <span className="text-sm text-muted-foreground">Active Listings</span>
-                            <div className="text-2xl font-semibold">
-                              {form.watch("aiAnalysis.ebayData.activeListing").toLocaleString()}
-                            </div>
-                          </div>
-                          <div>
                             <span className="text-sm text-muted-foreground">Recommended Price</span>
                             <div className="text-2xl font-semibold text-primary">
                               ${form.watch("aiAnalysis.ebayData.recommendedPrice").toFixed(2)}
                             </div>
                           </div>
+                          <div>
+                            <span className="text-sm text-muted-foreground">Market Activity</span>
+                            <div className="flex flex-col gap-1">
+                              <div className="flex items-center justify-between">
+                                <span>Sold Items</span>
+                                <span className="font-medium">{form.watch("aiAnalysis.ebayData.soldCount")}</span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span>Active Listings</span>
+                                <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
+                              </div>
+                            </div>
+                          </div>
+                          {!fullAnalysis && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleRefinePricing}
+                              disabled={isRefiningPrice}
+                              className="w-full mt-2"
+                            >
+                              {isRefiningPrice ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Refining...
+                                </>
+                              ) : (
+<>
+                                  <TrendingUp className="h-4 w-4 mr-2" />
+                                  Refine Pricing
+                                </>
+                              )}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>

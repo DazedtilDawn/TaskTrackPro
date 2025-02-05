@@ -10,8 +10,35 @@ interface EbayPriceData {
   lastUpdated?: string;
 }
 
+interface EbayAuthError {
+  error: string;
+  details: string;
+  redirectTo: string;
+}
+
+export async function checkEbayAuth(): Promise<boolean> {
+  console.log("[eBay Auth] Checking eBay authentication status");
+  try {
+    const response = await fetch('/api/user', { credentials: 'include' });
+    if (!response.ok) return false;
+
+    const user = await response.json();
+    return user.ebayAuthToken && new Date(user.ebayTokenExpiry) > new Date();
+  } catch (error) {
+    console.error("[eBay Auth] Error checking auth status:", error);
+    return false;
+  }
+}
+
 export async function getEbayPrice(productName: string): Promise<EbayPriceData | null> {
   console.log("[eBay Price] Fetching price data for:", productName);
+
+  // Check eBay auth first
+  const isAuthenticated = await checkEbayAuth();
+  if (!isAuthenticated) {
+    console.log("[eBay Price] eBay authentication required");
+    throw new Error("eBay authentication required");
+  }
 
   try {
     const response = await fetch(`/api/ebay-price?productName=${encodeURIComponent(productName)}`, {
@@ -21,7 +48,7 @@ export async function getEbayPrice(productName: string): Promise<EbayPriceData |
     if (!response.ok) {
       // If it's a 403, the user needs to authenticate with eBay
       if (response.status === 403) {
-        const data = await response.json();
+        const data = await response.json() as EbayAuthError;
         if (data.redirectTo) {
           window.location.href = data.redirectTo;
           return null;
@@ -60,24 +87,28 @@ export async function getEbayMarketAnalysis(
   console.log("[eBay Analysis] Starting market analysis for:", productName);
   console.log("[eBay Analysis] AI analysis:", aiAnalysis);
 
-  // Get eBay price data first
+  // Check eBay auth before proceeding
+  const isAuthenticated = await checkEbayAuth();
+  if (!isAuthenticated) {
+    throw new Error("eBay authentication required. Please connect your eBay account in Settings.");
+  }
+
+  // Get eBay price data
   const ebayData = await getEbayPrice(productName);
   if (!ebayData) {
-    throw new Error("Failed to fetch eBay market data");
+    throw new Error("Failed to fetch eBay market data. Please ensure your eBay connection is valid.");
   }
 
   // Calculate AI suggested price based on both eBay data and AI analysis
   const aiSuggestedPrice = calculateOptimalPrice(ebayData, aiAnalysis);
 
-  console.log("[eBay Analysis] Final analysis:", {
-    ...ebayData,
-    aiSuggestedPrice
-  });
-
-  return {
+  const result = {
     ...ebayData,
     aiSuggestedPrice
   };
+
+  console.log("[eBay Analysis] Final analysis:", result);
+  return result;
 }
 
 function calculateOptimalPrice(ebayData: EbayPriceData, aiAnalysis: any): number {

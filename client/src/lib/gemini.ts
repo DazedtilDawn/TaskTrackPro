@@ -40,17 +40,23 @@ interface AIAnalysisResult {
   improvementAreas: string[];
 }
 
-let genAI: GoogleGenerativeAI | null = null;
-
-async function initializeGemini() {
-  if (!genAI) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not set. Please make sure it's properly configured.");
-    }
-    genAI = new GoogleGenerativeAI(apiKey);
+// Common Gemini client configuration
+function getGeminiClient() {
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY environment variable is not set. Please make sure it's properly configured.");
   }
-  return genAI;
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({
+    model: "gemini-2.0-flash-001",
+    generationConfig: {
+      maxOutputTokens: 8192,
+      temperature: 0.7,
+      topP: 0.8,
+      topK: 40,
+    }
+  });
 }
 
 async function fileToGenerativePart(file: File): Promise<{ inlineData: { data: string; mimeType: string } }> {
@@ -62,7 +68,6 @@ async function fileToGenerativePart(file: File): Promise<{ inlineData: { data: s
         console.error('Failed to read file');
         return reject(new Error("Failed to read file"));
       }
-      // Extract the mime type from the file and keep only the base64 data
       const resultStr = reader.result as string;
       const parts = resultStr.split(",");
       if (parts.length < 2) {
@@ -179,7 +184,6 @@ export async function generateSmartListing(
   }
 }
 
-// Helper function to compress image
 async function compressImage(file: File): Promise<Blob> {
   console.log(`compressImage: Starting compression for ${file.name}`);
   return new Promise((resolve, reject) => {
@@ -245,50 +249,11 @@ async function compressImage(file: File): Promise<Blob> {
   });
 }
 
-// Helper function to convert file to base64
-async function fileToBase64(file: File): Promise<string> {
-  console.log(`fileToBase64: Converting ${file.name} to base64`);
-  const compressedBlob = await compressImage(file);
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      if (!reader.result) {
-        console.error('Failed to read file');
-        reject(new Error("Failed to read file"));
-        return;
-      }
-      const base64Data = (reader.result as string).split(",")[1];
-      if (!base64Data) {
-        console.error('Failed to extract base64 data');
-        reject(new Error("Failed to extract base64 data"));
-        return;
-      }
-      console.log(`Base64 conversion complete: ${base64Data.length} chars`);
-      resolve(base64Data);
-    };
-    reader.onerror = () => {
-      console.error('FileReader error:', reader.error);
-      reject(new Error("Failed to read file"));
-    };
-    reader.readAsDataURL(compressedBlob);
-  });
-}
-
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
-  const genAI = await initializeGemini();
-  const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-001", // Updated model name
-    generationConfig: {
-      maxOutputTokens: 8192,
-      temperature: 0.7,
-      topP: 0.8,
-      topK: 40,
-    }
-  });
-
+  const geminiClient = getGeminiClient();
   const results = new Map<string, AIAnalysisResult>();
   const batchSize = 5; // Increased batch size due to higher rate limits
-  const delay = 500; // Reduced delay between batches due to higher RPM limit
+  const delay = 500; // Reduced delay between batches
 
   for (let i = 0; i < products.length; i += batchSize) {
     const batch = products.slice(i, i + batchSize);
@@ -313,7 +278,7 @@ Please provide a detailed analysis including:
 Format the response in JSON.`;
 
       try {
-        const result = await model.generateContent(prompt);
+        const result = await geminiClient.generateContent(prompt);
         const response = await result.response;
         const text = await response.text();
         const analysis = JSON.parse(text);
@@ -335,7 +300,6 @@ Format the response in JSON.`;
     });
 
     await Promise.all(promises);
-    // Add a shorter delay between batches due to higher rate limits
     if (i + batchSize < products.length) {
       await new Promise(resolve => setTimeout(resolve, delay));
     }
@@ -383,16 +347,25 @@ Format the response in JSON with the following structure:
   "improvementAreas": ["string"]
 }`;
 
-  const results = await analyzeBatchProducts([{ name, description, condition }]);
-  return results.get(name) || {
-    suggestions: ["Analysis failed"],
-    marketAnalysis: {
-      demandScore: 0,
-      competitionLevel: "unknown",
-      priceSuggestion: { min: 0, max: 0 },
-    },
-    category: "unknown",
-    seoKeywords: [],
-    improvementAreas: ["Analysis failed"],
-  };
+  try {
+    const geminiClient = getGeminiClient();
+    const result = await geminiClient.generateContent(prompt);
+    const response = await result.response;
+    const text = await response.text();
+    const analysis = JSON.parse(text);
+    return analysis;
+  } catch (error) {
+    console.error("Analysis error:", error);
+    return {
+      suggestions: ["Analysis failed"],
+      marketAnalysis: {
+        demandScore: 0,
+        competitionLevel: "unknown",
+        priceSuggestion: { min: 0, max: 0 },
+      },
+      category: "unknown",
+      seoKeywords: [],
+      improvementAreas: ["Analysis failed"],
+    };
+  }
 }

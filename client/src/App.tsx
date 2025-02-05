@@ -12,6 +12,7 @@ import Inventory from "@/pages/inventory";
 import Watchlist from "@/pages/watchlist";
 import Orders from "@/pages/orders";
 import Analytics from "@/pages/analytics";
+import EbayAuthSettings from "@/pages/settings/ebay-auth";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <ProtectedRoute path="/watchlist" component={Watchlist} />
       <ProtectedRoute path="/orders" component={Orders} />
       <ProtectedRoute path="/analytics" component={Analytics} />
+      <ProtectedRoute path="/settings/ebay-auth" component={EbayAuthSettings} />
       <Route path="/auth" component={AuthPage} />
       <Route component={NotFound} />
     </Switch>

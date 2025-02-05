@@ -580,7 +580,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       updateData.updatedAt = new Date();
 
       // Remove undefined values
-      Object.keys(updateData).forEach(key => 
+      Object.keys(updateData).forEach(key =>
         updateData[key] === undefined && delete updateData[key]
       );
 
@@ -727,42 +727,68 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
 
     try {
-      const userOrders = await db.select({
-        id: orders.id,
-        status: orders.status,
-        total: orders.total,
-        createdAt: orders.createdAt,
-        updatedAt: orders.updatedAt,
-        items: {
-          id: orderItems.id,
+      // Simplified query structure to avoid recursion
+      const orderResults = await db
+        .select({
+          orderId: orders.id,
+          status: orders.status,
+          total: orders.total,
+          createdAt: orders.createdAt,
+          updatedAt: orders.updatedAt,
+          itemId: orderItems.id,
           quantity: orderItems.quantity,
           price: orderItems.price,
-          product: {
-            id: products.id,
-            name: products.name.toString(),
-            description: products.description?.toString() || null,
-            sku: products.sku?.toString() || null,
-            imageUrl: products.imageUrl?.toString() || null
-          }
-        }
-      })
+          productId: products.id,
+          productName: products.name,
+          productDescription: products.description,
+          productSku: products.sku,
+          productImageUrl: products.imageUrl
+        })
         .from(orders)
         .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
         .leftJoin(products, eq(orderItems.productId, products.id))
         .where(eq(orders.userId, req.user!.id))
         .orderBy(desc(orders.createdAt));
 
-      // Group items by order with proper type checking
-      const groupedOrders = userOrders.reduce((acc: typeof userOrders, order) => {
-        const existingOrder = acc.find(o => o.id === order.id);
+      // Manually structure the response to avoid recursion
+      const groupedOrders = orderResults.reduce((acc: any[], curr) => {
+        const existingOrder = acc.find(o => o.id === curr.orderId);
         if (existingOrder) {
-          if (order.items?.id) {
-            existingOrder.items = order.items;
+          if (curr.itemId) {
+            existingOrder.items.push({
+              id: curr.itemId,
+              quantity: curr.quantity,
+              price: curr.price,
+              product: {
+                id: curr.productId,
+                name: curr.productName,
+                description: curr.productDescription,
+                sku: curr.productSku,
+                imageUrl: curr.productImageUrl
+              }
+            });
           }
         } else {
+          const items = curr.itemId ? [{
+            id: curr.itemId,
+            quantity: curr.quantity,
+            price: curr.price,
+            product: {
+              id: curr.productId,
+              name: curr.productName,
+              description: curr.productDescription,
+              sku: curr.productSku,
+              imageUrl: curr.productImageUrl
+            }
+          }] : [];
+
           acc.push({
-            ...order,
-            items: order.items?.id ? order.items : null
+            id: curr.orderId,
+            status: curr.status,
+            total: curr.total,
+            createdAt: curr.createdAt,
+            updatedAt: curr.updatedAt,
+            items
           });
         }
         return acc;
@@ -879,8 +905,7 @@ Do not include any additional text.`;
         const jsonStr = jsonMatch[0];
         recommendation = JSON.parse(jsonStr);
       } catch (jsonError) {
-        console.error("Failed to parse JSON from AI response:", jsonError);
-        return res.status(500).json({
+        console.error("Failed to parse JSON from AI response:", jsonError);        return res.status(500).json({
           error: "Failed to parse sale price recommendation",
           details: jsonError instanceof Error ? jsonError.message : "Unknown error",
         });
@@ -895,7 +920,7 @@ Do not include any additional text.`;
       }
 
       res.json(recommendation);
-    } catch(error) {
+    } catch (error) {
       console.error("Error generating sale price:", error);
       res.status(500).json({
         error: "Failed to generate sale price",

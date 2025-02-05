@@ -1,16 +1,16 @@
 import type { Express } from "express";
+import express from "express";  // Add this import
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems, users } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import bodyParser from "body-parser";
+import bodyParser from 'body-parser';
 import multer from 'multer';
 import path from 'path';
-import express from 'express';
-import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
 import { checkEbayAuth } from "./middleware/ebay-auth";
 
 // Get directory name in ESM
@@ -22,6 +22,7 @@ const uploadsDir = path.resolve(__dirname, "../uploads");
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+console.log('[Server] Uploads directory:', uploadsDir);
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -50,9 +51,6 @@ const upload = multer({
   }
 });
 
-// Initialize Gemini API
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-
 // Add JSON parsing utilities
 function ensureJSON(data: unknown): object | null {
   if (!data) return null;
@@ -67,12 +65,15 @@ function ensureJSON(data: unknown): object | null {
 // Helper to generate full URL for uploaded images
 function getImageUrl(filename: string | null): string | null {
   if (!filename) return null;
-  // If filename already starts with /uploads/, use as is
-  if (filename.startsWith('/uploads/')) {
-    return filename;
-  }
-  // Otherwise, ensure proper path formatting
-  return `/uploads/${path.basename(filename)}`;
+
+  // Strip any leading slashes from filename
+  const cleanFilename = filename.replace(/^\/+/g, '');
+
+  // If filename includes 'uploads/', strip it out
+  const baseFilename = cleanFilename.replace(/^uploads\//g, '');
+
+  // Return the properly formatted URL
+  return `/uploads/${baseFilename}`;
 }
 
 export function registerRoutes(app: Express): Server {
@@ -93,7 +94,17 @@ export function registerRoutes(app: Express): Server {
     index: false, // Disable directory listing
   }));
 
-  // Add this near the top of the routes registration, before the eBay-specific endpoints
+  // Log middleware to debug image requests
+  app.use('/uploads', (req, res, next) => {
+    console.log('[Image Request]', {
+      url: req.url,
+      method: req.method,
+      path: req.path,
+      fullUrl: `${req.protocol}://${req.get('host')}${req.originalUrl}`
+    });
+    next();
+  });
+
   app.get("/callback", (req, res) => {
     console.log("[eBay Legacy Callback] Received request, redirecting to /api/ebay/callback");
     const queryString = Object.entries(req.query)
@@ -102,7 +113,6 @@ export function registerRoutes(app: Express): Server {
     res.redirect(307, `/api/ebay/callback${queryString ? '?' + queryString : ''}`);
   });
 
-  // Add eBay auth endpoints
   app.get("/api/ebay/auth-url", async (req, res) => {
     console.log("[eBay Auth URL] Generating auth URL");
     if (!req.isAuthenticated()) {
@@ -131,7 +141,6 @@ export function registerRoutes(app: Express): Server {
     res.json({ authUrl });
   });
 
-  // Update the existing callback endpoint to handle query params properly
   app.get("/api/ebay/callback", checkEbayAuth, async (req, res) => {
     console.log("[eBay Callback] Received callback");
     if (!req.isAuthenticated()) {
@@ -197,7 +206,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add the new eBay price endpoint after the existing eBay auth endpoints
   app.get("/api/ebay-price", checkEbayAuth, async (req, res) => {
     console.log("[eBay Price API] Received price request");
 
@@ -296,7 +304,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
-  // Add the eBay-specific endpoints with the auth middleware
   app.post("/api/products/:id/generate-ebay-listing", checkEbayAuth, async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -401,7 +408,6 @@ Format the response as JSON with:
     }
   });
 
-  // Image Analysis Endpoint
   app.post("/api/analyze-images", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -519,7 +525,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Add GET products endpoint before the POST endpoint
   app.get("/api/products", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -550,7 +555,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Product endpoints
   app.post("/api/products", upload.single('image'), async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -769,7 +773,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
 
-  // Add GET endpoint for sale velocity analytics
   app.get("/api/analytics/sale-velocity", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -828,7 +831,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Update the mark as sold endpoint to set soldAt timestamp
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
@@ -900,10 +902,9 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // generate-sale-price endpoint
   app.post("/api/generate-sale-price", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
-    try {
+    try{
       // Validate and parse input data
       const { productId, buyPrice, currentPrice, condition, category } = req.body;
       const buyPriceNum = Number(buyPrice);
@@ -977,7 +978,6 @@ Do not include any additional text.`;
     }
   });
 
-  // generate-ebay-listing endpoint
   app.post("/api/products/:id/generate-ebay-listing", checkEbayAuth, async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -1082,7 +1082,6 @@ Format the response as JSON with:
     }
   });
 
-  // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 

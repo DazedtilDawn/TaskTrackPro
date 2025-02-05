@@ -6,8 +6,9 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  // Add eBay OAuth credentials
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  // Add eBay OAuth credentials with proper constraints
   ebayAuthToken: text("ebay_auth_token"),
   ebayRefreshToken: text("ebay_refresh_token"),
   ebayTokenExpiry: timestamp("ebay_token_expiry"),
@@ -46,6 +47,7 @@ export const watchlist = pgTable("watchlist", {
   userId: integer("user_id").references(() => users.id),
   productId: integer("product_id").references(() => products.id),
   createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const orders = pgTable("orders", {
@@ -66,19 +68,22 @@ export const orderItems = pgTable("order_items", {
   productId: integer("product_id").references(() => products.id),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-// Add new table for eBay categories cache
+// Define the eBay categories table with proper constraints
 export const ebayCategories = pgTable("ebay_categories", {
   id: serial("id").primaryKey(),
   categoryId: text("category_id").notNull(),
   name: text("name").notNull(),
   level: integer("level").notNull(),
   parentId: text("parent_id"),
-  leafCategory: boolean("leaf_category").default(false),
-  lastUpdate: timestamp("last_update").defaultNow(),
+  leafCategory: boolean("leaf_category").default(false).notNull(),
+  lastUpdate: timestamp("last_update").defaultNow().notNull(),
 });
 
+// Define relations
 export const productsRelations = relations(products, ({ one }) => ({
   user: one(users, {
     fields: [products.userId],
@@ -116,6 +121,7 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   }),
 }));
 
+// Export schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertProductSchema = createInsertSchema(products);
@@ -127,6 +133,7 @@ export const selectOrderSchema = createSelectSchema(orders);
 export const insertEbayCategorySchema = createInsertSchema(ebayCategories);
 export const selectEbayCategorySchema = createSelectSchema(ebayCategories);
 
+// Export types
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;

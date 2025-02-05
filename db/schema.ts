@@ -15,7 +15,7 @@ export const users = pgTable("users", {
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   sku: text("sku").unique(),
@@ -42,15 +42,15 @@ export const products = pgTable("products", {
 
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id).notNull(),
+  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
   status: text("status").default("pending").notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -61,25 +61,15 @@ export const orders = pgTable("orders", {
 
 export const orderItems = pgTable("order_items", {
   id: serial("id").primaryKey(),
-  orderId: integer("order_id").references(() => orders.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
+  productId: integer("product_id").references(() => products.id, { onDelete: 'set null' }), // Allow null for deleted products
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-export const ebayCategories = pgTable("ebay_categories", {
-  id: serial("id").primaryKey(),
-  categoryId: text("category_id").notNull(),
-  name: text("name").notNull(),
-  level: integer("level").notNull(),
-  parentId: text("parent_id"),
-  leafCategory: boolean("leaf_category").default(false).notNull(),
-  lastUpdate: timestamp("last_update").defaultNow().notNull(),
-});
-
-// Relations configuration
+// Define relations
 export const productsRelations = relations(products, ({ one }) => ({
   user: one(users, {
     fields: [products.userId],
@@ -126,8 +116,6 @@ export const insertWatchlistSchema = createInsertSchema(watchlist);
 export const selectWatchlistSchema = createSelectSchema(watchlist);
 export const insertOrderSchema = createInsertSchema(orders);
 export const selectOrderSchema = createSelectSchema(orders);
-export const insertEbayCategorySchema = createInsertSchema(ebayCategories);
-export const selectEbayCategorySchema = createSelectSchema(ebayCategories);
 
 // Export types
 export type InsertUser = typeof users.$inferInsert;
@@ -138,5 +126,3 @@ export type InsertWatchlist = typeof watchlist.$inferInsert;
 export type SelectWatchlist = typeof watchlist.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
 export type SelectOrder = typeof orders.$inferSelect;
-export type InsertEbayCategory = typeof ebayCategories.$inferInsert;
-export type SelectEbayCategory = typeof ebayCategories.$inferSelect;

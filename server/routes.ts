@@ -605,7 +605,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Add DELETE endpoint for products after the POST endpoint
+  // Update the delete product endpoint to clean up analytics data
   app.delete("/api/products/:id", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
@@ -630,18 +630,31 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // Remove from any watchlists first (foreign key constraint)
-      await db.delete(watchlist)
-        .where(eq(watchlist.productId, productId));
+      // Start a transaction to ensure all cleanup operations succeed or fail together
+      const result = await db.transaction(async (tx) => {
+        // Remove from any watchlists first (foreign key constraint)
+        await tx.delete(watchlist)
+          .where(eq(watchlist.productId, productId));
 
-      // Delete the product
-      const [deletedProduct] = await db.delete(products)
-        .where(eq(products.id, productId))
-        .returning();
+        // Remove from any order items (maintaining order history without product details)
+        await tx.update(orderItems)
+          .set({
+            productId: null,
+            updatedAt: new Date()
+          })
+          .where(eq(orderItems.productId, productId));
+
+        // Delete the product and get the deleted record
+        const [deletedProduct] = await tx.delete(products)
+          .where(eq(products.id, productId))
+          .returning();
+
+        return deletedProduct;
+      });
 
       res.json({
-        message: "Product deleted successfully",
-        deletedProduct
+        message: "Product and related data deleted successfully",
+        deletedProduct: result
       });
     } catch (error) {
       console.error("Error deleting product:", error);

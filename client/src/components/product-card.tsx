@@ -538,131 +538,129 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 </div>
 
                 {showAnalysis && (
-                  <div className="space-y-4 mt-4">
-                    <ScrollArea className="max-h-[600px] pr-4">
-                      <div className="space-y-4">
-                        <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
-                          {aiAnalysis?.marketAnalysis?.demandScore && (
-                            <div>
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-sm font-medium">Market Demand</span>
-                                <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
-                              </div>
-                              <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
-                            </div>
-                          )}
-                          {aiAnalysis?.marketAnalysis?.competitionLevel && (
-                            <div className="flex items-center gap-2">
-                              <BarChart className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
-                            </div>
-                          )}
-                        </div>
-
-                        {aiAnalysis?.marketAnalysis?.priceSuggestion && (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4" />
-                              <h5 className="font-medium">Price Analysis</h5>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <span className="text-sm text-muted-foreground">Current Price:</span>
-                                <span className={cn(
-                                  "text-lg font-semibold block",
-                                  isUnderpriced && "text-yellow-600",
-                                  isOverpriced && "text-red-600",
-                                  isPricedRight && "text-green-600"
-                                )}>
-                                  {formatPrice(currentPrice)}
-                                </span>
-                              </div>
-                              <div className="space-y-2">
-                                <span className="text-sm text-muted-foreground">Suggested Range:</span>
-                                <div className="space-x-2">
-                                  <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.min)}</span>
-                                  <span className="text-muted-foreground">-</span>
-                                  <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.max)}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-
-                        {aiAnalysis?.ebayData && (
+                  <ScrollArea className="h-[400px] mt-4">
+                    <div className="pr-4 space-y-4">
+                      <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
+                        {aiAnalysis?.marketAnalysis?.demandScore && (
                           <div>
-                            <div className="flex items-center gap-2 mb-3">
-                              <PackageOpen className="h-4 w-4" />
-                              <h5 className="font-medium">eBay Market Data</h5>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium">Market Demand</span>
+                              <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 text-sm">
-                              <div className="space-y-2">
-                                <div>
-                                  <span className="text-muted-foreground">Current Price:</span>
-                                  <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Average Price:</span>
-                                  <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div>
-                                  <span className="text-muted-foreground">Price Range:</span>
-                                  <span className="font-medium block">
-                                    {formatPrice(aiAnalysis.ebayData.lowestPrice)} - {formatPrice(aiAnalysis.ebayData.highestPrice)}
-                                  </span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Market Activity:</span>
-                                  <span className="font-medium block">{aiAnalysis.ebayData.soldCount} sold / {aiAnalysis.ebayData.activeListing} active</span>
-                                </div>
-                              </div>
-                            </div>
+                            <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
                           </div>
                         )}
-
-                        {aiAnalysis?.seoKeywords && (
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                              <Search className="h-4 w-4" />
-                              <h5 className="font-medium">SEO Keywords</h5>
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {aiAnalysis.seoKeywords.map((keyword, index) => (
-                                <span
-                                  key={index}
-                                  className="px-2 py-1 bg-secondary/40 rounded-full text-xs font-medium"
-                                >
-                                  {keyword}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {aiAnalysis?.suggestions && (
-                          <div className="border-t pt-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <TrendingUp className="h-4 w-4" />
-                              <h5 className="font-medium">Optimization Tips</h5>
-                            </div>
-                            <ul className="space-y-2">
-                              {aiAnalysis.suggestions.map((suggestion, index) => (
-                                <li
-                                  key={index}
-                                  className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
-                                >
-                                  {suggestion}
-                                </li>
-                              ))}
-                            </ul>
+                        {aiAnalysis?.marketAnalysis?.competitionLevel && (
+                          <div className="flex items-center gap-2">
+                            <BarChart className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
                           </div>
                         )}
                       </div>
-                    </ScrollArea>
-                  </div>
+
+                      {aiAnalysis?.marketAnalysis?.priceSuggestion && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Tag className="h-4 w-4" />
+                            <h5 className="font-medium">Price Analysis</h5>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <span className="text-sm text-muted-foreground">Current Price:</span>
+                              <span className={cn(
+                                "text-lg font-semibold block",
+                                isUnderpriced && "text-yellow-600",
+                                isOverpriced && "text-red-600",
+                                isPricedRight && "text-green-600"
+                              )}>
+                                {formatPrice(currentPrice)}
+                              </span>
+                            </div>
+                            <div className="space-y-2">
+                              <span className="text-sm text-muted-foreground">Suggested Range:</span>
+                              <div className="space-x-2">
+                                <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.min)}</span>
+                                <span className="text-muted-foreground">-</span>
+                                <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.max)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {aiAnalysis?.ebayData && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-3">
+                            <PackageOpen className="h-4 w-4" />
+                            <h5 className="font-medium">eBay Market Data</h5>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div className="space-y-2">
+                              <div>
+                                <span className="text-muted-foreground">Current Price:</span>
+                                <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Average Price:</span>
+                                <span className="font-medium block">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <div>
+                                <span className="text-muted-foreground">Price Range:</span>
+                                <span className="font-medium block">
+                                  {formatPrice(aiAnalysis.ebayData.lowestPrice)} - {formatPrice(aiAnalysis.ebayData.highestPrice)}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Market Activity:</span>
+                                <span className="font-medium block">{aiAnalysis.ebayData.soldCount} sold / {aiAnalysis.ebayData.activeListing} active</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {aiAnalysis?.seoKeywords && (
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
+                            <Search className="h-4 w-4" />
+                            <h5 className="font-medium">SEO Keywords</h5>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {aiAnalysis.seoKeywords.map((keyword, index) => (
+                              <span
+                                key={index}
+                                className="px-2 py-1 bg-secondary/40 rounded-full text-xs font-medium"
+                              >
+                                {keyword}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {aiAnalysis?.suggestions && (
+                        <div className="border-t pt-3">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="h-4 w-4" />
+                            <h5 className="font-medium">Optimization Tips</h5>
+                          </div>
+                          <ul className="space-y-2">
+                            {aiAnalysis.suggestions.map((suggestion, index) => (
+                              <li
+                                key={index}
+                                className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
+                              >
+                                {suggestion}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  </ScrollArea>
                 )}
               </div>
             )}
@@ -680,14 +678,14 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     {inWatchlist ? "Recommended Sell Price" : "Selling Price"}
                   </div>
                   <div className="text-xl font-semibold text-primary">
-                    {formatPrice(product.price)}
+                    {formatPrice(currentPrice)}
                   </div>
                 </div>
                 {product.ebayPrice && (
                   <div className="flex flex-col items-end">
                     <span className="text-sm text-muted-foreground">eBay Price</span>
                     <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
-                      {formatPrice(product.ebayPrice)}
+                      {formatPrice(Number(product.ebayPrice))}
                     </span>
                   </div>
                 )}
@@ -723,44 +721,65 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             "p-4 pt-0 flex justify-between",
             view === "list" && "border-t"
           )}>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button
-                size="icon"
                 variant="ghost"
+                size="icon"
                 onClick={handleEdit}
-                className="hover:scale-105 transition-transform"
+                className="h-8 w-8 hover:scale-105 transition-transform"
               >
                 <Edit className="h-4 w-4" />
               </Button>
+
               <Button
-                size="icon"
                 variant="ghost"
+                size="icon"
                 onClick={deleteProduct}
                 disabled={isDeleting}
-                className="hover:scale-105 transition-transform"
+                className="h-8 w-8 hover:scale-105 transition-transform"
               >
                 {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
               </Button>
+
               {!inWatchlist && (
                 <Button
-                  size="icon"
                   variant="ghost"
+                  size="icon"
                   onClick={markAsSold}
                   disabled={isMarkingAsSold}
-                  className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                  className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                 >
                   {isMarkingAsSold ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
                 </Button>
               )}
+            </div>
+
+            <div className="flex items-center gap-2">
               {inWatchlist && (
                 <Button
-                  size="icon"
                   variant="ghost"
+                  size="icon"
                   onClick={handleConvertDialog}
-                  className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                  className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                   title="Convert to Inventory"
                 >
                   <ArrowUpRight className="h-4 w-4" />
+                </Button>
+              )}
+
+              {!location.includes("/watchlist") && (
+                <Button
+                  variant={inWatchlist ? "secondary" : "ghost"}
+                  size="icon"
+                  onClick={toggleWatchlist}
+                  disabled={isUpdatingWatchlist}
+                  className="h-8 w-8 hover:scale-105 transition-transform"
+                >
+                  {isUpdatingWatchlist ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+                  )}
                 </Button>
               )}
 
@@ -768,11 +787,11 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 <>
                   {!product.ebayListingUrl && (
                     <Button
-                      size="icon"
                       variant="ghost"
+                      size="icon"
                       onClick={generateEbayListing}
                       disabled={isGeneratingListing}
-                      className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                      className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                       title="Generate eBay Listing"
                     >
                       <Share2 className="h-4 w-4" />
@@ -780,10 +799,10 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   )}
                   {product.ebayListingUrl && (
                     <Button
-                      size="icon"
                       variant="ghost"
+                      size="icon"
                       onClick={() => product.ebayListingUrl ? window.open(product.ebayListingUrl, '_blank') : null}
-                      className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                      className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
                     >
                       <ArrowUpRight className="h-4 w-4" />
@@ -792,19 +811,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 </>
               )}
             </div>
-            <Button
-              size="icon"
-              variant={inWatchlist ? "secondary" : "ghost"}
-              onClick={toggleWatchlist}
-              disabled={isUpdatingWatchlist}
-              className="hover:scale-105 transition-transform"
-            >
-              {isUpdatingWatchlist ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
-              )}
-            </Button>
           </CardFooter>
         </div>
       </Card>

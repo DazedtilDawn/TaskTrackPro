@@ -21,6 +21,8 @@ import ImageUpload from "@/components/ui/image-upload";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SmartListingModal from "@/components/smart-listing-modal";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 // Product form schema
 const productFormSchema = z.object({
@@ -99,6 +101,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const [hasEbayAuth, setHasEbayAuth] = useState<boolean | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
+  const [fullAnalysis, setFullAnalysis] = useState(false);
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -316,7 +319,28 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     }
   };
 
-  const handleAnalysisComplete = (analysis: any) => {
+  const runFullAnalysis = async () => {
+    try {
+      await handleAnalyze();
+      if (hasEbayAuth) {
+        await handleRefineWithEbay();
+        await handleRefinePricing();
+      }
+      toast({
+        title: "Full Analysis Complete",
+        description: "All analysis steps have been completed successfully",
+      });
+    } catch (error) {
+      console.error('Full analysis chain failed:', error);
+      toast({
+        title: "Analysis Error",
+        description: error instanceof Error ? error.message : "An error occurred during analysis",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleAnalysisComplete = async (analysis: any) => {
     form.setValue("aiAnalysis", analysis);
     if (analysis.title) {
       form.setValue("name", analysis.title);
@@ -342,6 +366,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       title: "Analysis Complete",
       description: "Product details have been analyzed from images"
     });
+
+    // If full analysis is enabled and we have eBay auth, continue with the chain
+    if (fullAnalysis && hasEbayAuth) {
+      await runFullAnalysis();
+    }
   };
 
   return (
@@ -420,16 +449,55 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
               }
             })} className="space-y-8">
               {/* Analysis Toolbar */}
-              <AnalysisToolbar
-                isAnalyzing={isAnalyzing}
-                isLoadingEbay={isLoadingEbay}
-                isRefiningPrice={isRefiningPrice}
-                hasEbayAuth={hasEbayAuth}
-                form={form}
-                onAnalyze={handleAnalyze}
-                onRefineWithEbay={handleRefineWithEbay}
-                onRefinePricing={handleRefinePricing}
-              />
+              <div className="flex flex-wrap gap-4 items-center mb-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={fullAnalysis ? runFullAnalysis : handleAnalyze}
+                  disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
+                  className="gap-2"
+                >
+                  {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                  {fullAnalysis ? "Run Full Analysis" : "Analyze Product"}
+                </Button>
+
+                {hasEbayAuth && !fullAnalysis && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRefineWithEbay}
+                    disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
+                    className="gap-2"
+                  >
+                    {isLoadingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
+                    Refine with eBay
+                  </Button>
+                )}
+
+                {form.getValues("aiAnalysis")?.ebayData && !fullAnalysis && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleRefinePricing}
+                    disabled={isRefiningPrice}
+                    className="gap-2"
+                  >
+                    {isRefiningPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+                    Refine Pricing
+                  </Button>
+                )}
+
+                <div className="flex items-center gap-2 ml-auto">
+                  <Switch
+                    checked={fullAnalysis}
+                    onCheckedChange={setFullAnalysis}
+                    id="full-analysis"
+                  />
+                  <Label htmlFor="full-analysis" className="text-sm">
+                    Full Analysis Mode
+                  </Label>
+                </div>
+              </div>
 
               {/* Display AI Analysis if available */}
               {form.watch("aiAnalysis") && (

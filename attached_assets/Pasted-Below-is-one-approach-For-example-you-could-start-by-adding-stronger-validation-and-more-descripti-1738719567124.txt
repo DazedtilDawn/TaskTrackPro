@@ -1,0 +1,103 @@
+Below is one approach. For example, you could start by adding stronger validation and more descriptive logging and error messages. In our updated endpoint, we:
+
+1. **Validate Inputs:** We check that required fields (especially the buy price) are present and numeric. We set defaults or fallbacks for fields like currentPrice if needed.
+2. **Improve the Prompt:** We expand the prompt slightly so that the Gemini model gets better context about the product (for example, specifying that if currentPrice is missing, it should rely on the buy price).
+3. **Robust JSON Extraction:** We wrap JSON extraction in its own try/catch block so that if the AI response isn’t strictly JSON, we can log details and return a clearer error.
+4. **Better Logging & Error Handling:** We log what we send and what we get so that we can debug if the model returns something unexpected.
+
+Below is an example of how the revised endpoint might look:
+
+---
+
+```ts
+// In server/routes.ts (or the file where the endpoint is defined)
+app.post("/api/generate-sale-price", async (req, res) => {
+  if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+  try {
+    // Validate and parse input data
+    const { productId, buyPrice, currentPrice, condition, category } = req.body;
+    const buyPriceNum = Number(buyPrice);
+    if (isNaN(buyPriceNum) || buyPriceNum <= 0) {
+      return res.status(400).json({ error: "Invalid buyPrice. It must be a number greater than 0." });
+    }
+    const currentPriceNum = currentPrice ? Number(currentPrice) : null;
+    
+    // Construct an improved prompt:
+    const prompt = `We have a product with the following details:
+- Buy Price: $${buyPriceNum.toFixed(2)}
+- Current Market Price: ${currentPriceNum ? `$${currentPriceNum.toFixed(2)}` : "not available"}
+- Condition: ${condition || "unspecified"}
+- Category: ${category || "unspecified"}
+
+Please recommend a competitive sale price that would secure a healthy profit margin (aim for at least a 20-30% margin) and reflect the product's condition and market positioning.
+
+Format your answer strictly as valid JSON in the following format:
+{
+  "recommendedSalePrice": number
+}
+Do not include any additional text.`;
+
+    // Log the prompt for debugging (be sure not to log sensitive data in production)
+    console.log("Sale price prompt:", prompt);
+    
+    // Get the generative model and send the prompt
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-exp",
+      generationConfig: {
+        maxOutputTokens: 100,
+        temperature: 0.7,
+      },
+    });
+    const result = await model.generateContent(prompt);
+    const text = await result.response.text();
+    console.log("Raw AI response:", text);
+    
+    // Try to extract a JSON object from the response text.
+    let recommendation;
+    try {
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        throw new Error("No JSON object found in response");
+      }
+      const jsonStr = jsonMatch[0];
+      recommendation = JSON.parse(jsonStr);
+    } catch (jsonError) {
+      console.error("Failed to parse JSON from AI response:", jsonError);
+      return res.status(500).json({
+        error: "Failed to parse sale price recommendation",
+        details: jsonError instanceof Error ? jsonError.message : "Unknown error",
+      });
+    }
+    
+    // Ensure that the JSON has the required key
+    if (typeof recommendation.recommendedSalePrice !== "number") {
+      return res.status(500).json({
+        error: "Invalid recommendation format",
+        details: "Expected a numeric 'recommendedSalePrice' field in the response.",
+      });
+    }
+    
+    res.json(recommendation);
+  } catch (error) {
+    console.error("Error generating sale price:", error);
+    res.status(500).json({
+      error: "Failed to generate sale price",
+      details: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+});
+```
+
+---
+
+### Explanation
+
+- **Validation:** We first ensure that the `buyPrice` is a valid number (greater than 0). If not, we return a 400 error.
+- **Prompt Enhancement:** The prompt now includes a fallback if `currentPrice` isn’t provided and explicitly states the expected JSON format.
+- **Logging:** We log both the prompt (so we know what was sent) and the raw AI response.
+- **JSON Extraction:** We use a regular expression to extract a JSON object and wrap it in its own try/catch. If parsing fails or if the key isn’t there, we send back a clear error.
+- **Response:** If everything is in order, the endpoint returns the recommended sale price.
+
+This approach should help ensure that the Gemini model gets all the context it needs and that any issues with the response can be more easily diagnosed.
+
+Does this meet your requirements for refining the sale price recommendation endpoint? Let me know if you'd like to make further adjustments or test specific scenarios!

@@ -493,26 +493,33 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   app.post("/api/generate-sale-price", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
+      // Validate and parse input data
       const { productId, buyPrice, currentPrice, condition, category } = req.body;
+      const buyPriceNum = Number(buyPrice);
+      if (isNaN(buyPriceNum) || buyPriceNum <= 0) {
+        return res.status(400).json({ error: "Invalid buyPrice. It must be a number greater than 0." });
+      }
+      const currentPriceNum = currentPrice ? Number(currentPrice) : null;
 
-      // Create a prompt that uses the product details and the provided buy price
-      const prompt = `Given a product with:
-- Buy price: $${buyPrice}
-- Current market price: $${currentPrice || 'unknown'}
-- Condition: ${condition || 'unknown'}
-- Category: ${category || 'unknown'}
+      // Construct an improved prompt
+      const prompt = `We have a product with the following details:
+- Buy Price: $${buyPriceNum.toFixed(2)}
+- Current Market Price: ${currentPriceNum ? `$${currentPriceNum.toFixed(2)}` : "not available"}
+- Condition: ${condition || "unspecified"}
+- Category: ${category || "unspecified"}
 
-Please recommend a competitive sale price that ensures a healthy profit margin. Consider:
-1. The product's condition and category
-2. A target profit margin of at least 20-30%
-3. Current market price if available
-4. Competitive positioning
+Please recommend a competitive sale price that would secure a healthy profit margin (aim for at least a 20-30% margin) and reflect the product's condition and market positioning.
 
-Format your answer as a JSON object with this exact structure:
+Format your answer strictly as valid JSON in the following format:
 {
   "recommendedSalePrice": number
-}`;
+}
+Do not include any additional text.`;
 
+      // Log the prompt for debugging
+      console.log("Sale price prompt:", prompt);
+
+      // Get the generative model and send the prompt
       const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-exp",
         generationConfig: {
@@ -520,22 +527,41 @@ Format your answer as a JSON object with this exact structure:
           temperature: 0.7,
         },
       });
-
       const result = await model.generateContent(prompt);
       const text = await result.response.text();
-      const jsonMatch = text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error("No JSON object found in response");
+      console.log("Raw AI response:", text);
+
+      // Try to extract a JSON object from the response text
+      let recommendation;
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("No JSON object found in response");
+        }
+        const jsonStr = jsonMatch[0];
+        recommendation = JSON.parse(jsonStr);
+      } catch (jsonError) {
+        console.error("Failed to parse JSON from AI response:", jsonError);
+        return res.status(500).json({
+          error: "Failed to parse sale price recommendation",
+          details: jsonError instanceof Error ? jsonError.message : "Unknown error",
+        });
       }
-      const jsonStr = jsonMatch[0];
-      const recommendation = JSON.parse(jsonStr);
+
+      // Ensure that the JSON has the required key
+      if (typeof recommendation.recommendedSalePrice !== "number") {
+        return res.status(500).json({
+          error: "Invalid recommendation format",
+          details: "Expected a numeric 'recommendedSalePrice' field in the response.",
+        });
+      }
 
       res.json(recommendation);
     } catch (error) {
       console.error("Error generating sale price:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to generate sale price",
-        details: error instanceof Error ? error.message : "Unknown error"
+        details: error instanceof Error ? error.message : "Unknown error",
       });
     }
   });

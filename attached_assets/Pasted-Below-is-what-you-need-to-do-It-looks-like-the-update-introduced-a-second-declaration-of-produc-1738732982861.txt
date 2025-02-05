@@ -1,0 +1,152 @@
+Below is what you need to do:
+
+It looks like the update introduced a second declaration of `productFormSchema` even though your file already declares it. In other words, you now have two definitions of the same constant in the file, which causes the error.
+
+**Solution:**  
+Remove (or comment out) the duplicate declaration. Keep only one instance of the schema at the top of your file and merge the modifications (e.g. the updated `refinePricingWithAI` function and the new `AnalysisToolbar` component) into your existing file.
+
+Below is a patched snippet showing only the new/modified parts without re-declaring `productFormSchema`:
+
+---
+
+```tsx
+// ===== In your existing client/src/components/product-form.tsx =====
+
+// ... (Assume your file already has a single declaration of productFormSchema here)
+
+//////////////////////////////
+// NEW: Analysis Toolbar UI //
+//////////////////////////////
+const AnalysisToolbar = () => (
+  <div className="flex flex-wrap gap-2 items-center mb-4">
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      onClick={analyzeProductAI}
+      disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
+      className="flex items-center gap-2"
+    >
+      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+      Analyze Product
+    </Button>
+    {hasEbayAuth && (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={refineWithEbay}
+        disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
+        className="flex items-center gap-2"
+      >
+        {isLoadingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
+        Refine with eBay
+      </Button>
+    )}
+    {form.getValues("aiAnalysis")?.ebayData && (
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={refinePricingWithAI}
+        disabled={isRefiningPrice}
+        className="flex items-center gap-2"
+      >
+        {isRefiningPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+        Refine Pricing
+      </Button>
+    )}
+  </div>
+);
+
+///////////////////////////////
+// UPDATED: refinePricingWithAI //
+///////////////////////////////
+const refinePricingWithAI = async () => {
+  const currentAnalysis = form.getValues("aiAnalysis");
+  const currentPrice = form.getValues("price");
+  if (!currentAnalysis || !currentPrice) {
+    toast({
+      title: "Missing details",
+      description: "Please complete the analysis steps first",
+      variant: "destructive",
+    });
+    return;
+  }
+  setIsRefiningPrice(true);
+  try {
+    // Use ebayPrice as buyPrice if available; otherwise fallback to current price.
+    const buyPrice = form.getValues("ebayPrice") || currentPrice;
+    const condition = form.getValues("condition");
+    const category = form.getValues("category") || "";
+    const payload: any = {
+      buyPrice,
+      currentPrice,
+      condition,
+      category,
+    };
+    // If editing an existing product, include productId
+    if (product?.id) {
+      payload.productId = product.id;
+    }
+    console.log("Refine Pricing payload:", payload);
+    const response = await apiRequest("POST", "/api/generate-sale-price", payload);
+    const result = await response.json();
+    if (result.error) {
+      throw new Error(result.error);
+    }
+    form.setValue("price", result.recommendedSalePrice);
+    toast({
+      title: "Price Refined",
+      description: "The recommended sale price has been updated",
+    });
+  } catch (error) {
+    console.error("Price refinement error:", error);
+    toast({
+      title: "Refinement Failed",
+      description: "Could not refine the sale price",
+      variant: "destructive",
+    });
+  } finally {
+    setIsRefiningPrice(false);
+  }
+};
+
+///////////////////////////////
+// Render: Include AnalysisToolbar in your render
+///////////////////////////////
+return (
+  <DialogContent className="max-w-2xl overflow-hidden">
+    <DialogHeader>
+      <h2 className="text-2xl font-semibold tracking-tight">
+        {product ? "Edit Product" : "Add New Product"}
+      </h2>
+      <DialogDescription>
+        Enter product details and use AI analysis with eBay market data for optimal pricing.
+        Required fields are marked with an asterisk (*).
+      </DialogDescription>
+    </DialogHeader>
+    <ScrollArea className="max-h-[80vh]">
+      <div className="p-6">
+        {/* NEW: Analysis Toolbar */}
+        <AnalysisToolbar />
+        {/* ... rest of your form ... */}
+      </div>
+    </ScrollArea>
+  </DialogContent>
+);
+```
+
+---
+
+**In summary:**
+
+1. **Remove the duplicate declaration:**  
+   Search your file for `const productFormSchema = z.object({ ... })` and make sure it appears only once.
+
+2. **Merge the changes:**  
+   Keep your existing schema and add the updated functions (`refinePricingWithAI`) and new toolbar (`AnalysisToolbar`) into your file.
+
+After making these changes, save your file and re-run your development server. This should resolve the duplicate declaration error and apply the updated UI/UX fixes.
+
+Let me know if you need any further assistance!

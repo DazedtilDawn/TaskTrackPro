@@ -1,3 +1,4 @@
+// client/src/components/product-form.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from "@/components/ui/form";
@@ -9,24 +10,18 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
 import { getEbayMarketAnalysis, checkEbayAuth } from "@/lib/ebay";
-import { Loader2, BarChart2, Tag, TrendingUp, BookMarked, PackageOpen, Sparkles, Info } from "lucide-react";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import ImageUpload from "@/components/ui/image-upload";
-import SmartListingModal from "@/components/smart-listing-modal";
-import { Progress } from "@/components/ui/progress";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Loader2, BarChart2, BookMarked, PackageOpen, Sparkles, Info, TrendingUp } from "lucide-react";
 import { DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-// Add EbayData interface after ProductFormData
+// Define interface for eBay data
 interface EbayData {
   currentPrice: number;
   averagePrice: number;
@@ -38,7 +33,7 @@ interface EbayData {
   lastUpdated?: string;
 }
 
-// Update aiAnalysis in productFormSchema
+// Product form schema
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   description: z.string().min(10, "Description must be at least 10 characters").optional().nullable(),
@@ -95,6 +90,57 @@ const conditionOptions = [
   { value: "used_fair", label: "Used - Fair", discount: 0.6 },
 ];
 
+// Analysis Toolbar Component
+const AnalysisToolbar = ({ 
+  isAnalyzing, 
+  isLoadingEbay, 
+  isRefiningPrice,
+  hasEbayAuth,
+  form,
+  onAnalyze,
+  onRefineWithEbay,
+  onRefinePricing,
+}) => (
+  <div className="flex flex-wrap gap-2 items-center mb-4">
+    <Button
+      type="button"
+      variant="outline"
+      onClick={onAnalyze}
+      disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
+      className="gap-2"
+    >
+      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+      Analyze Product
+    </Button>
+
+    {hasEbayAuth && (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onRefineWithEbay}
+        disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
+        className="gap-2"
+      >
+        {isLoadingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
+        Refine with eBay
+      </Button>
+    )}
+
+    {form.getValues("aiAnalysis")?.ebayData && (
+      <Button
+        type="button"
+        variant="outline"
+        onClick={onRefinePricing}
+        disabled={isRefiningPrice}
+        className="gap-2"
+      >
+        {isRefiningPrice ? <Loader2 className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4" />}
+        Refine Pricing
+      </Button>
+    )}
+  </div>
+);
+
 export default function ProductForm({ product, onComplete, isWatchlistItem = false }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -124,154 +170,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   });
 
   const aiAnalysis = form.watch("aiAnalysis");
-  const currentPrice = form.watch("price") || 0;
-  const condition = form.watch("condition");
-  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+  const hasAnalysis = Boolean(aiAnalysis);
 
-  const conditionData = conditionOptions.find(opt => opt.value === condition);
-  const conditionDiscount = conditionData?.discount ?? 1;
-
-  const getAdjustedPriceRange = () => {
-    if (!hasAnalysis) return { min: 0, max: 0 };
-    const baseMin = aiAnalysis.marketAnalysis.priceSuggestion.min;
-    const baseMax = aiAnalysis.marketAnalysis.priceSuggestion.max;
-    return {
-      min: Math.floor(baseMin * conditionDiscount),
-      max: Math.ceil(baseMax * conditionDiscount),
+  // Check eBay auth on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      const isAuthenticated = await checkEbayAuth();
+      setHasEbayAuth(isAuthenticated);
     };
-  };
-
-  const priceRange = getAdjustedPriceRange();
-  const isUnderpriced = hasAnalysis && currentPrice < priceRange.min;
-  const isOverpriced = hasAnalysis && currentPrice > priceRange.max;
-  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
-
-  const onSubmit = async (data: ProductFormData) => {
-    try {
-      const trimmedName = data.name.trim();
-      console.log('Submitting form with name:', trimmedName);
-
-      if (!trimmedName) {
-        form.setError("name", {
-          type: "manual",
-          message: "Product name is required"
-        });
-        return;
-      }
-
-      // Create FormData object
-      const formData = new FormData();
-
-      // Add basic fields
-      formData.append('name', trimmedName);
-      formData.append('description', data.description?.trim() || '');
-      if (data.sku?.trim()) {
-        formData.append('sku', data.sku.trim());
-      }
-      if (data.price !== null && data.price !== undefined) {
-        formData.append('price', String(data.price));
-      }
-      formData.append('quantity', String(data.quantity || 0));
-      formData.append('condition', data.condition);
-      formData.append('brand', data.brand?.trim() || '');
-      formData.append('category', data.category?.trim() || '');
-
-      // Properly stringify AI analysis with eBay data
-      if (data.aiAnalysis) {
-        console.log('Serializing AI analysis:', data.aiAnalysis);
-        formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
-      }
-
-      // Add ebayPrice if available
-      if (data.ebayPrice !== null && data.ebayPrice !== undefined) {
-        console.log('Adding eBay price:', data.ebayPrice);
-        formData.append('ebayPrice', String(data.ebayPrice));
-      }
-
-      // Add image if present
-      if (imageFiles.length > 0) {
-        formData.append('image', imageFiles[0]);
-      }
-
-      if (product) {
-        // Log the data being sent in the update request
-        console.log('Updating product with data:', Object.fromEntries(formData.entries()));
-        const response = await apiRequest("PATCH", `/api/products/${product.id}`, formData);
-        const updatedProduct = await response.json();
-        console.log('Product updated successfully:', updatedProduct);
-      } else {
-        // Creating new product
-        console.log('Creating new product with data:', Object.fromEntries(formData.entries()));
-        const response = await apiRequest("POST", "/api/products", formData);
-        const newProduct = await response.json();
-        console.log('Product created successfully:', newProduct);
-      }
-
-      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-      toast({
-        title: product ? "Product updated" : "Product created",
-        description: trimmedName,
-      });
-
-      onComplete();
-    } catch (error) {
-      console.error('Form submission error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to save product",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleImagesUploaded = (files: File[]) => {
-    setImageFiles(files);
-    if (files.length > 0) {
-      setShowSmartListing(true);
-    }
-  };
-
-  const handleAnalysisComplete = (analysis: any) => {
-    setIsAnalyzing(false);
-
-    const sanitizedAnalysis = {
-      title: analysis?.title,
-      description: analysis?.description,
-      category: analysis?.category,
-      marketAnalysis: {
-        demandScore: analysis?.marketAnalysis?.demandScore,
-        competitionLevel: analysis?.marketAnalysis?.competitionLevel,
-        priceSuggestion: {
-          min: analysis?.marketAnalysis?.priceSuggestion?.min,
-          max: analysis?.marketAnalysis?.priceSuggestion?.max,
-        }
-      },
-      seoKeywords: analysis?.seoKeywords?.slice(0, 5),
-      suggestions: analysis?.suggestions?.slice(0, 3),
-    };
-
-    form.setValue("aiAnalysis", sanitizedAnalysis);
-
-    if (sanitizedAnalysis.title) {
-      form.setValue("name", sanitizedAnalysis.title);
-    }
-    if (sanitizedAnalysis.description) {
-      form.setValue("description", sanitizedAnalysis.description);
-    }
-    if (sanitizedAnalysis.category) {
-      form.setValue("category", sanitizedAnalysis.category);
-    }
-    if (sanitizedAnalysis.marketAnalysis?.priceSuggestion?.min) {
-      const condition = form.getValues("condition");
-      const conditionData = conditionOptions.find(opt => opt.value === condition);
-      const conditionDiscount = conditionData?.discount ?? 1;
-
-      const adjustedPrice = Math.floor(
-        sanitizedAnalysis.marketAnalysis.priceSuggestion.min * conditionDiscount
-      );
-      form.setValue("price", adjustedPrice);
-    }
-  };
+    checkAuth();
+  }, []);
 
   const analyzeProductAI = async () => {
     const name = form.getValues("name");
@@ -288,21 +196,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
     setIsAnalyzing(true);
     try {
-      // Get AI analysis
-      const aiAnalysis = await analyzeProduct({ name, description });
-      console.log("[Product Analysis] Initial AI analysis:", aiAnalysis);
+      const aiResult = await analyzeProduct({ name, description });
+      console.log("[Product Analysis] Initial AI analysis:", aiResult);
+      form.setValue("aiAnalysis", aiResult);
 
-      form.setValue("aiAnalysis", aiAnalysis);
-
-      // Set the initial price based on AI analysis
-      if (aiAnalysis.marketAnalysis?.priceSuggestion?.min) {
+      // Set initial price based on AI analysis and condition discount
+      if (aiResult.marketAnalysis?.priceSuggestion?.min) {
         const condition = form.getValues("condition");
         const conditionData = conditionOptions.find(opt => opt.value === condition);
         const conditionDiscount = conditionData?.discount ?? 1;
-
-        const adjustedPrice = Math.floor(
-          aiAnalysis.marketAnalysis.priceSuggestion.min * conditionDiscount
-        );
+        const adjustedPrice = Math.floor(aiResult.marketAnalysis.priceSuggestion.min * conditionDiscount);
         form.setValue("price", adjustedPrice);
       }
 
@@ -340,7 +243,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       const marketAnalysis = await getEbayMarketAnalysis(name, currentAnalysis);
       console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
 
-      // Combine AI and eBay analysis
+      // Combine the current AI analysis with the new eBay data
       const combinedAnalysis = {
         ...currentAnalysis,
         ebayData: {
@@ -366,14 +269,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       form.setValue("aiAnalysis", combinedAnalysis);
       form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
 
-      // Update price based on condition and market data
+      // Adjust product price based on condition discount
       const condition = form.getValues("condition");
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
-
-      const adjustedPrice = Math.floor(
-        marketAnalysis.recommendedPrice * conditionDiscount
-      );
+      const adjustedPrice = Math.floor(marketAnalysis.recommendedPrice * conditionDiscount);
       form.setValue("price", adjustedPrice);
 
       toast({
@@ -423,23 +323,35 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
     setIsRefiningPrice(true);
     try {
-      const response = await apiRequest("POST", "/api/generate-sale-price", {
-        analysis: currentAnalysis,
-        currentPrice
-      });
+      // Build the payload
+      const buyPrice = form.getValues("ebayPrice") || currentPrice;
+      const condition = form.getValues("condition");
+      const category = form.getValues("category") || "";
+      const payload: any = {
+        buyPrice,
+        currentPrice,
+        condition,
+        category,
+      };
+      if (product?.id) {
+        payload.productId = product.id;
+      }
+
+      console.log("Refine Pricing payload:", payload);
+      const response = await apiRequest("POST", "/api/generate-sale-price", payload);
       const result = await response.json();
 
       if (result.error) {
         throw new Error(result.error);
       }
 
-      form.setValue("price", result.recommendedPrice);
+      form.setValue("price", result.recommendedSalePrice);
       toast({
         title: "Price Refined",
         description: "The recommended sale price has been updated",
       });
     } catch (error) {
-      console.error('Price refinement error:', error);
+      console.error("Price refinement error:", error);
       toast({
         title: "Refinement Failed",
         description: "Could not refine the sale price",
@@ -450,18 +362,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     }
   };
 
-  useEffect(() => {
-    // Check eBay auth status when component mounts
-    const checkAuth = async () => {
-      const isAuthenticated = await checkEbayAuth();
-      setHasEbayAuth(isAuthenticated);
-      // Only enable by default if authenticated
-    };
-    checkAuth();
-  }, []);
-
-  const handleSmartListingClose = () => {
-    setShowSmartListing(false);
+  // Handle image upload
+  const handleImagesUploaded = (files: File[]) => {
+    setImageFiles(files);
+    if (files.length > 0) {
+      setShowSmartListing(true);
+    }
   };
 
   return (
@@ -475,607 +381,365 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           Required fields are marked with an asterisk (*).
         </DialogDescription>
       </DialogHeader>
+
       <ScrollArea className="max-h-[80vh]">
         <div className="p-6">
-          <div className="space-y-6">
-            <TooltipProvider>
-              <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <FormLabel>Product Images</FormLabel>
-                        <FormDescription>
-                          Upload clear, high-quality images of your product
-                        </FormDescription>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="gap-2"
-                          onClick={analyzeProductAI}
-                          disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
-                        >
-                          {isAnalyzing ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Sparkles className="h-4 w-4" />
-                          )}
-                          Analyze Product
-                        </Button>
+          {/* Analysis Toolbar */}
+          <AnalysisToolbar 
+            isAnalyzing={isAnalyzing}
+            isLoadingEbay={isLoadingEbay}
+            isRefiningPrice={isRefiningPrice}
+            hasEbayAuth={hasEbayAuth}
+            form={form}
+            onAnalyze={analyzeProductAI}
+            onRefineWithEbay={refineWithEbay}
+            onRefinePricing={refinePricingWithAI}
+          />
 
-                        {hasEbayAuth && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="gap-2"
-                            onClick={refineWithEbay}
-                            disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
-                          >
-                            {isLoadingEbay ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <BarChart2 className="h-4 w-4" />
-                            )}
-                            Refine with eBay
-                          </Button>
-                        )}
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(async (data) => {
+              try {
+                // Submit the form data
+                const endpoint = product 
+                  ? `/api/products/${product.id}`
+                  : "/api/products";
 
-                        {form.getValues("aiAnalysis")?.ebayData && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="gap-2"
-                            onClick={refinePricingWithAI}
-                            disabled={isRefiningPrice}
-                          >
-                            {isRefiningPrice ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <TrendingUp className="h-4 w-4" />
-                            )}
-                            Refine Pricing
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                    <ImageUpload onImagesUploaded={handleImagesUploaded} />
+                const method = product ? "PATCH" : "POST";
+
+                const response = await apiRequest(method, endpoint, data);
+                if (!response.ok) {
+                  throw new Error("Failed to save product");
+                }
+
+                queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+                toast({
+                  title: product ? "Product updated" : "Product created",
+                  description: data.name.trim(),
+                });
+                onComplete();
+              } catch (error) {
+                console.error('Form submission error:', error);
+                toast({
+                  title: "Error",
+                  description: "Failed to save product",
+                  variant: "destructive",
+                });
+              }
+            })} className="space-y-8">
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <FormLabel>Product Images</FormLabel>
+                    <FormDescription>
+                      Upload clear, high-quality images of your product
+                    </FormDescription>
                   </div>
+                </div>
+                <ImageUpload onImagesUploaded={handleImagesUploaded} />
+              </div>
 
-                  {!hasEbayAuth && (
-                    <Alert className="mb-6">
-                      <AlertDescription className="text-sm flex items-center justify-between">
-                        <span>
-                          Connect your eBay account to access market pricing data
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => window.location.href = "/settings/ebay-auth"}
-                          className="ml-4"
-                        >
-                          Connect eBay Account
-                        </Button>
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {hasAnalysis && (
-                    <Card className={cn(
-                      "p-6 border-2",
-                      isUnderpriced && "border-yellow-500/50",
-                      isOverpriced && "border-red-500/50",
-                      isPricedRight && "border-green-500/50"
-                    )}>
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between border-b pb-4">
-                          <div className="flex items-center gap-2">
-                            <BookMarked className="h-5 w-5 text-primary" />
-                            <h3 className="font-semibold text-lg">AI Analysis Results</h3>
-                          </div>
-                          <div className={cn(
-                            "px-3 py-1 rounded-full text-sm font-medium",
-                            isUnderpriced && "bg-yellow-500/10 text-yellow-600",
-                            isOverpriced && "bg-red-500/10 text-red-600",
-                            isPricedRight && "bg-green-500/10 text-green-600"
-                          )}>
-                            {isUnderpriced ? 'Consider Increasing Price' :
-                              isOverpriced ? 'Consider Reducing Price' :
-                                'Optimal Price Range'}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                              <BarChart2 className="h-4 w-4 text-primary" />
-                              <h4 className="font-medium">Market Analysis</h4>
-                            </div>
-
-                            <div className="space-y-3">
-                              <div>
-                                <div className="flex justify-between text-sm mb-2">
-                                  <span className="text-muted-foreground">Market Demand</span>
-                                  <span className="font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
-                                </div>
-                                <Progress
-                                  value={aiAnalysis.marketAnalysis.demandScore}
-                                  className="h-2"
-                                />
-                              </div>
-
-                              <div className="flex items-center justify-between text-sm">
-                                <span className="text-muted-foreground">Competition Level</span>
-                                <span className="font-medium">{aiAnalysis.marketAnalysis.competitionLevel}</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4 text-primary" />
-                              <h4 className="font-medium">Price Analysis</h4>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div>
-                                <span className="text-sm text-muted-foreground">Market Price Range</span>
-                                <div className="flex items-baseline gap-2 mt-1">
-                                  <span className="text-2xl font-semibold">${priceRange.min}</span>
-                                  <span className="text-muted-foreground">-</span>
-                                  <span className="text-2xl font-semibold">${priceRange.max}</span>
-                                </div>
-                              </div>
-
-                              <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
-                                <div>
-                                  <span className="text-sm font-medium">Recommended Buy Price</span>
-                                  <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-xl font-semibold text-green-600">
-                                      ${Math.floor(priceRange.min * 0.7)}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                      (30% below market min)
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <span className="text-sm font-medium">Recommended Sell Price</span>
-                                  <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-xl font-semibold text-blue-600">
-                                      ${Math.ceil(priceRange.max * 1.15)}
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                      (15% above market max)
-                                    </span>
-                                  </div>
-                                </div>
-
-                                <div className="pt-2 border-t border-border/50">
-                                  <span className="text-sm font-medium">Potential Profit Margin</span>
-                                  <div className="flex items-baseline gap-2 mt-1">
-                                    <span className="text-xl font-semibold text-primary">
-                                      {Math.round(((priceRange.max * 1.15) /
-                                        (priceRange.min * 0.7) - 1) * 100)}%
-                                    </span>
-                                    <span className="text-sm text-muted-foreground">
-                                      estimated margin
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {aiAnalysis.ebayData && (
-                                <div className="mt-6 space-y-3 pt-4 border-t">
-                                  <div className="flex items-center gap-2">
-                                    <TrendingUp className="h-4 w-4 text-primary" />
-                                    <h4 className="font-medium">eBay Market Data</h4>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                      <div>
-                                        <div className="text-sm text-muted-foreground">Current Price</div>
-                                        <div className="text-lg font-semibold">
-                                          ${aiAnalysis.ebayData.currentPrice.toFixed(2)}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-sm text-muted-foreground">Average Price</div>
-                                        <div className="text-lg font-semibold">
-                                          ${aiAnalysis.ebayData.averagePrice.toFixed(2)}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-sm text-muted-foreground">Price Range</div>
-                                        <div className="flex items-baseline gap-2">
-                                          <span className="text-lg font-semibold">
-                                            ${aiAnalysis.ebayData.lowestPrice.toFixed(2)}
-                                          </span>
-                                          <span className="text-muted-foreground">-</span>
-                                          <span className="text-lg font-semibold">
-                                            ${aiAnalysis.ebayData.highestPrice.toFixed(2)}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                    <div className="space-y-2">
-                                      <div>
-                                        <div className="text-sm text-muted-foreground">Items Sold</div>
-                                        <div className="text-lg font-semibold">
-                                          {aiAnalysis.ebayData.soldCount.toLocaleString()}
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <div className="text-sm text-muted-foreground">Active Listings</div>
-                                        <div className="text-lg font-semibold">
-                                          {aiAnalysis.ebayData.activeListing.toLocaleString()}
-                                        </div>
-                                      </div>
-                                      {aiAnalysis.ebayData.lastUpdated && (
-                                        <div>
-                                          <div className="text-sm text-muted-foreground">Last Updated</div>
-                                          <div className="text-sm">
-                                            {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}
-                                          </div>
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-3 pt-4 border-t">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="h-4 w-4 text-primary" />
-                            <h4 className="font-medium">Optimization Tips</h4>
-                          </div>
-                          <ul className="grid grid-cols-2 gap-3">
-                            {aiAnalysis.suggestions.slice(0, 4).map((suggestion: string, index: number) => (
-                              <li
-                                key={index}
-                                className="text-sm text-muted-foreground p-3 bg-secondary/20 rounded-lg"
-                              >
-                                {suggestion}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
-
-                  {hasAnalysis && aiAnalysis?.ebayData && (
-                    <Card className="p-6 border-primary/20">
-                      <div className="space-y-6">
-                        <div className="flex items-center justify-between border-b pb-4">
-                          <div className="flex items-center gap-2">
-                            <BarChart2 className="h-5 w-5 text-primary" />
-                            <h3 className="font-semibold text-lg">eBay Market Data</h3>
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            Last updated: {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-6">
-                          <div className="space-y-4">
-                            <div>
-                              <span className="text-sm text-muted-foreground">Current Market Price</span>
-                              <div className="text-2xl font-semibold">
-                                ${aiAnalysis.ebayData.currentPrice.toFixed(2)}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-sm text-muted-foreground">Average Price</span>
-                              <div className="text-2xl font-semibold">
-                                ${aiAnalysis.ebayData.averagePrice.toFixed(2)}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-sm text-muted-foreground">Price Range</span>
-                              <div className="flex items-baseline gap-2">
-                                <span className="text-xl font-semibold">
-                                  ${aiAnalysis.ebayData.lowestPrice.toFixed(2)}
-                                </span>
-                                <span className="text-muted-foreground">-</span>
-                                <span className="text-xl font-semibold">
-                                  ${aiAnalysis.ebayData.highestPrice.toFixed(2)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-4">
-                            <div>
-                              <span className="text-sm text-muted-foreground">Items Sold</span>
-                              <div className="text-2xl font-semibold">
-                                {aiAnalysis.ebayData.soldCount.toLocaleString()}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-sm text-muted-foreground">Active Listings</span>
-                              <div className="text-2xl font-semibold">
-                                {aiAnalysis.ebayData.activeListing.toLocaleString()}
-                              </div>
-                            </div>
-                            <div>
-                              <span className="text-sm text-muted-foreground">Recommended Price</span>
-                              <div className="text-2xl font-semibold text-primary">
-                                ${aiAnalysis.ebayData.recommendedPrice.toFixed(2)}
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  )}
-
-                  <div className="grid gap-6">
-                    <div className="grid gap-4 grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Product Name <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Enter product name"
-                                className={cn(
-                                  form.formState.errors.name && "border-destructive"
-                                )}
-                              />
-                            </FormControl>
-                            {form.formState.errors.name && (
-                              <p className="text-sm text-destructive mt-1">
-                                {form.formState.errors.name.message}
-                              </p>
-                            )}
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="brand"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Brand</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Enter brand name" value={field.value || ''} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>
-                            Description <span className="text-destructive">*</span>
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              {...field}
-                              value={field.value ?? ''}
-                              placeholder="Describe the product's features, specifications, and condition"
-                              className={cn(
-                                "min-h-[100px]",
-                                form.formState.errors.description && "border-destructive"
-                              )}
-                            />
-                          </FormControl>
-                          {form.formState.errors.description && (
-                            <p className="text-sm text-destructive mt-1">
-                              {form.formState.errors.description.message}
-                            </p>
-                          )}
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid gap-4 grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="condition"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Condition</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select condition" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {conditionOptions.map(option => (
-                                  <SelectItem key={option.value} value={option.value}>
-                                    <span className="flex items-center gap-2">
-                                      <PackageOpen className="h-4 w-4" />
-                                      {option.label}
-                                    </span>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="category"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Category</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Product category" value={field.value || ''} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-semibold">Inventory Details</h3>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Info className="h-4 w-4 text-muted-foreground" />
-                        </TooltipTrigger>
-                        <TooltipContent>
-                          <p>Enter pricing and inventory information</p>
-                        </TooltipContent>
-                      </Tooltip>
-                    </div>
-
-                    <div className="grid gap-4 grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="price"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>
-                              Price <span className="text-destructive">*</span>
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                {...field}
-                                value={field.value ?? ''}
-                                onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                                className={cn(
-                                  isUnderpriced && "border-yellow-500 focus-visible:ring-yellow-500",
-                                  isOverpriced && "border-red-500 focus-visible:ring-red-500",
-                                  isPricedRight && "border-green-500 focus-visible:ring-green-500",
-                                  form.formState.errors.price && "border-destructive"
-                                )}
-                                placeholder="0.00"
-                              />
-                            </FormControl>
-                            {form.formState.errors.price && (
-                              <p className="text-sm text-destructive mt-1">
-                                {form.formState.errors.price.message}
-                              </p>
-                            )}
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="quantity"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Quantity</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                {...field}
-                                onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                                value={field.value ?? ''}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid gap-4 grid-cols-2">
-                      <FormField
-                        control={form.control}
-                        name="sku"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>SKU</FormLabel>
-                            <FormControl>
-                              <Input {...field} placeholder="Enter SKU" value={field.value || ''} />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={form.control}
-                        name="weight"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Weight (lbs)</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                {...field}
-                                value={field.value ?? ''}
-                                onChange={e => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                                placeholder="0.0"
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="dimensions"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Dimensions (L × W × H inches)</FormLabel>
-                          <FormControl>
-                            <Input {...field} value={field.value ?? ''} placeholder="e.g., 12 × 8 × 4" />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="flex justify-between pt-6">
-                    <Button type="button" variant="ghost" onClick={onComplete}>
-                      Cancel
-                    </Button>
+              {!hasEbayAuth && (
+                <Alert className="mb-6">
+                  <AlertDescription className="text-sm flex items-center justify-between">
+                    <span>Connect your eBay account to access market pricing data</span>
                     <Button
-                      type="submit"
-                      disabled={form.formState.isSubmitting}
-                      className="min-w-[120px]"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.location.href = "/settings/ebay-auth"}
+                      className="ml-4"
                     >
-                      {form.formState.isSubmitting ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>{product ? "Update" : "Create"} Product</>
-                      )}
+                      Connect eBay Account
                     </Button>
-                  </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
-                  <SmartListingModal
-                    open={showSmartListing}
-                    onClose={handleSmartListingClose}
-                    imageFiles={imageFiles}
-                    onAnalysisComplete={handleAnalysisComplete}
+              {/* Display AI Analysis if available */}
+              {hasAnalysis && (
+                <Card className="p-6 border-primary/20">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-5 w-5 text-primary" />
+                      <h3 className="font-semibold text-lg">AI Analysis Results</h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div>
+                        <h4 className="font-medium mb-2">Market Analysis</h4>
+                        <div className="space-y-2">
+                          <div>
+                            <span className="text-sm text-muted-foreground">Demand Score</span>
+                            <div className="text-2xl font-semibold">
+                              {aiAnalysis.marketAnalysis.demandScore}/10
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-sm text-muted-foreground">Competition Level</span>
+                            <div className="text-lg font-medium">
+                              {aiAnalysis.marketAnalysis.competitionLevel}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-sm text-muted-foreground">Suggested Price Range</span>
+                            <div className="text-lg font-medium">
+                              ${aiAnalysis.marketAnalysis.priceSuggestion.min.toFixed(2)} - 
+                              ${aiAnalysis.marketAnalysis.priceSuggestion.max.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="font-medium mb-2">SEO Keywords</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {aiAnalysis.seoKeywords.map((keyword, index) => (
+                            <span
+                              key={index}
+                              className="px-2 py-1 bg-primary/10 rounded-md text-sm"
+                            >
+                              {keyword}
+                            </span>
+                          ))}
+                        </div>
+
+                        <h4 className="font-medium mt-4 mb-2">Suggestions</h4>
+                        <ul className="space-y-1 text-sm">
+                          {aiAnalysis.suggestions.map((suggestion, index) => (
+                            <li key={index} className="flex items-center gap-2">
+                              <Info className="h-4 w-4 text-primary" />
+                              {suggestion}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Display eBay Market Data if available */}
+              {hasAnalysis && aiAnalysis?.ebayData && (
+                <Card className="p-6 border-primary/20">
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between border-b pb-4">
+                      <div className="flex items-center gap-2">
+                        <BarChart2 className="h-5 w-5 text-primary" />
+                        <h3 className="font-semibold text-lg">eBay Market Data</h3>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        Last updated: {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">Current Market Price</span>
+                          <div className="text-2xl font-semibold">
+                            ${aiAnalysis.ebayData.currentPrice.toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Average Price</span>
+                          <div className="text-2xl font-semibold">
+                            ${aiAnalysis.ebayData.averagePrice.toFixed(2)}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Price Range</span>
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-xl font-semibold">
+                              ${aiAnalysis.ebayData.lowestPrice.toFixed(2)}
+                            </span>
+                            <span className="text-muted-foreground">-</span>
+                            <span className="text-xl font-semibold">
+                              ${aiAnalysis.ebayData.highestPrice.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <span className="text-sm text-muted-foreground">Items Sold</span>
+                          <div className="text-2xl font-semibold">
+                            {aiAnalysis.ebayData.soldCount.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Active Listings</span>
+                          <div className="text-2xl font-semibold">
+                            {aiAnalysis.ebayData.activeListing.toLocaleString()}
+                          </div>
+                        </div>
+                        <div>
+                          <span className="text-sm text-muted-foreground">Recommended Price</span>
+                          <div className="text-2xl font-semibold text-primary">
+                            ${aiAnalysis.ebayData.recommendedPrice.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* Form Fields */}
+              <div className="grid gap-6">
+                <div className="grid gap-4 grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Product Name <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter product name" />
+                        </FormControl>
+                      </FormItem>
+                    )}
                   />
-                </form>
-              </Form>
-            </TooltipProvider>
-          </div>
+                  <FormField
+                    control={form.control}
+                    name="brand"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Brand</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Enter brand name" />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Description <span className="text-destructive">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          {...field}
+                          placeholder="Describe the product's features, specifications, and condition"
+                          className="min-h-[100px]"
+                        />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+
+                <div className="grid gap-4 grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="condition"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Condition</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select condition" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {conditionOptions.map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                <span className="flex items-center gap-2">
+                                  <PackageOpen className="h-4 w-4" />
+                                  {option.label}
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="category"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Category</FormLabel>
+                        <FormControl>
+                          <Input {...field} placeholder="Product category" />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                <div className="grid gap-4 grid-cols-2">
+                  <FormField
+                    control={form.control}
+                    name="price"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Price <span className="text-destructive">*</span>
+                        </FormLabel>
+                        <FormControl>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            {...field}
+                            placeholder="0.00"
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                          <Input type="number" {...field} />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between pt-6">
+                <Button type="button" variant="ghost" onClick={onComplete}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  disabled={form.formState.isSubmitting}
+                  className="min-w-[120px]"
+                >
+                  {form.formState.isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>{product ? "Update" : "Create"} Product</>
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Form>
         </div>
       </ScrollArea>
     </DialogContent>
   );
 }
+
+// Placeholder for ImageUpload component -  needs to be defined elsewhere
+const ImageUpload = ({ onImagesUploaded }: { onImagesUploaded: (files: File[]) => void }) => {
+    return <div>Image Upload Component (Implementation Needed)</div>;
+};

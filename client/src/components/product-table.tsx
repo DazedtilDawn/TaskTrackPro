@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn, getDisplayUrl } from "@/lib/utils";
 import ProductCard from "@/components/product-card";
 import {
   type ColumnDef,
@@ -65,12 +65,7 @@ export function ProductTable({
       accessorKey: "imageUrl",
       header: "Image",
       cell: ({ row }) => {
-        const imageUrl = row.original.imageUrl;
-        const displayUrl = imageUrl && (imageUrl.startsWith("http") || imageUrl.includes("/uploads/"))
-          ? imageUrl
-          : imageUrl
-          ? `/uploads/${imageUrl}`
-          : null;
+        const displayUrl = getDisplayUrl(row.original.imageUrl);
 
         return (
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
@@ -80,8 +75,7 @@ export function ProductTable({
                 alt={row.original.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.src = 'https://placehold.co/48';
+                  (e.target as HTMLImageElement).src = 'https://placehold.co/48';
                 }}
               />
             ) : (

@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { cn, getDisplayUrl } from "@/lib/utils";
 import {
   parseAiAnalysis,
   formatPrice,
@@ -408,11 +408,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         )}>
           {product.imageUrl ? (
             <img
-              src={
-                product.imageUrl && (product.imageUrl.startsWith("http") || product.imageUrl.includes("/uploads/"))
-                  ? product.imageUrl
-                  : `/uploads/${product.imageUrl}`
-              }
+              src={getDisplayUrl(product.imageUrl)}
               alt={product.name}
               className={cn(
                 "object-cover",

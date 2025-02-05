@@ -134,8 +134,23 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     e?.stopPropagation();
     try {
       const response = await apiRequest("DELETE", `/api/products/${product.id}`);
-      const result = await response.json();
 
+      // Handle 404 case specifically
+      if (response.status === 404) {
+        // Product already deleted, still consider it a success
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+        ]);
+
+        toast({
+          title: "Product removed",
+          description: "The product has been removed from your inventory",
+        });
+        return;
+      }
+
+      const result = await response.json();
       if (result.error) {
         throw new Error(result.error);
       }
@@ -153,7 +168,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       console.error('Product deletion failed:', error);
       toast({
         title: "Error",
-        description: "Failed to delete product",
+        description: "Failed to delete product. Please try again.",
         variant: "destructive",
       });
     }

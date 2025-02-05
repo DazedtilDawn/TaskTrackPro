@@ -13,6 +13,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import ProductCard from "@/components/product-card";
@@ -259,6 +260,9 @@ export function ProductTable({
         <DialogContent className="max-w-4xl">
           <DialogHeader>
             <DialogTitle>Product Details</DialogTitle>
+            <DialogDescription>
+              View and manage detailed product information
+            </DialogDescription>
           </DialogHeader>
           {selectedProduct && (
             <ProductCard

@@ -95,7 +95,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const [hasEbayAuth, setHasEbayAuth] = useState<boolean | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
-  const [fullAnalysis, setFullAnalysis] = useState(false);
+  const [fullAnalysis, setFullAnalysis] = useState(true); // Changed to true by default
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),

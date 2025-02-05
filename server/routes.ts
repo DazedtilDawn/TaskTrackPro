@@ -43,6 +43,15 @@ export function registerRoutes(app: Express): Server {
   // Serve static files from uploads directory
   app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
 
+  // Add this near the top of the routes registration, before the eBay-specific endpoints
+  app.get("/callback", (req, res) => {
+    console.log("[eBay Legacy Callback] Received request, redirecting to /api/ebay/callback");
+    const queryString = Object.entries(req.query)
+      .map(([key, value]) => `${key}=${encodeURIComponent(String(value))}`)
+      .join('&');
+    res.redirect(307, `/api/ebay/callback${queryString ? '?' + queryString : ''}`);
+  });
+
   // Add eBay auth endpoints
   app.get("/api/ebay/auth-url", checkEbayAuth, async (req, res) => {
     console.log("[eBay Auth URL] Generating auth URL");
@@ -59,6 +68,7 @@ export function registerRoutes(app: Express): Server {
     res.json({ authUrl });
   });
 
+  // Update the existing callback endpoint to handle query params properly
   app.get("/api/ebay/callback", checkEbayAuth, async (req, res) => {
     console.log("[eBay Callback] Received callback");
     if (!req.isAuthenticated()) {
@@ -201,7 +211,7 @@ export function registerRoutes(app: Express): Server {
       res.json(priceData);
     } catch (error) {
       console.error("[eBay Price] Error:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to fetch eBay pricing data",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -242,7 +252,7 @@ export function registerRoutes(app: Express): Server {
       }
 
       // Use AI to optimize the listing
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-exp",
         generationConfig: {
           maxOutputTokens: 8192,
@@ -323,7 +333,7 @@ Format the response as JSON with:
         return res.status(400).json({ error: "Invalid request format" });
       }
 
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-exp",
         generationConfig: {
           maxOutputTokens: 8192,
@@ -372,7 +382,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       }));
 
       // Add type-safe text part
-      parts.unshift({ 
+      parts.unshift({
         text: prompt,
         inlineData: undefined // Make TypeScript happy with union type
       });
@@ -401,11 +411,11 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
         // Validate required fields
         const requiredFields = [
-          'title', 
-          'description', 
-          'category', 
-          'marketAnalysis', 
-          'seoKeywords', 
+          'title',
+          'description',
+          'category',
+          'marketAnalysis',
+          'seoKeywords',
           'suggestions'
         ];
 
@@ -417,14 +427,14 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         res.json(analysis);
       } catch (parseError) {
         console.error('Failed to parse analysis:', parseError, '\nRaw text:', text);
-        res.status(500).json({ 
+        res.status(500).json({
           error: 'Failed to parse analysis results',
           details: parseError instanceof Error ? parseError.message : 'Unknown parsing error'
         });
       }
     } catch (error) {
       console.error('Image analysis error:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to analyze images",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -444,7 +454,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       res.json(productsList);
     } catch (error) {
       console.error("Error fetching products:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to fetch products",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -482,7 +492,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       res.status(201).json(product);
     } catch (error) {
       console.error('Error creating product:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to create product",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -582,7 +592,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       });
     } catch (error) {
       console.error("Error deleting product:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to delete product",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -634,7 +644,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
       // Mark product as sold instead of deleting
       await db.update(products)
-        .set({ 
+        .set({
           sold: true,
           updatedAt: new Date()
         })
@@ -683,11 +693,11 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
           }
         }
       })
-      .from(orders)
-      .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-      .leftJoin(products, eq(orderItems.productId, products.id))
-      .where(eq(orders.userId, req.user!.id))
-      .orderBy(desc(orders.createdAt));
+        .from(orders)
+        .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+        .leftJoin(products, eq(orderItems.productId, products.id))
+        .where(eq(orders.userId, req.user!.id))
+        .orderBy(desc(orders.createdAt));
 
       // Group items by order with proper type checking
       const groupedOrders = userOrders.reduce((acc: typeof userOrders, order) => {
@@ -708,7 +718,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       res.json(groupedOrders);
     } catch (error) {
       console.error("Error fetching orders:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to fetch orders",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -757,7 +767,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       });
     } catch (error) {
       console.error("Error deleting order:", error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to delete order",
         details: error instanceof Error ? error.message : "Unknown error"
       });
@@ -875,7 +885,7 @@ Do not include any additional text.`;
       }
 
       // Use AI to optimize the listing
-      const model = genAI.getGenerativeModel({ 
+      const model = genAI.getGenerativeModel({
         model: "gemini-2.0-flash-exp",
         generationConfig: {
           maxOutputTokens: 8192,
@@ -904,7 +914,8 @@ Format the response as JSON with:
   "keywords": ["relevant", "search", "terms"]
 }`;
 
-      const result = await model.generateContent(prompt);const text = await result.response.text();
+      const result = await model.generateContent(prompt);
+      const text = await result.response.text();
 
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -1021,22 +1032,22 @@ Format the response as JSON with:
           ebayPrice: products.ebayPrice
         }
       })
-      .from(watchlist)
-      .leftJoin(products, eq(watchlist.productId, products.id))
-      .where(
-        and(
-          eq(watchlist.userId, req.user!.id),
-          eq(products.sold, false)
+        .from(watchlist)
+        .leftJoin(products, eq(watchlist.productId, products.id))
+        .where(
+          and(
+            eq(watchlist.userId, req.user!.id),
+            eq(products.sold, false)
+          )
         )
-      )
-      .orderBy(watchlist.createdAt);
+        .orderBy(watchlist.createdAt);
 
       res.json(items);
     } catch (error) {
       console.error('Error fetching watchlist:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to fetch watchlist",
-        details: error instanceof Error ? error.message : "Unknown error" 
+        details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
@@ -1089,9 +1100,9 @@ Format the response as JSON with:
       res.status(200).json({ message: "Item removed from watchlist", deletedItem: result[0] });
     } catch (error) {
       console.error('Error removing from watchlist:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         error: "Failed to remove item from watchlist",
-        details: error instanceof Error ? error.message : "Unknown error" 
+        details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });

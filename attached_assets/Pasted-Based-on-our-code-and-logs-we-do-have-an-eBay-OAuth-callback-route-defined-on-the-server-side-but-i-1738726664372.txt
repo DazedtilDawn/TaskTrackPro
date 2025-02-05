@@ -1,0 +1,49 @@
+Based on our code and logs, we do have an eBay OAuth callback route defined on the server side—but it’s set up at **`/api/ebay/callback`** rather than at **`/callback`**. This mismatch is causing the 404 error.
+
+### What’s Happening
+
+- In **`server/routes.ts`**, our callback route is registered like this:
+
+  ```ts
+  app.get("/api/ebay/callback", checkEbayAuth, async (req, res) => {
+    // [Callback logic here]
+  });
+  ```
+
+- However, the URL being used by eBay (or in your testing) is:
+
+  ```
+  https://<your-app-domain>/callback?code=...&expires_in=299
+  ```
+
+  This path does not match our defined route, so the request isn’t caught by our server and instead falls through to the client router (resulting in a 404 "Page Not Found" error).
+
+### Recommended Solutions
+
+1. **Update the eBay Callback URL**  
+   In your eBay developer console, change the registered redirect URL to point to:
+   ```
+   https://<your-app-domain>/api/ebay/callback
+   ```
+   This will ensure that when eBay redirects back after authentication, the request hits the correct server route.
+
+2. **Alternatively, Add a Redirect Route**  
+   If for some reason you want to keep the callback URL as **`/callback`**, you can add an Express route for `/callback` that forwards or redirects the request to `/api/ebay/callback`. For example:
+
+   ```ts
+   app.get("/callback", (req, res) => {
+     // Optionally, log the incoming request and then redirect:
+     console.log("Redirecting /callback to /api/ebay/callback");
+     res.redirect(307, `/api/ebay/callback${req.url}`);
+   });
+   ```
+
+   This route would capture any requests to `/callback` and pass them along to your actual eBay callback handler.
+
+### Summary
+
+- **Our callback route is correctly defined** in our server at **`/api/ebay/callback`**.
+- **The 404 error is due to a path mismatch**—the eBay redirect is coming to **`/callback`**, which isn’t handled by our router.
+- **Solution:** Update your eBay app’s redirect URI to match our server endpoint or add a redirect route to bridge the gap.
+
+Would you like additional guidance on updating your eBay developer settings or on adding the redirect route?

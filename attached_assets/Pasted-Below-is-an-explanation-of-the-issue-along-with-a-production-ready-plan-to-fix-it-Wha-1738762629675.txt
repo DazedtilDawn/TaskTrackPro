@@ -1,0 +1,116 @@
+Below is an explanation of the issue along with a production‐ready plan to fix it.
+
+---
+
+### What’s Happening
+
+When a product is created, the server’s product‑creation route uses a helper function (called `getImageUrl()`) to set the product’s image URL. That helper returns a string that already includes the “/uploads/” prefix. For example, if a file named `"abc.jpg"` is uploaded, the server stores its URL as:
+
+```js
+"/uploads/abc.jpg"
+```
+
+Later on, in the client code (for example in the **ProductCard** and **ProductTable** components), the image URL is re‐evaluated using a check like this:
+
+```tsx
+src={product.imageUrl.startsWith('http') ? product.imageUrl : `/uploads/${product.imageUrl}`}
+```
+
+Because the stored URL already begins with `/uploads/`, the condition is false and the code prepends `/uploads/` again. This produces an invalid URL such as:
+
+```
+/uploads//uploads/abc.jpg
+```
+
+which is why the images are not being loaded and shown in your views.
+
+---
+
+### Production‑Ready Implementation Plan
+
+You can resolve the issue in one of two ways:
+
+#### Option 1. **Adjust the Client Rendering Code**
+
+Modify the logic in your client components so that if the URL already contains `/uploads/` it is used as is. For example, in your **ProductCard** and **ProductTable** components, update the code that determines the URL for the image.
+
+**Before:**
+
+```tsx
+const displayUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`) : null;
+```
+
+**After (Option A – check if URL already includes “/uploads/”):**
+
+```tsx
+const displayUrl =
+  imageUrl && (imageUrl.startsWith("http") || imageUrl.includes("/uploads/"))
+    ? imageUrl
+    : imageUrl
+    ? `/uploads/${imageUrl}`
+    : null;
+```
+
+Or simply, if you always expect the stored URL to have the “/uploads/” prefix, you can use it directly:
+
+```tsx
+const displayUrl = imageUrl || null;
+```
+
+And in the JSX for rendering an image in **ProductCard**, update:
+
+```tsx
+<img
+  src={product.imageUrl.startsWith('http') ? product.imageUrl : `/uploads/${product.imageUrl}`}
+  alt={product.name}
+  className="w-full h-full object-cover"
+/>
+```
+
+to something like:
+
+```tsx
+<img
+  src={product.imageUrl}
+  alt={product.name}
+  className="w-full h-full object-cover"
+  onError={(e) => {
+    const img = e.target as HTMLImageElement;
+    img.src = 'https://placehold.co/200';
+  }}
+/>
+```
+
+> **Tip:** Ensure you check every place where you build an image URL (e.g. in table cells and cards) so that the extra prefix isn’t added.
+
+#### Option 2. **Update the Server‑Side URL**
+
+Alternatively, you could change your server’s `getImageUrl()` helper to return only the filename (without the `/uploads/` prefix). Then, in the client, you’d always prepend `/uploads/` as you currently do. For example:
+
+**Server (Change `getImageUrl`):**
+
+```ts
+function getImageUrl(filename: string | null): string | null {
+  if (!filename) return null;
+  // Return only the filename so that client prepends /uploads/
+  return filename;
+}
+```
+
+However, this approach requires making sure that every client component now prepends `/uploads/` consistently.
+
+---
+
+### Recommendation
+
+For a quick, low‑risk fix, **Option 1** (updating the client-side logic) is recommended because it keeps the current database values intact. Update your image‑rendering logic in components like **ProductCard** and **ProductTable** so that they use the stored URL directly if it already contains the “/uploads/” prefix.
+
+---
+
+### Summary
+
+- **Problem:** The client code prepends `/uploads/` even though the server already stores the URL with that prefix.
+- **Fix:** Change the client logic so that it checks whether the URL already includes “/uploads/” (or simply use the stored URL directly) instead of always adding `/uploads/` again.
+- **Outcome:** The image URLs will be valid (e.g. `/uploads/abc.jpg` instead of `/uploads//uploads/abc.jpg`), and your images should display correctly.
+
+Implement the change in all components where the image URL is used, then test to confirm that the images now load as expected.

@@ -409,7 +409,11 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
           )}>
             {product.imageUrl ? (
               <img
-                src={product.imageUrl.startsWith('http') ? product.imageUrl : `/uploads/${product.imageUrl}`}
+                src={
+                  product.imageUrl.startsWith('http') || product.imageUrl.includes('/uploads/')
+                    ? product.imageUrl
+                    : `/uploads/${product.imageUrl}`
+                }
                 alt={product.name}
                 className={cn(
                   "object-cover",

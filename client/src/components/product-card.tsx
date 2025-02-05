@@ -1,6 +1,9 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, BarChart, CheckCircle2, ArrowUpRight } from "lucide-react";
+import { 
+  Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, 
+  BarChart, CheckCircle2, ArrowUpRight, Share2 
+} from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -41,6 +44,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [isGeneratingListing, setIsGeneratingListing] = useState(false);
 
   const markAsSold = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -170,6 +174,40 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     setShowConvertDialog(true);
   }, []);
 
+  const generateEbayListing = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    setIsGeneratingListing(true);
+    try {
+      const response = await apiRequest("POST", `/api/products/${product.id}/generate-ebay-listing`);
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+
+      toast({
+        title: "eBay listing generated",
+        description: "Your product has been listed on eBay",
+      });
+
+      // If we have a listing URL, open it in a new tab
+      if (result.ebayListingUrl) {
+        window.open(result.ebayListingUrl, '_blank');
+      }
+    } catch (error) {
+      console.error('Error generating eBay listing:', error);
+      toast({
+        title: "Error",
+        description: "Failed to generate eBay listing",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingListing(false);
+    }
+  }, [product.id, toast]);
+
   const aiAnalysis = product.aiAnalysis as AIAnalysis | undefined;
   const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
   const currentPrice = Number(product.price) || 0;
@@ -290,6 +328,31 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   className="h-8 w-8 hover:scale-105 transition-transform"
                 >
                   <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+                </Button>
+              )}
+
+              {/* Add eBay listing button */}
+              {!product.ebayListingId && !inWatchlist && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={generateEbayListing}
+                  disabled={isGeneratingListing}
+                  className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                  title="Generate eBay Listing"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              )}
+              {product.ebayListingUrl && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => window.open(product.ebayListingUrl, '_blank')}
+                  className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                  title="View on eBay"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
                 </Button>
               )}
             </div>
@@ -519,6 +582,31 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   onClick={handleConvertDialog}
                   className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                   title="Convert to Inventory"
+                >
+                  <ArrowUpRight className="h-4 w-4" />
+                </Button>
+              )}
+
+              {/* Add eBay listing button */}
+              {!product.ebayListingId && !inWatchlist && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={generateEbayListing}
+                  disabled={isGeneratingListing}
+                  className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                  title="Generate eBay Listing"
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              )}
+              {product.ebayListingUrl && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => window.open(product.ebayListingUrl, '_blank')}
+                  className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                  title="View on eBay"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                 </Button>

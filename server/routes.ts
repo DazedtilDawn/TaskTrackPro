@@ -566,6 +566,111 @@ Do not include any additional text.`;
     }
   });
 
+  // Add this before the watchlist routes
+  app.post("/api/products/:id/generate-ebay-listing", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+    try {
+      const productId = parseInt(req.params.id);
+      if (isNaN(productId)) {
+        return res.status(400).json({ error: "Invalid product ID" });
+      }
+
+      // Fetch the product
+      const [product] = await db.select()
+        .from(products)
+        .where(
+          and(
+            eq(products.id, productId),
+            eq(products.userId, req.user!.id)
+          )
+        )
+        .limit(1);
+
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
+      }
+
+      // Verify eBay authentication
+      if (!req.user!.ebayAuthToken || new Date(req.user!.ebayTokenExpiry!) < new Date()) {
+        return res.status(403).json({
+          error: "eBay authentication required",
+          details: "Please authenticate with eBay first"
+        });
+      }
+
+      // Use AI to optimize the listing
+      const model = genAI.getGenerativeModel({ 
+        model: "gemini-2.0-flash-exp",
+        generationConfig: {
+          maxOutputTokens: 8192,
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40,
+        }
+      });
+
+      const prompt = `Create an optimized eBay listing for this product:
+Name: ${product.name}
+Description: ${product.description}
+Condition: ${product.condition}
+Price: $${product.price}
+Category: ${product.category || "unspecified"}
+Brand: ${product.brand || "unspecified"}
+
+Please generate an SEO-optimized title and description that follows eBay best practices.
+Include relevant keywords and highlight key features.
+
+Format the response as JSON with:
+{
+  "title": "eBay listing title (max 80 chars)",
+  "description": "Detailed HTML description",
+  "suggestedCategory": "Recommended eBay category",
+  "keywords": ["relevant", "search", "terms"]
+}`;
+
+      const result = await model.generateContent(prompt);
+      const text = await result.response.text();
+
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("No JSON object found in response");
+        }
+        const jsonStr = jsonMatch[0];
+        const optimizedListing = JSON.parse(jsonStr);
+
+        // For now, we'll just update the product with mock eBay data
+        // In a real implementation, this would make actual eBay API calls
+        const [updatedProduct] = await db.update(products)
+          .set({
+            ebayListingId: `mock-${Date.now()}`,
+            ebayListingStatus: "active",
+            ebayListingUrl: `https://www.ebay.com/itm/mock-${Date.now()}`,
+            ebayLastSync: new Date(),
+            updatedAt: new Date(),
+            ebayListingData: optimizedListing
+          })
+          .where(eq(products.id, productId))
+          .returning();
+
+        res.json(updatedProduct);
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", parseError);
+        res.status(500).json({
+          error: "Failed to optimize listing",
+          details: parseError instanceof Error ? parseError.message : "Unknown error"
+        });
+      }
+    } catch (error) {
+      console.error("Error generating eBay listing:", error);
+      res.status(500).json({
+        error: "Failed to generate eBay listing",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

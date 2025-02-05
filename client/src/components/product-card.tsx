@@ -18,11 +18,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { 
-  parseAiAnalysis, 
-  formatPrice, 
-  calculatePriceStatus, 
-  type AiAnalysis 
+import {
+  parseAiAnalysis,
+  formatPrice,
+  calculatePriceStatus,
+  type AiAnalysis
 } from "@/lib/json-utils";
 
 interface ProductCardProps {
@@ -408,7 +408,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             view === "grid" ? "w-full" : "w-48 shrink-0"
           )}>
             <img
-              src={product.imageUrl}
+              src={product.imageUrl.startsWith('http') ? product.imageUrl : `/uploads/${product.imageUrl}`}
               alt={product.name}
               className={cn(
                 "object-cover",

@@ -7,9 +7,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Settings2 } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Settings2, Box } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+import ProductCard from "@/components/product-card";
 import {
   type ColumnDef,
   flexRender,
@@ -46,9 +52,34 @@ export function ProductTable({
     brand: true,
     category: true,
     status: true,
+    imageUrl: true,
   });
+  const [selectedProduct, setSelectedProduct] = useState<SelectProduct | null>(null);
+
+  const handleRowClick = useCallback((product: SelectProduct) => {
+    setSelectedProduct(product);
+  }, []);
 
   const columns: ColumnDef<SelectProduct>[] = [
+    {
+      accessorKey: "imageUrl",
+      header: "Image",
+      cell: ({ row }) => (
+        <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+          {row.original.imageUrl ? (
+            <img
+              src={row.original.imageUrl}
+              alt={row.original.name}
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
+              <Box className="w-6 h-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+      ),
+    },
     {
       accessorKey: "name",
       header: "Product Name",
@@ -65,12 +96,12 @@ export function ProductTable({
     {
       accessorKey: "price",
       header: "Price",
-      cell: ({ row }) => formatPrice(row.getValue("price")),
+      cell: ({ row }) => formatPrice(Number(row.getValue("price"))),
     },
     {
       accessorKey: "ebayPrice",
       header: "eBay Price",
-      cell: ({ row }) => formatPrice(row.getValue("ebayPrice")),
+      cell: ({ row }) => formatPrice(Number(row.getValue("ebayPrice"))),
     },
     {
       accessorKey: "condition",
@@ -185,7 +216,10 @@ export function ProductTable({
 
                           const onMouseMove = (e: MouseEvent) => {
                             const width = startWidth + (e.pageX - startX);
-                            header.column.setSize(Math.max(width, 50));
+                            if (header.column.columnDef.size !== undefined) {
+                              header.column.columnDef.size = Math.max(width, 50);
+                              table.setOptions((prev) => ({ ...prev }));
+                            }
                           };
 
                           const onMouseUp = () => {
@@ -213,7 +247,8 @@ export function ProductTable({
                 <tr
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
-                  className="border-t hover:bg-muted/50"
+                  className="border-t hover:bg-muted/50 cursor-pointer"
+                  onClick={() => handleRowClick(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="p-4">
@@ -238,6 +273,22 @@ export function ProductTable({
           </tbody>
         </table>
       </div>
+
+      <Dialog open={!!selectedProduct} onOpenChange={() => setSelectedProduct(null)}>
+        <DialogContent className="max-w-4xl">
+          <DialogHeader>
+            <DialogTitle>Product Details</DialogTitle>
+          </DialogHeader>
+          {selectedProduct && (
+            <ProductCard
+              product={selectedProduct}
+              onEdit={onEdit}
+              inWatchlist={inWatchlist}
+              view="list"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

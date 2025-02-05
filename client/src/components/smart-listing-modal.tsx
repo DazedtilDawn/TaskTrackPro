@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 interface SmartListingModalProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   imageFiles: File[];
   onAnalysisComplete?: (analysis: any) => void;
 }
@@ -23,7 +23,7 @@ const handleError = (error: unknown): string => {
 
 export default function SmartListingModal({
   open,
-  onClose,
+  onOpenChange,
   imageFiles = [],
   onAnalysisComplete,
 }: SmartListingModalProps) {
@@ -98,7 +98,7 @@ export default function SmartListingModal({
       if (onAnalysisComplete) {
         onAnalysisComplete(analysis);
       }
-      onClose();
+      onOpenChange(false);
 
       toast({
         title: "Analysis complete",
@@ -118,7 +118,7 @@ export default function SmartListingModal({
     } finally {
       cleanup();
     }
-  }, [imageFiles, onAnalysisComplete, onClose, toast, cleanup, validateImages]);
+  }, [imageFiles, onAnalysisComplete, onOpenChange, toast, cleanup, validateImages]);
 
   useEffect(() => {
     // Reset state when modal opens/closes
@@ -141,14 +141,14 @@ export default function SmartListingModal({
   // Validate images when modal opens
   useEffect(() => {
     if (open && (!imageFiles?.length)) {
-      onClose();
+      onOpenChange(false);
       toast({
         title: "No images selected",
         description: "Please select at least one image to analyze",
         variant: "destructive",
       });
     }
-  }, [open, imageFiles?.length, onClose, toast]);
+  }, [open, imageFiles?.length, onOpenChange, toast]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -175,12 +175,7 @@ export default function SmartListingModal({
   return (
     <Dialog 
       open={open} 
-      onOpenChange={(isOpen) => {
-        if (!isOpen) {
-          cleanup();
-          onClose();
-        }
-      }}
+      onOpenChange={onOpenChange}
     >
       <DialogContent 
         className="max-w-2xl"

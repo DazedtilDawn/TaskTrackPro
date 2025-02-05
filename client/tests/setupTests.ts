@@ -1,9 +1,10 @@
-import '@testing-library/jest-dom';
+import './test-env';
 import { cleanup } from '@testing-library/react';
 
 // Automatically cleanup after each test
 afterEach(() => {
   cleanup();
+  jest.clearAllMocks();
 });
 
 // Mock IntersectionObserver which isn't available in test environment

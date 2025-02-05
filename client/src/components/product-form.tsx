@@ -874,7 +874,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         <div>
                           <span className="text-sm text-muted-foreground">Recommended Price</span>
                           <div className="text-2xl font-semibold text-primary">
-                            ${form.watch("aiAnalysis.ebayData.recommendedPrice").toFixed(2)}
+                            ${form.watch("aiAnalysis`.ebayData.recommendedPrice").toFixed(2)}
                           </div>
                         </div>
                         <div>
@@ -946,8 +946,8 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           <Button variant="outline" type="button" onClick={onComplete}>
             Cancel
           </Button>
-          <Button 
-            onClick={form.handleSubmit(handleFormSubmit)} 
+          <Button
+            onClick={form.handleSubmit(handleFormSubmit)}
             disabled={form.formState.isSubmitting}
           >
             {form.formState.isSubmitting ? (
@@ -965,6 +965,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         <SmartListingModal
           open={showSmartListing}
           onOpenChange={setShowSmartListing}
+          imageFiles={imageFiles}
           onAnalysisComplete={handleAnalysisComplete}
         />
       )}

@@ -4,9 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
-import { AlertCircle, CheckCircle2, RefreshCcw } from "lucide-react";
-import { useEffect } from "react";
+import { AlertCircle, CheckCircle2, RefreshCcw, Search } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
+import { getEbayPrice } from "@/lib/ebay";
 
 interface User {
   id: string;
@@ -18,6 +19,7 @@ interface User {
 export default function EbayAuthSettings() {
   const { toast } = useToast();
   const [location] = useLocation();
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const { data: user } = useQuery<User>({
     queryKey: ["/api/user"],
@@ -62,6 +64,36 @@ export default function EbayAuthSettings() {
     }
   };
 
+  const testEbayPricing = async () => {
+    try {
+      setTestResult("Testing...");
+      const testProduct = "iPhone 13";
+      console.log("Testing eBay price fetch for:", testProduct);
+
+      const priceData = await getEbayPrice(testProduct);
+      console.log("eBay price test result:", priceData);
+
+      if (priceData) {
+        setTestResult(`Success! Average price: $${priceData.averagePrice}`);
+        toast({
+          title: "Test Successful",
+          description: `Successfully fetched eBay pricing data for ${testProduct}`,
+        });
+      } else {
+        setTestResult("Failed to fetch price data");
+        throw new Error("No price data returned");
+      }
+    } catch (error) {
+      console.error("eBay price test error:", error);
+      setTestResult("Test failed");
+      toast({
+        title: "Test Failed",
+        description: error instanceof Error ? error.message : "Failed to test eBay pricing",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="flex h-screen">
       <Sidebar />
@@ -99,7 +131,20 @@ export default function EbayAuthSettings() {
                         <RefreshCcw className="h-4 w-4" />
                         Reconnect
                       </Button>
+                      <Button
+                        variant="secondary"
+                        onClick={testEbayPricing}
+                        className="gap-2"
+                      >
+                        <Search className="h-4 w-4" />
+                        Test Price Lookup
+                      </Button>
                     </div>
+                    {testResult && (
+                      <p className="text-sm mt-2">
+                        Test Result: {testResult}
+                      </p>
+                    )}
                   </>
                 ) : (
                   <>

@@ -1,7 +1,15 @@
 // client/src/components/product-form.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useForm } from "react-hook-form";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormDescription,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
@@ -11,13 +19,17 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
 import { getEbayMarketAnalysis, checkEbayAuth } from "@/lib/ebay";
 import {
-  Loader2, BarChart2, BookMarked, PackageOpen,
-  Sparkles, Info, TrendingUp, DollarSign
+  Loader2,
+  BarChart2,
+  Sparkles,
+  Info,
+  TrendingUp,
+  DollarSign,
+  PackageOpen,
 } from "lucide-react";
 import { DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import ImageUpload from "@/components/ui/image-upload";
@@ -27,8 +39,9 @@ import SmartListingModal from "@/components/smart-listing-modal";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { formatPrice, parseAiAnalysis, calculatePriceStatus, type AiAnalysis } from "@/lib/json-utils";
 
-// Product form schema
+// --- Product Schema ---
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   description: z.string().min(10, "Description must be at least 10 characters").optional().nullable(),
@@ -49,28 +62,30 @@ const productFormSchema = z.object({
       competitionLevel: z.string(),
       priceSuggestion: z.object({
         min: z.number(),
-        max: z.number()
-      })
+        max: z.number(),
+      }),
     }),
     seoKeywords: z.array(z.string()),
     suggestions: z.array(z.string()),
-    ebayData: z.object({
-      currentPrice: z.number(),
-      averagePrice: z.number(),
-      lowestPrice: z.number(),
-      highestPrice: z.number(),
-      soldCount: z.number(),
-      activeListing: z.number(),
-      recommendedPrice: z.number(),
-      lastUpdated: z.string().optional()
-    }).optional()
+    ebayData: z
+      .object({
+        currentPrice: z.number(),
+        averagePrice: z.number(),
+        lowestPrice: z.number(),
+        highestPrice: z.number(),
+        soldCount: z.number(),
+        activeListing: z.number(),
+        recommendedPrice: z.number(),
+        lastUpdated: z.string().optional(),
+      })
+      .optional(),
   }).optional().nullable(),
   ebayPrice: z.coerce.number().optional().nullable(),
   weight: z.coerce.number().optional().nullable(),
   dimensions: z.string().optional().nullable(),
 });
 
-type ProductFormData = z.infer<typeof productFormSchema>;
+export type ProductFormData = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
   product?: SelectProduct;
@@ -78,6 +93,7 @@ interface ProductFormProps {
   isWatchlistItem?: boolean;
 }
 
+// --- Condition Options ---
 const conditionOptions = [
   { value: "new", label: "New", discount: 1 },
   { value: "open_box", label: "Open Box", discount: 0.85 },
@@ -91,11 +107,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingEbay, setIsLoadingEbay] = useState(false);
   const [isRefiningPrice, setIsRefiningPrice] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasEbayAuth, setHasEbayAuth] = useState<boolean | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
-  const [fullAnalysis, setFullAnalysis] = useState(true); // Changed to true by default
+  const [fullAnalysis, setFullAnalysis] = useState(true); // Enabled by default
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productFormSchema),
@@ -103,12 +118,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       name: product?.name ?? "",
       description: product?.description ?? "",
       sku: product?.sku ?? "",
-      condition: (product?.condition as any) ?? "used_good",
+      condition: product?.condition ?? "used_good",
       brand: product?.brand ?? "",
       category: product?.category ?? "",
       price: product?.price ? Number(product.price) : null,
       buyPrice: null,
-      quantity: isWatchlistItem ? 0 : (product?.quantity ?? 0),
+      quantity: isWatchlistItem ? 0 : product?.quantity ?? 0,
       imageUrl: product?.imageUrl ?? "",
       aiAnalysis: product?.aiAnalysis ?? null,
       ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : null,
@@ -117,73 +132,79 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     },
   });
 
-  // Watch buy price and condition to auto-generate recommended price
   const buyPrice = form.watch("buyPrice");
   const condition = form.watch("condition");
 
-  // Check eBay auth on mount
+  // Check eBay authentication on mount and when full analysis is enabled
   useEffect(() => {
-    const checkAuth = async () => {
+    (async () => {
       const isAuthenticated = await checkEbayAuth();
       setHasEbayAuth(isAuthenticated);
-    };
-    checkAuth();
-  }, []);
 
-  // Auto-generate recommended price when buy price changes
+      // Show warning if full analysis is enabled but eBay isn't connected
+      if (fullAnalysis && !isAuthenticated) {
+        toast({
+          title: "eBay Connection Required",
+          description: "Connect your eBay account to enable market analysis and smart pricing",
+          action: (
+            <Button variant="outline" size="sm" onClick={() => window.location.href = "/settings/ebay-auth"}>
+              Connect eBay
+            </Button>
+          ),
+          duration: 10000, // Show for 10 seconds
+        });
+      }
+    })();
+  }, [fullAnalysis, toast]);
+
+  // Auto-generate sell price when buyPrice changes.
   useEffect(() => {
     if (buyPrice && buyPrice > 0) {
       const conditionData = conditionOptions.find(opt => opt.value === condition);
-      const baseMarkup = 1.4; // 40% markup
-      // For used items, we want to apply a higher markup to account for the condition discount
-      const adjustedMarkup = condition !== 'new' ? baseMarkup / (conditionData?.discount || 1) : baseMarkup;
+      const baseMarkup = 1.4; // 40% markup base.
+      const adjustedMarkup = condition !== "new" ? baseMarkup / (conditionData?.discount || 1) : baseMarkup;
       const recommendedPrice = Math.ceil(buyPrice * adjustedMarkup);
       form.setValue("price", recommendedPrice);
     }
   }, [buyPrice, condition, form]);
 
-  // Update price when eBay data changes
+  // When eBay data becomes available, adjust price accordingly.
   useEffect(() => {
     const ebayData = form.getValues("aiAnalysis.ebayData");
     if (ebayData?.recommendedPrice) {
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const adjustedPrice = Math.floor(ebayData.recommendedPrice * (conditionData?.discount || 1));
-      // Ensure the price is at least 20% higher than buy price
       const minPrice = buyPrice ? Math.ceil(buyPrice * 1.2) : adjustedPrice;
       form.setValue("price", Math.max(adjustedPrice, minPrice));
     }
   }, [condition, buyPrice, form]);
 
+  // --- Action Handlers ---
   const handleAnalyze = async () => {
     const name = form.getValues("name");
     const description = form.getValues("description");
-
     if (!name || !description) {
       form.setError("name", { message: "Product name is required" });
       form.setError("description", { message: "Description is required" });
       return;
     }
-
     setIsAnalyzing(true);
     try {
       const aiResult = await analyzeProduct({ name, description });
       console.log("[Product Analysis] Initial AI analysis:", aiResult);
       form.setValue("aiAnalysis", aiResult);
-
-      // Set initial price based on AI analysis and condition discount
       if (aiResult.marketAnalysis?.priceSuggestion?.min) {
         const conditionData = conditionOptions.find(opt => opt.value === condition);
         const conditionDiscount = conditionData?.discount ?? 1;
         const adjustedPrice = Math.floor(aiResult.marketAnalysis.priceSuggestion.min * conditionDiscount);
         form.setValue("price", adjustedPrice);
       }
-
       toast({
         title: "Analysis complete",
         description: "Product details have been analyzed with AI",
       });
     } catch (error) {
-      console.error('Analysis error:', error);
+      console.error("Analysis error:", error);
       toast({
         title: "Analysis failed",
         description: "Could not analyze product details",
@@ -197,7 +218,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const handleRefineWithEbay = async () => {
     const name = form.getValues("name");
     const currentAnalysis = form.getValues("aiAnalysis");
-
     if (!name || !currentAnalysis) {
       toast({
         title: "Missing details",
@@ -206,13 +226,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       });
       return;
     }
-
     setIsLoadingEbay(true);
     try {
       const marketAnalysis = await getEbayMarketAnalysis(name, currentAnalysis);
       console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
-
-      // Combine the current AI analysis with the new eBay data
+      // Merge eBay data into existing analysis.
       const combinedAnalysis = {
         ...currentAnalysis,
         ebayData: {
@@ -223,44 +241,35 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           soldCount: marketAnalysis.soldCount,
           activeListing: marketAnalysis.activeListing,
           recommendedPrice: marketAnalysis.recommendedPrice,
-          lastUpdated: new Date().toISOString()
+          lastUpdated: new Date().toISOString(),
         },
         marketAnalysis: {
           ...currentAnalysis.marketAnalysis,
           priceSuggestion: {
             min: Math.min(currentAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
-            max: Math.max(currentAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
-          }
-        }
+            max: Math.max(currentAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1),
+          },
+        },
       };
-
       form.setValue("aiAnalysis", combinedAnalysis);
       form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
-
-      // Adjust product price based on condition discount
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
       const adjustedPrice = Math.floor(marketAnalysis.recommendedPrice * conditionDiscount);
-      // Ensure the price is at least 20% higher than buy price
       const minPrice = buyPrice ? Math.ceil(buyPrice * 1.2) : adjustedPrice;
       form.setValue("price", Math.max(adjustedPrice, minPrice));
-
       toast({
         title: "eBay Analysis Complete",
         description: "Product details have been refined with eBay market data",
       });
     } catch (error) {
-      console.error('[Product Analysis] eBay market analysis error:', error);
-      if (error instanceof Error && error.message.includes('eBay authentication required')) {
+      console.error("[Product Analysis] eBay market analysis error:", error);
+      if (error instanceof Error && error.message.includes("eBay authentication required")) {
         toast({
           title: "eBay Authentication Required",
           description: "Please connect your eBay account in Settings to include market data",
           action: (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.location.href = "/settings/ebay-auth"}
-            >
+            <Button variant="outline" size="sm" onClick={() => window.location.href = "/settings/ebay-auth"}>
               Connect eBay
             </Button>
           ),
@@ -280,7 +289,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const handleRefinePricing = async () => {
     const currentAnalysis = form.getValues("aiAnalysis");
     const currentPrice = form.getValues("price");
-
     if (!currentAnalysis || !currentPrice) {
       toast({
         title: "Missing details",
@@ -289,31 +297,22 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       });
       return;
     }
-
     setIsRefiningPrice(true);
     try {
-      // Build the payload
-      const buyPrice = form.getValues("ebayPrice") || currentPrice;
-      const condition = form.getValues("condition");
+      const buyPriceValue = form.getValues("ebayPrice") || currentPrice;
+      const conditionVal = form.getValues("condition");
       const category = form.getValues("category") || "";
       const payload: any = {
-        buyPrice,
+        buyPrice: buyPriceValue,
         currentPrice,
-        condition,
+        condition: conditionVal,
         category,
       };
-      if (product?.id) {
-        payload.productId = product.id;
-      }
-
+      if (product?.id) payload.productId = product.id;
       console.log("Refine Pricing payload:", payload);
       const response = await apiRequest("POST", "/api/generate-sale-price", payload);
       const result = await response.json();
-
-      if (result.error) {
-        throw new Error(result.error);
-      }
-
+      if (result.error) throw new Error(result.error);
       form.setValue("price", result.recommendedSalePrice);
       toast({
         title: "Price Refined",
@@ -333,9 +332,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
   const handleImagesUploaded = (files: File[]) => {
     setImageFiles(files);
-    if (files.length > 0) {
-      setShowSmartListing(true);
-    }
+    if (files.length > 0) setShowSmartListing(true);
   };
 
   const runFullAnalysis = async () => {
@@ -350,7 +347,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         description: "All analysis steps have been completed successfully",
       });
     } catch (error) {
-      console.error('Full analysis chain failed:', error);
+      console.error("Full analysis chain failed:", error);
       toast({
         title: "Analysis Error",
         description: error instanceof Error ? error.message : "An error occurred during analysis",
@@ -361,37 +358,24 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
   const handleAnalysisComplete = async (analysis: any) => {
     form.setValue("aiAnalysis", analysis);
-    if (analysis.title) {
-      form.setValue("name", analysis.title);
-    }
-    if (analysis.description) {
-      form.setValue("description", analysis.description);
-    }
-    if (analysis.category) {
-      form.setValue("category", analysis.category);
-    }
+    if (analysis.title) form.setValue("name", analysis.title);
+    if (analysis.description) form.setValue("description", analysis.description);
+    if (analysis.category) form.setValue("category", analysis.category);
     if (analysis.marketAnalysis?.priceSuggestion?.min) {
-      const condition = form.getValues("condition");
       const conditionData = conditionOptions.find(opt => opt.value === condition);
       const conditionDiscount = conditionData?.discount ?? 1;
-      const adjustedPrice = Math.floor(
-        analysis.marketAnalysis.priceSuggestion.min * conditionDiscount
-      );
+      const adjustedPrice = Math.floor(analysis.marketAnalysis.priceSuggestion.min * conditionDiscount);
       form.setValue("price", adjustedPrice);
     }
-
     setShowSmartListing(false);
     toast({
       title: "Analysis Complete",
-      description: "Product details have been analyzed from images"
+      description: "Product details have been analyzed from images",
     });
-
-    // If full analysis is enabled and we have eBay auth, continue with the chain
     if (fullAnalysis && hasEbayAuth) {
       await runFullAnalysis();
     }
   };
-
 
   return (
     <DialogContent className="max-w-2xl overflow-hidden">
@@ -404,68 +388,50 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           Required fields are marked with an asterisk (*).
         </DialogDescription>
       </DialogHeader>
-
       <ScrollArea className="max-h-[80vh]">
         <div className="p-6">
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(async (data) => {
-              try {
-                setIsSubmitting(true);
-                const formData = new FormData();
-
-                // Add all form fields to FormData
-                Object.entries(data).forEach(([key, value]) => {
-                  if (key === 'aiAnalysis' && value) {
-                    formData.append(key, JSON.stringify(value));
-                  } else if (value !== null && value !== undefined) {
-                    formData.append(key, value.toString());
-                  }
-                });
-
-                // Add isWatchlistItem flag
-                formData.append('isWatchlistItem', isWatchlistItem ? 'true' : 'false');
-
-                // Add image file if present
-                if (imageFiles.length > 0) {
-                  formData.append('image', imageFiles[0]);
+            <form
+              onSubmit={form.handleSubmit(async (data) => {
+                try {
+                  const formData = new FormData();
+                  Object.entries(data).forEach(([key, value]) => {
+                    if (key === "aiAnalysis" && value) {
+                      formData.append(key, JSON.stringify(value));
+                    } else if (value !== null && value !== undefined) {
+                      formData.append(key, value.toString());
+                    }
+                  });
+                  formData.append("isWatchlistItem", isWatchlistItem ? "true" : "false");
+                  if (imageFiles.length > 0) formData.append("image", imageFiles[0]);
+                  const endpoint = product ? `/api/products/${product.id}` : "/api/products";
+                  const method = product ? "PATCH" : "POST";
+                  const response = await fetch(endpoint, {
+                    method,
+                    body: formData,
+                    credentials: "include",
+                  });
+                  if (!response.ok) throw new Error("Failed to save product");
+                  await Promise.all([
+                    queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+                    queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+                  ]);
+                  toast({
+                    title: product ? "Product updated" : "Product created",
+                    description: data.name.trim(),
+                  });
+                  onComplete();
+                } catch (error) {
+                  console.error("Form submission error:", error);
+                  toast({
+                    title: "Error",
+                    description: "Failed to save product",
+                    variant: "destructive",
+                  });
                 }
-
-                // Submit the form data
-                const endpoint = product ? `/api/products/${product.id}` : "/api/products";
-                const method = product ? "PATCH" : "POST";
-
-                const response = await fetch(endpoint, {
-                  method,
-                  body: formData,
-                  credentials: 'include'
-                });
-
-                if (!response.ok) {
-                  throw new Error(`Failed to save product: ${response.statusText}`);
-                }
-
-                // Invalidate both products and watchlist queries to ensure UI updates
-                await Promise.all([
-                  queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
-                  queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
-                ]);
-
-                toast({
-                  title: product ? "Product updated" : "Product created",
-                  description: data.name.trim(),
-                });
-                onComplete();
-              } catch (error) {
-                console.error('Form submission error:', error);
-                toast({
-                  title: "Error",
-                  description: "Failed to save product",
-                  variant: "destructive",
-                });
-              } finally {
-                setIsSubmitting(false);
-              }
-            })} className="space-y-8">
+              })}
+              className="space-y-8"
+            >
               <div className="space-y-6">
                 {/* Image Upload Section */}
                 <Card className="p-6">
@@ -474,7 +440,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                       <div>
                         <FormLabel>Product Images</FormLabel>
                         <FormDescription>
-                          Upload clear, high-quality images of your product
+                          Upload clear, high-quality images of your product.
                         </FormDescription>
                       </div>
                     </div>
@@ -496,13 +462,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               Product Name <span className="text-destructive">*</span>
                             </FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter product name" value={field.value ?? ''} />
+                              <Input {...field} placeholder="Enter product name" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="brand"
@@ -510,14 +475,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Brand</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter brand name" value={field.value ?? ''} />
+                              <Input {...field} placeholder="Enter brand name" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-
                     <FormField
                       control={form.control}
                       name="description"
@@ -527,15 +491,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                             Description <span className="text-destructive">*</span>
                           </FormLabel>
                           <FormControl>
-                            <Textarea
-                              {...field}
-                              placeholder="Describe the product's features, specifications, and condition"
-                              className="min-h-[100px]"
-                              value={field.value ?? ''}
-                            />
+                            <Textarea {...field} placeholder="Describe the product's features, specifications, and condition" className="min-h-[100px]" />
                           </FormControl>
                           <FormDescription>
-                            Include details about features, specifications, and any notable characteristics
+                            Include details about features, specifications, and notable characteristics.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -544,7 +503,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   </div>
                 </Card>
 
-                {/* Pricing Section */}
+                {/* Pricing & Condition Section */}
                 <Card className="p-6">
                   <h3 className="font-medium text-lg mb-4">Pricing & Condition</h3>
                   <div className="space-y-4">
@@ -558,24 +517,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                             <FormControl>
                               <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  {...field}
-                                  className="pl-9"
-                                  placeholder="0.00"
-                                  value={field.value ?? ''}
-                                />
+                                <Input type="number" step="0.01" {...field} className="pl-9" placeholder="0.00" />
                               </div>
                             </FormControl>
                             <FormDescription>
-                              Enter your purchase price to calculate recommended selling price
+                              Enter your purchase price to calculate the recommended selling price.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="price"
@@ -587,19 +538,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                             <FormControl>
                               <div className="relative">
                                 <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                  type="number"
-                                  step="0.01"
-                                  {...field}
-                                  className="pl-9"
-                                  placeholder="0.00"
-                                  value={field.value ?? ''}
-                                />
+                                <Input type="number" step="0.01" {...field} className="pl-9" placeholder="0.00" />
                               </div>
                             </FormControl>
                             {buyPrice && (
                               <FormDescription>
-                                Recommended based on buy price and condition
+                                Automatically calculated based on buy price and condition.
                               </FormDescription>
                             )}
                             <FormMessage />
@@ -607,7 +551,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         )}
                       />
                     </div>
-
                     <div className="grid gap-4 grid-cols-2">
                       <FormField
                         control={form.control}
@@ -615,14 +558,14 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Condition</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value ?? 'used_good'}>
+                            <Select onValueChange={field.onChange} defaultValue={field.value || "used_good"}>
                               <FormControl>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select condition" />
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                {conditionOptions.map(option => (
+                                {conditionOptions.map((option) => (
                                   <SelectItem key={option.value} value={option.value}>
                                     <span className="flex items-center gap-2">
                                       <PackageOpen className="h-4 w-4" />
@@ -633,13 +576,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               </SelectContent>
                             </Select>
                             <FormDescription>
-                              Affects the recommended selling price calculation
+                              This affects the recommended selling price calculation.
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="quantity"
@@ -647,7 +589,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Quantity</FormLabel>
                             <FormControl>
-                              <Input type="number" {...field} value={field.value ?? ''} />
+                              <Input type="number" {...field} placeholder="0" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -669,13 +611,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>SKU</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Product SKU" value={field.value ?? ''} />
+                              <Input {...field} placeholder="Product SKU" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="category"
@@ -683,14 +624,13 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Category</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Product category" value={field.value ?? ''} />
+                              <Input {...field} placeholder="Product category" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
                     </div>
-
                     <div className="grid gap-4 grid-cols-2">
                       <FormField
                         control={form.control}
@@ -699,19 +639,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Weight (lbs)</FormLabel>
                             <FormControl>
-                              <Input
-                                type="number"
-                                step="0.1"
-                                {...field}
-                                placeholder="0.0"
-                                value={field.value ?? ''}
-                              />
+                              <Input type="number" step="0.1" {...field} placeholder="0.0" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
                       />
-
                       <FormField
                         control={form.control}
                         name="dimensions"
@@ -719,11 +652,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Dimensions</FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="L x W x H (inches)"
-                                value={field.value ?? ''}
-                              />
+                              <Input {...field} placeholder="L x W x H (inches)" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -733,7 +662,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   </div>
                 </Card>
 
-                {/* AI Analysis Section */}
+                {/* AI Analysis & eBay Refinement Section */}
                 <div className="flex justify-between items-center">
                   <div className="flex gap-2">
                     <Button
@@ -743,19 +672,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                       disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
                       className="gap-2"
                     >
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          {fullAnalysis ? "Run Full Analysis" : "Analyze Product"}
-                        </>
-                      )}
+                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                      {fullAnalysis ? "Run Full Analysis" : "Analyze Product"}
                     </Button>
-
                     {hasEbayAuth && !fullAnalysis && (
                       <Button
                         type="button"
@@ -764,30 +683,36 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
                         className="gap-2"
                       >
-                        {isLoadingEbay ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Loading...
-                          </>
-                        ) : (
-                          <>
-                            <BarChart2 className="mr-2 h-4 w-4" />
-                            Refine with eBay
-                          </>
-                        )}
+                        {isLoadingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
+                        Refine with eBay
                       </Button>
                     )}
                   </div>
-
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={fullAnalysis}
-                      onCheckedChange={setFullAnalysis}
-                      id="full-analysis"
-                    />
-                    <Label htmlFor="full-analysis" className="text-sm">
-                      Full Analysis Mode
-                    </Label>
+                  {/* Full Analysis Toggle */}
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <Switch
+                        checked={fullAnalysis}
+                        onCheckedChange={setFullAnalysis}
+                        id="full-analysis"
+                      />
+                      <Label htmlFor="full-analysis" className="text-sm font-medium">
+                        Full Analysis Mode
+                      </Label>
+                    </div>
+                    <div className="text-sm text-muted-foreground">
+                      {fullAnalysis ? (
+                        <span className="flex items-center gap-1">
+                          <Sparkles className="h-4 w-4" />
+                          Includes AI analysis, eBay market data, and smart pricing
+                          {!hasEbayAuth && (
+                            <span className="text-destructive"> (eBay connection required)</span>
+                          )}
+                        </span>
+                      ) : (
+                        "Enable for comprehensive product analysis"
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -823,37 +748,31 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               <div>
                                 <span className="text-sm text-muted-foreground">Suggested Price Range</span>
                                 <div className="text-lg font-medium">
-                                  ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.min").toFixed(2)} -
-                                  ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.max").toFixed(2)}
+                                  ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.min").toFixed(2)} - ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.max").toFixed(2)}
                                 </div>
                               </div>
                             )}
                           </div>
                         </div>
-
                         <div>
                           {form.watch("aiAnalysis.seoKeywords") && (
                             <>
                               <h4 className="font-medium mb-2">SEO Keywords</h4>
                               <div className="flex flex-wrap gap-2">
                                 {form.watch("aiAnalysis.seoKeywords").map((keyword: string, index: number) => (
-                                  <span
-                                    key={index}
-                                    className="px-2 py-1 bg-primary/10 rounded-md text-sm"
-                                  >
+                                  <span key={index} className="px-2 py-1 bg-primary/10 rounded-md text-sm">
                                     {keyword}
                                   </span>
                                 ))}
                               </div>
                             </>
                           )}
-
                           {form.watch("aiAnalysis.suggestions") && (
                             <>
                               <h4 className="font-medium mt-4 mb-2">Suggestions</h4>
                               <ul className="space-y-1 text-sm">
                                 {form.watch("aiAnalysis.suggestions").map((suggestion: string, index: number) => (
-                                  <li key={index} className="flex items-center gap-2">
+                                  <li key={index} className="flex items-center gap-2 pl-4 border-l-2 border-primary/20">
                                     <Info className="h-4 w-4 text-primary" />
                                     {suggestion}
                                   </li>
@@ -867,7 +786,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   </Card>
                 )}
 
-                {/* Display eBay Market Data if available */}
+                {/* Display eBay Market Data Section */}
                 {form.watch("aiAnalysis.ebayData") && (
                   <Card className="p-6 border-primary/20">
                     <div className="space-y-6">
@@ -877,10 +796,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <h3 className="font-semibold text-lg">eBay Market Data</h3>
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          Last updated: {new Date(form.watch("aiAnalysis.ebayData.lastUpdated") || '').toLocaleString()}
+                          Last updated: {new Date(form.watch("aiAnalysis.ebayData.lastUpdated") || "").toLocaleString()}
                         </div>
                       </div>
-
                       <div className="grid grid-cols-2 gap-6">
                         <div className="space-y-4">
                           <div>
@@ -908,7 +826,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                             </div>
                           </div>
                         </div>
-
                         <div className="space-y-4">
                           <div>
                             <span className="text-sm text-muted-foreground">Recommended Price</span>
@@ -956,19 +873,18 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   </Card>
                 )}
               </div>
-
               <div className="flex justify-between pt-6">
                 <Button type="button" variant="ghost" onClick={onComplete}>
                   Cancel
                 </Button>
                 <Button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={form.formState.isSubmitting}
                   className="min-w-[120px]"
                 >
-                  {isSubmitting ? (
+                  {form.formState.isSubmitting ? (
                     <>
-                      <Loader2 className="mr-2h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Saving...
                     </>
                   ) : (
@@ -978,7 +894,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
               </div>
             </form>
           </Form>
-
           {showSmartListing && (
             <SmartListingModal
               open={showSmartListing}

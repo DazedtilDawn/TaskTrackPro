@@ -1,17 +1,20 @@
+import { useState } from "react";
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 import { useQuery } from "@tanstack/react-query";
 import ProductCard from "@/components/product-card";
+import { ProductTable } from "@/components/product-table";
 import ViewToggle from "@/components/view-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useState } from "react";
 import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import ProductForm from "@/components/product-form";
 import { cn } from "@/lib/utils";
 import { useViewPreference } from "@/hooks/use-view-preference";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 interface WatchlistItem {
   id: number;
@@ -22,6 +25,7 @@ interface WatchlistItem {
 }
 
 export default function Watchlist() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
@@ -46,9 +50,41 @@ export default function Watchlist() {
     setIsDialogOpen(true);
   };
 
+  const handleDelete = async (product: SelectProduct) => {
+    try {
+      const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+      ]);
+
+      toast({
+        title: "Removed from watchlist",
+        description: product.name,
+      });
+    } catch (error) {
+      console.error('Watchlist removal failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove from watchlist",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleDialogClose = () => {
     setSelectedProduct(undefined);
     setIsDialogOpen(false);
+  };
+
+  const toggleWatchlist = async (product: SelectProduct) => {
+    await handleDelete(product);
   };
 
   return (
@@ -87,33 +123,33 @@ export default function Watchlist() {
             </div>
           ) : (
             <>
-              {view === "table" && (
-                <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
-                  <div className="w-12">Image</div>
-                  <div className="flex-1">Product Details</div>
-                  <div className="w-32">Price</div>
-                  <div className="w-24">Condition</div>
-                  <div className="w-32">Market Status</div>
-                  <div className="w-40">Actions</div>
+              {view === "table" ? (
+                <ProductTable
+                  products={filteredWatchlist.map(item => item.product)}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  onToggleWatchlist={toggleWatchlist}
+                  inWatchlist={true}
+                />
+              ) : (
+                <div className={cn(
+                  view === "grid"
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                    : view === "list"
+                      ? "space-y-4"
+                      : "divide-y"
+                )}>
+                  {filteredWatchlist.map((item) => (
+                    <ProductCard
+                      key={item.id}
+                      product={item.product}
+                      onEdit={handleEdit}
+                      inWatchlist={true}
+                      view={view}
+                    />
+                  ))}
                 </div>
               )}
-              <div className={cn(
-                view === "grid" 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : view === "list"
-                    ? "space-y-4"
-                    : "divide-y"
-              )}>
-                {filteredWatchlist.map((item) => (
-                  <ProductCard
-                    key={item.id}
-                    product={item.product}
-                    onEdit={handleEdit}
-                    inWatchlist={true}
-                    view={view}
-                  />
-                ))}
-              </div>
 
               {filteredWatchlist.length === 0 && (
                 <div className="text-center text-muted-foreground mt-12">

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import ProductCard from "@/components/product-card";
+import { ProductTable } from "@/components/product-table";
 import ProductForm from "@/components/product-form";
 import BatchAnalysisDialog from "@/components/batch-analysis-dialog";
 import { Plus, Search, Sparkles } from "lucide-react";
@@ -13,8 +14,11 @@ import { type SelectProduct, type SelectWatchlist } from "@db/schema";
 import { useViewPreference } from "@/hooks/use-view-preference";
 import ViewToggle from "@/components/view-toggle";
 import { cn } from "@/lib/utils";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Inventory() {
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isBatchAnalysisOpen, setIsBatchAnalysisOpen] = useState(false);
@@ -39,6 +43,73 @@ export default function Inventory() {
   const handleEdit = (product: SelectProduct) => {
     setSelectedProduct(product);
     setIsDialogOpen(true);
+  };
+
+  const handleDelete = async (product: SelectProduct) => {
+    try {
+      const response = await apiRequest("DELETE", `/api/products/${product.id}`);
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+      ]);
+
+      toast({
+        title: "Product deleted",
+        description: product.name,
+      });
+    } catch (error) {
+      console.error('Product deletion failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete product",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const toggleWatchlist = async (product: SelectProduct) => {
+    try {
+      if (watchlistIds.has(product.id)) {
+        const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
+        const result = await response.json();
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+      } else {
+        const response = await apiRequest("POST", "/api/watchlist", {
+          productId: product.id
+        });
+        const result = await response.json();
+
+        if (result.error) {
+          throw new Error(result.error);
+        }
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+      ]);
+
+      toast({
+        title: watchlistIds.has(product.id) ? "Removed from watchlist" : "Added to watchlist",
+        description: product.name,
+      });
+    } catch (error) {
+      console.error('Watchlist operation failed:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update watchlist",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleDialogClose = () => {
@@ -84,35 +155,32 @@ export default function Inventory() {
             </div>
           </div>
 
-          {view === "table" && (
-            <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
-              <div className="w-12">Image</div>
-              <div className="flex-1">Product Details</div>
-              <div className="w-32">List Price</div>
-              <div className="w-32">eBay Price</div>
-              <div className="w-24">Condition</div>
-              <div className="w-32">Market Status</div>
-              <div className="w-40">Actions</div>
+          {view === "table" ? (
+            <ProductTable
+              products={filteredProducts}
+              onEdit={handleEdit}
+              onDelete={handleDelete}
+              onToggleWatchlist={toggleWatchlist}
+            />
+          ) : (
+            <div className={cn(
+              view === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : view === "list"
+                  ? "space-y-4"
+                  : "divide-y"
+            )}>
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onEdit={handleEdit}
+                  inWatchlist={watchlistIds.has(product.id)}
+                  view={view}
+                />
+              ))}
             </div>
           )}
-
-          <div className={cn(
-            view === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : view === "list"
-                ? "space-y-4"
-                : "divide-y"
-          )}>
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onEdit={handleEdit}
-                inWatchlist={watchlistIds.has(product.id)}
-                view={view}
-              />
-            ))}
-          </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="max-w-2xl">

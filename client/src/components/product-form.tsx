@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,11 @@ import { type InsertProduct, type SelectProduct } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
-import { getEbayMarketAnalysis } from "@/lib/ebay";
-import { Loader2, BarChart2, Tag, TrendingUp, BookMarked, PackageOpen, Sparkles, InfoIcon, Info } from "lucide-react";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { getEbayMarketAnalysis, checkEbayAuth } from "@/lib/ebay";
+import { Loader2, BarChart2, Tag, TrendingUp, BookMarked, PackageOpen, Sparkles, Info } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import ImageUpload from "@/components/ui/image-upload";
 import SmartListingModal from "@/components/smart-listing-modal";
 import { Progress } from "@/components/ui/progress";
@@ -22,6 +23,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
 // Schema update for better validation
 const productFormSchema = z.object({
@@ -60,6 +63,8 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingEbay, setIsLoadingEbay] = useState(false);
+  const [includeEbayData, setIncludeEbayData] = useState(true);
+  const [hasEbayAuth, setHasEbayAuth] = useState<boolean | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
 
@@ -281,40 +286,77 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       const aiAnalysis = await analyzeProduct({ name, description });
       console.log("[Product Analysis] Initial AI analysis:", aiAnalysis);
 
-      // Then get eBay market data and refined analysis
-      setIsLoadingEbay(true);
-      const marketAnalysis = await getEbayMarketAnalysis(name, aiAnalysis);
-      console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
+      // Then get eBay market data if enabled and authenticated
+      let marketAnalysis = null;
+      if (includeEbayData && hasEbayAuth) {
+        try {
+          setIsLoadingEbay(true);
+          marketAnalysis = await getEbayMarketAnalysis(name, aiAnalysis);
+          console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
 
-      // Combine AI and eBay analysis
-      const combinedAnalysis = {
-        ...aiAnalysis,
-        ebayData: marketAnalysis,
-        marketAnalysis: {
-          ...aiAnalysis.marketAnalysis,
-          priceSuggestion: {
-            min: Math.min(aiAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
-            max: Math.max(aiAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
+          // Combine AI and eBay analysis
+          const combinedAnalysis = {
+            ...aiAnalysis,
+            ebayData: marketAnalysis,
+            marketAnalysis: {
+              ...aiAnalysis.marketAnalysis,
+              priceSuggestion: {
+                min: Math.min(aiAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
+                max: Math.max(aiAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
+              }
+            }
+          };
+
+          form.setValue("aiAnalysis", combinedAnalysis);
+          form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
+
+          // Set optimal price based on condition and market data
+          const condition = form.getValues("condition");
+          const conditionData = conditionOptions.find(opt => opt.value === condition);
+          const conditionDiscount = conditionData?.discount ?? 1;
+
+          const adjustedPrice = Math.floor(
+            marketAnalysis.aiSuggestedPrice! * conditionDiscount
+          );
+          form.setValue("price", adjustedPrice);
+        } catch (error) {
+          console.error('[Product Analysis] eBay market analysis error:', error);
+          if (error instanceof Error && error.message.includes('eBay authentication required')) {
+            toast({
+              title: "eBay Authentication Required",
+              description: "Please connect your eBay account in Settings to include market data",
+              action: (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = "/settings/ebay-auth"}
+                >
+                  Connect eBay
+                </Button>
+              ),
+            });
+          } else {
+            toast({
+              title: "eBay Market Analysis Failed",
+              description: "Could not fetch eBay market data. Using AI analysis only.",
+              variant: "destructive",
+            });
           }
+          // Continue with just AI analysis
+          form.setValue("aiAnalysis", aiAnalysis);
+        } finally {
+          setIsLoadingEbay(false);
         }
-      };
-
-      form.setValue("aiAnalysis", combinedAnalysis);
-      form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
-
-      // Set optimal price based on condition and market data
-      const condition = form.getValues("condition");
-      const conditionData = conditionOptions.find(opt => opt.value === condition);
-      const conditionDiscount = conditionData?.discount ?? 1;
-
-      const adjustedPrice = Math.floor(
-        marketAnalysis.aiSuggestedPrice! * conditionDiscount
-      );
-      form.setValue("price", adjustedPrice);
+      } else {
+        // If eBay data not included, just use AI analysis
+        form.setValue("aiAnalysis", aiAnalysis);
+      }
 
       toast({
         title: "Analysis complete",
-        description: "Product details have been analyzed with eBay market data",
+        description: marketAnalysis
+          ? "Product details have been analyzed with eBay market data"
+          : "Product details have been analyzed",
       });
     } catch (error) {
       console.error('Analysis error:', error);
@@ -325,9 +367,18 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       });
     } finally {
       setIsAnalyzing(false);
-      setIsLoadingEbay(false);
     }
   };
+
+  useEffect(() => {
+    // Check eBay auth status when component mounts
+    const checkAuth = async () => {
+      const isAuthenticated = await checkEbayAuth();
+      setHasEbayAuth(isAuthenticated);
+      setIncludeEbayData(isAuthenticated); // Only enable by default if authenticated
+    };
+    checkAuth();
+  }, []);
 
   return (
     <DialogContent className="max-w-2xl overflow-hidden">
@@ -354,28 +405,52 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           Upload clear, high-quality images of your product
                         </FormDescription>
                       </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="gap-2"
-                        onClick={analyzeProductDetails}
-                        disabled={isAnalyzing || isLoadingEbay || !form.getValues("name") || !form.getValues("description")}
-                      >
-                        {isAnalyzing ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : isLoadingEbay ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                            Checking eBay
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="h-4 w-4" />
-                            Analyze Product
-                          </>
+                      <div className="space-y-2">
+                        {hasEbayAuth !== null && (
+                          <div className="flex items-center space-x-2 mb-2">
+                            <Switch
+                              checked={includeEbayData}
+                              onCheckedChange={setIncludeEbayData}
+                              disabled={!hasEbayAuth}
+                            />
+                            <Label className="cursor-pointer">
+                              Include eBay Market Data
+                            </Label>
+                          </div>
                         )}
-                      </Button>
+                        {!hasEbayAuth && (
+                          <Alert className="py-2">
+                            <AlertDescription className="text-sm">
+                              Connect your eBay account to access market pricing data.{' '}
+                              <a href="/settings/ebay-auth" className="font-medium underline">
+                                Connect Now
+                              </a>
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                          onClick={analyzeProductDetails}
+                          disabled={isAnalyzing || isLoadingEbay || !form.getValues("name") || !form.getValues("description")}
+                        >
+                          {isAnalyzing ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : isLoadingEbay ? (
+                            <>
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                              Checking eBay
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-4 w-4" />
+                              Analyze Product
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <ImageUpload onImagesUploaded={handleImagesUploaded} />
                   </div>
@@ -554,7 +629,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Brand</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter brand name" />
+                              <Input {...field} placeholder="Enter brand name" value={field.value || ''} />
                             </FormControl>
                           </FormItem>
                         )}
@@ -626,7 +701,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           <FormItem>
                             <FormLabel>Category</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Product category" />
+                              <Input {...field} placeholder="Product category" value={field.value || ''} />
                             </FormControl>
                           </FormItem>
                         )}
@@ -641,7 +716,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                       <h3 className="text-lg font-semibold">Inventory Details</h3>
                       <Tooltip>
                         <TooltipTrigger>
-                          <InfoIcon className="h-4 w-4 text-muted-foreground" />
+                          <Info className="h-4 w-4 text-muted-foreground" />
                         </TooltipTrigger>
                         <TooltipContent>
                           <p>Enter pricing and inventory information</p>
@@ -718,22 +793,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         name="sku"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="flex items-center gap-2">
-                              SKU
-                              <Tooltip>
-                                <TooltipTrigger>
-                                  <Info className="h-4 w-4 text-muted-foreground" />
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p className="w-[200px] text-sm">
-                                    Stock Keeping Unit - A unique identifier for your product.
-                                    Useful for inventory tracking.
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </FormLabel>
+                            <FormLabel>SKU</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter SKU" />
+                              <Input {...field} placeholder="Enter SKU" value={field.value || ''} />
                             </FormControl>
                           </FormItem>
                         )}
@@ -764,19 +826,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                       name="dimensions"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="flex items-center gap-2">
-                            Dimensions (L × W × H inches)
-                            <Tooltip>
-                              <TooltipTrigger>
-                                <Info className="h-4 w-4 text-muted-foreground" />
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p className="w-[200px] text-sm">
-                                  Enter the product dimensions in inches (length x width x height).
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </FormLabel>
+                          <FormLabel>Dimensions (L × W × H inches)</FormLabel>
                           <FormControl>
                             <Input {...field} value={field.value ?? ''} placeholder="e.g., 12 × 8 × 4" />
                           </FormControl>
@@ -807,8 +857,8 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
                   <SmartListingModal
                     open={showSmartListing}
-                    onOpenChange={setShowSmartListing}
-                    files={imageFiles}
+                    onClose={() => setShowSmartListing(false)}
+                    imageFiles={imageFiles}
                     onAnalysisComplete={handleAnalysisComplete}
                   />
                 </form>

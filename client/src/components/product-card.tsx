@@ -254,8 +254,9 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
   if (view === "table") {
     return (
-      <>
-        <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
+      <div className="group/row relative">
+        <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors">
+          {/* Product Image */}
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
             {product.imageUrl ? (
               <img
@@ -270,14 +271,16 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             )}
           </div>
 
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium truncate">{product.name}</h3>
-            <p className="text-sm text-muted-foreground truncate">
+          {/* Product Name and Description */}
+          <div className="flex-1 min-w-0 w-[300px]">
+            <h3 className="font-medium line-clamp-1">{product.name}</h3>
+            <p className="text-sm text-muted-foreground line-clamp-1">
               {product.description}
             </p>
           </div>
 
-          <div className="flex-shrink-0 w-32">
+          {/* Listing Price */}
+          <div className="flex-shrink-0 w-[120px]">
             <div className="text-sm font-medium">
               ${Number(product.price).toFixed(2)}
             </div>
@@ -286,7 +289,8 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           </div>
 
-          <div className="flex-shrink-0 w-32">
+          {/* eBay Price */}
+          <div className="flex-shrink-0 w-[120px]">
             {product.ebayPrice ? (
               <>
                 <div className="text-sm font-medium">
@@ -299,17 +303,19 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             )}
           </div>
 
-          <div className="flex-shrink-0 w-24">
+          {/* Condition */}
+          <div className="flex-shrink-0 w-[100px]">
             <span className="text-sm capitalize">
               {product.condition?.replace(/_/g, ' ') || 'Not Specified'}
             </span>
           </div>
 
+          {/* AI Analysis */}
           {hasAnalysis && (
-            <div className="flex-shrink-0 w-32">
+            <div className="flex-shrink-0 w-[150px]">
               <div
                 className={cn(
-                  "text-xs px-2 py-1 rounded-full inline-flex items-center gap-1",
+                  "text-xs px-2 py-1 rounded-full inline-flex items-center gap-1 font-medium",
                   isUnderpriced && "bg-yellow-500/10 text-yellow-700",
                   isOverpriced && "bg-red-500/10 text-red-700",
                   isPricedRight && "bg-green-500/10 text-green-700"
@@ -322,13 +328,14 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               </div>
               {aiAnalysis?.marketAnalysis?.priceSuggestion && (
                 <div className="text-xs text-muted-foreground mt-1">
-                  ${aiAnalysis.marketAnalysis.priceSuggestion.min} - ${aiAnalysis.marketAnalysis.priceSuggestion.max}
+                  ${aiAnalysis.marketAnalysis.priceSuggestion.min.toFixed(2)} - ${aiAnalysis.marketAnalysis.priceSuggestion.max.toFixed(2)}
                 </div>
               )}
             </div>
           )}
 
-          <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 absolute right-4 bg-background/95 rounded-lg shadow-sm z-50">
+          {/* Actions */}
+          <div className="flex-shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-100 absolute right-4 bg-background/95 rounded-lg shadow-sm z-50">
             <div className="flex items-center gap-1 p-1">
               <Button
                 size="icon"
@@ -395,7 +402,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl, '_blank')}
+                      onClick={() => window.open(product.ebayListingUrl || '', '_blank')}
                       className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
                     >
@@ -412,7 +419,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
           open={showConvertDialog}
           onOpenChange={setShowConvertDialog}
         />
-      </>
+      </div>
     );
   }
 

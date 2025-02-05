@@ -333,7 +333,16 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           // Combine AI and eBay analysis
           const combinedAnalysis = {
             ...aiAnalysis,
-            ebayData: marketAnalysis,
+            ebayData: {
+              currentPrice: marketAnalysis.currentPrice,
+              averagePrice: marketAnalysis.averagePrice,
+              lowestPrice: marketAnalysis.lowestPrice,
+              highestPrice: marketAnalysis.highestPrice,
+              soldCount: marketAnalysis.soldCount,
+              activeListing: marketAnalysis.activeListing,
+              recommendedPrice: marketAnalysis.recommendedPrice,
+              lastUpdated: new Date().toISOString()
+            },
             marketAnalysis: {
               ...aiAnalysis.marketAnalysis,
               priceSuggestion: {
@@ -343,6 +352,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
             }
           };
 
+          console.log("[Product Analysis] Combined analysis:", combinedAnalysis);
           form.setValue("aiAnalysis", combinedAnalysis);
           form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
 
@@ -352,7 +362,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           const conditionDiscount = conditionData?.discount ?? 1;
 
           const adjustedPrice = Math.floor(
-            marketAnalysis.aiSuggestedPrice! * conditionDiscount
+            marketAnalysis.recommendedPrice * conditionDiscount
           );
           form.setValue("price", adjustedPrice);
         } catch (error) {
@@ -852,26 +862,15 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         name="quantity"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>
-                              Quantity <span className="text-destructive">*</span>
-                            </FormLabel>
+                            <FormLabel>Quantity</FormLabel>
                             <FormControl>
                               <Input
                                 type="number"
                                 {...field}
-                                value={field.value}
-                                onChange={e => field.onChange(Number(e.target.value))}
-                                placeholder="0"
-                                className={cn(
-                                  form.formState.errors.quantity && "border-destructive"
-                                )}
+                                onChange={(e) => field.onChange(e.target.valueAsNumber)}
+                                value={field.value ?? ''}
                               />
                             </FormControl>
-                            {form.formState.errors.quantity && (
-                              <p className="text-sm text-destructive mt-1">
-                                {form.formState.errors.quantity.message}
-                              </p>
-                            )}
                           </FormItem>
                         )}
                       />

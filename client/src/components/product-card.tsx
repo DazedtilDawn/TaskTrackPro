@@ -58,6 +58,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         throw new Error(result.error);
       }
 
+      // Only update UI after successful response
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
@@ -88,33 +89,25 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     }
 
     try {
+      let response;
       if (inWatchlist) {
-        const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
-        const result = await response.json();
-
-        if (result.error) {
-          throw new Error(result.error);
-        }
-
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
-          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
-        ]);
+        response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
       } else {
-        const response = await apiRequest("POST", "/api/watchlist", {
+        response = await apiRequest("POST", "/api/watchlist", {
           productId: product.id
         });
-        const result = await response.json();
-
-        if (result.error) {
-          throw new Error(result.error);
-        }
-
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
-          queryClient.invalidateQueries({ queryKey: ["/api/products"] })
-        ]);
       }
+
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      // Only update UI after successful response
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+      ]);
 
       toast({
         title: inWatchlist ? "Removed from watchlist" : "Added to watchlist",
@@ -135,19 +128,22 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     try {
       const response = await apiRequest("DELETE", `/api/products/${product.id}`);
 
-      // Handle 404 case specifically
+      // Handle 404 case specifically - product might be already deleted
       if (response.status === 404) {
-        // Product already deleted, still consider it a success
-        await Promise.all([
-          queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
-          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
-        ]);
+        const result = await response.json();
+        if (result.error === "Product not found") {
+          // Product already deleted or only exists in watchlist
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+            queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+          ]);
 
-        toast({
-          title: "Product removed",
-          description: "The product has been removed from your inventory",
-        });
-        return;
+          toast({
+            title: "Product removed",
+            description: "The product has been removed from the system",
+          });
+          return;
+        }
       }
 
       const result = await response.json();
@@ -155,6 +151,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         throw new Error(result.error);
       }
 
+      // Only update UI after successful response
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })

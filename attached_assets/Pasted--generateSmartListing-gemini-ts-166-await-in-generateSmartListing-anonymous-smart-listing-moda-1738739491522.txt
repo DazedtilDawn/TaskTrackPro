@@ -1,0 +1,165 @@
+
+generateSmartListing @ gemini.ts:166
+await in generateSmartListing
+(anonymous) @ smart-listing-modal.tsx:67
+(anonymous) @ smart-listing-modal.tsx:102
+setTimeout
+(anonymous) @ smart-listing-modal.tsx:100
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e337e28a:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e337e28a:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e337e28a:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e337e28a:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e337e28a:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e337e28a:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e337e28a:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e337e28a:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e337e28a:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e337e28a:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e337e28a:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18718
+workLoop @ chunk-RPCDYKBN.js?v=e337e28a:197
+flushWork @ chunk-RPCDYKBN.js?v=e337e28a:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e337e28a:384Understand this errorAI
+gemini.ts:130 generateSmartListing: Sending analysis request (attempt 2/3)
+queryClient.ts:23 
+        
+        
+       POST https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/analyze-images 500 (Internal Server Error)
+apiRequest @ queryClient.ts:23
+generateSmartListing @ gemini.ts:131
+await in generateSmartListing
+(anonymous) @ smart-listing-modal.tsx:67
+(anonymous) @ smart-listing-modal.tsx:102
+setTimeout
+(anonymous) @ smart-listing-modal.tsx:100
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e337e28a:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e337e28a:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e337e28a:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e337e28a:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e337e28a:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e337e28a:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e337e28a:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e337e28a:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e337e28a:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e337e28a:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e337e28a:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18718
+workLoop @ chunk-RPCDYKBN.js?v=e337e28a:197
+flushWork @ chunk-RPCDYKBN.js?v=e337e28a:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e337e28a:384Understand this errorAI
+gemini.ts:166 generateSmartListing: Request error (attempt 2): Error: 500: {"error":"Failed to analyze images","details":"genAI is not defined"}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:30:3)
+    at async generateSmartListing (gemini.ts:131:26)
+    at async smart-listing-modal.tsx:67:24
+generateSmartListing @ gemini.ts:166
+await in generateSmartListing
+(anonymous) @ smart-listing-modal.tsx:67
+(anonymous) @ smart-listing-modal.tsx:102
+setTimeout
+(anonymous) @ smart-listing-modal.tsx:100
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e337e28a:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e337e28a:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e337e28a:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e337e28a:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e337e28a:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e337e28a:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e337e28a:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e337e28a:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e337e28a:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e337e28a:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e337e28a:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18718
+workLoop @ chunk-RPCDYKBN.js?v=e337e28a:197
+flushWork @ chunk-RPCDYKBN.js?v=e337e28a:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e337e28a:384Understand this errorAI
+gemini.ts:130 generateSmartListing: Sending analysis request (attempt 3/3)
+queryClient.ts:23 
+        
+        
+       POST https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev/api/analyze-images 500 (Internal Server Error)
+apiRequest @ queryClient.ts:23
+generateSmartListing @ gemini.ts:131
+await in generateSmartListing
+(anonymous) @ smart-listing-modal.tsx:67
+(anonymous) @ smart-listing-modal.tsx:102
+setTimeout
+(anonymous) @ smart-listing-modal.tsx:100
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e337e28a:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e337e28a:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e337e28a:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e337e28a:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e337e28a:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e337e28a:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e337e28a:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e337e28a:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e337e28a:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e337e28a:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e337e28a:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18718
+workLoop @ chunk-RPCDYKBN.js?v=e337e28a:197
+flushWork @ chunk-RPCDYKBN.js?v=e337e28a:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e337e28a:384Understand this errorAI
+gemini.ts:166 generateSmartListing: Request error (attempt 3): Error: 500: {"error":"Failed to analyze images","details":"genAI is not defined"}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:30:3)
+    at async generateSmartListing (gemini.ts:131:26)
+    at async smart-listing-modal.tsx:67:24
+generateSmartListing @ gemini.ts:166
+await in generateSmartListing
+(anonymous) @ smart-listing-modal.tsx:67
+(anonymous) @ smart-listing-modal.tsx:102
+setTimeout
+(anonymous) @ smart-listing-modal.tsx:100
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e337e28a:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e337e28a:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e337e28a:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e337e28a:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e337e28a:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e337e28a:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e337e28a:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e337e28a:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e337e28a:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e337e28a:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e337e28a:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18718
+workLoop @ chunk-RPCDYKBN.js?v=e337e28a:197
+flushWork @ chunk-RPCDYKBN.js?v=e337e28a:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e337e28a:384Understand this errorAI
+gemini.ts:175 generateSmartListing: Fatal error: Error: 500: {"error":"Failed to analyze images","details":"genAI is not defined"}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:30:3)
+    at async generateSmartListing (gemini.ts:131:26)
+    at async smart-listing-modal.tsx:67:24
+generateSmartListing @ gemini.ts:175
+await in generateSmartListing
+(anonymous) @ smart-listing-modal.tsx:67
+(anonymous) @ smart-listing-modal.tsx:102
+setTimeout
+(anonymous) @ smart-listing-modal.tsx:100
+commitHookEffectListMount @ chunk-RPCDYKBN.js?v=e337e28a:16915
+commitPassiveMountOnFiber @ chunk-RPCDYKBN.js?v=e337e28a:18156
+commitPassiveMountEffects_complete @ chunk-RPCDYKBN.js?v=e337e28a:18129
+commitPassiveMountEffects_begin @ chunk-RPCDYKBN.js?v=e337e28a:18119
+commitPassiveMountEffects @ chunk-RPCDYKBN.js?v=e337e28a:18109
+flushPassiveEffectsImpl @ chunk-RPCDYKBN.js?v=e337e28a:19490
+flushPassiveEffects @ chunk-RPCDYKBN.js?v=e337e28a:19447
+performSyncWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18868
+flushSyncCallbacks @ chunk-RPCDYKBN.js?v=e337e28a:9119
+commitRootImpl @ chunk-RPCDYKBN.js?v=e337e28a:19432
+commitRoot @ chunk-RPCDYKBN.js?v=e337e28a:19277
+finishConcurrentRender @ chunk-RPCDYKBN.js?v=e337e28a:18805
+performConcurrentWorkOnRoot @ chunk-RPCDYKBN.js?v=e337e28a:18718
+workLoop @ chunk-RPCDYKBN.js?v=e337e28a:197
+flushWork @ chunk-RPCDYKBN.js?v=e337e28a:176
+performWorkUntilDeadline @ chunk-RPCDYKBN.js?v=e337e28a:384Understand this errorAI
+smart-listing-modal.tsx:79 Analysis error: Error: 500: {"error":"Failed to analyze images","details":"genAI is not defined"}
+    at throwIfResNotOk (queryClient.ts:6:11)
+    at async apiRequest (queryClient.ts:30:3)
+    at async generateSmartListing (gemini.ts:131:26)
+    at async smart-listing-modal.tsx:67:24

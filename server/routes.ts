@@ -1,11 +1,10 @@
-import type { Express } from "express";
-import express from "express";  // Add this import
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import express from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems, users } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 import bodyParser from 'body-parser';
 import multer from 'multer';
 import path from 'path';
@@ -16,6 +15,9 @@ import { checkEbayAuth } from "./middleware/ebay-auth";
 // Get directory name in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 // Ensure uploads directory exists
 const uploadsDir = path.resolve(__dirname, "../uploads");
@@ -75,6 +77,7 @@ function getImageUrl(filename: string | null): string | null {
   // Return the properly formatted URL
   return `/uploads/${baseFilename}`;
 }
+
 
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
@@ -1087,49 +1090,59 @@ Format the response as JSON with:
 
     try {
       const { productId } = req.body;
-
       if (!productId) {
         return res.status(400).json({ error: "Product ID is required" });
       }
 
-      // Check if product exists
-      const [productExists] = await db.select()
+      console.log('[Watchlist API] Adding product to watchlist:', productId);
+
+      // Verify product exists and belongs to another user
+      const [product] = await db.select()
         .from(products)
         .where(eq(products.id, productId))
         .limit(1);
 
-      if (!productExists) {
+      if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
 
+      if (product.userId === req.user!.id) {
+        return res.status(400).json({ error: "Cannot add your own product to watchlist" });
+      }
+
       // Check if already in watchlist
-      const [existing] = await db.select()
+      const [existingWatch] = await db.select()
         .from(watchlist)
         .where(
           and(
-            eq(watchlist.productId, productId),
-            eq(watchlist.userId, req.user!.id)
+            eq(watchlist.userId, req.user!.id),
+            eq(watchlist.productId, productId)
           )
         )
         .limit(1);
 
-      if (existing) {
+      if (existingWatch) {
         return res.status(409).json({ error: "Product already in watchlist" });
       }
 
-      const [item] = await db.insert(watchlist)
+      // Add to watchlist
+      const [watchlistItem] = await db.insert(watchlist)
         .values({
-          productId,
           userId: req.user!.id,
+          productId: productId,
           createdAt: new Date(),
           updatedAt: new Date()
         })
         .returning();
 
-      res.status(201).json(item);
+      console.log('[Watchlist API] Successfully added product to watchlist:', watchlistItem);
+      res.status(201).json(watchlistItem);
     } catch (error) {
-      console.error('Error adding to watchlist:', error);
-      res.status(500).json({ error: "Failed to add item to watchlist" });
+      console.error("[Watchlist API] Error adding to watchlist:", error);
+      res.status(500).json({
+        error: "Failed to add product to watchlist",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
@@ -1137,39 +1150,36 @@ Format the response as JSON with:
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      const items = await db.select({
-        id: watchlist.id,
-        userId: watchlist.userId,
-        productId: watchlist.productId,
-        createdAt: watchlist.createdAt,
-        product: {
-          id: products.id,
-          name: products.name,
-          description: products.description,
-          sku: products.sku,
-          price: products.price,
-          quantity: products.quantity,
-          condition: products.condition,
-          brand: products.brand,
-          category: products.category,
-          imageUrl: products.imageUrl,
-          aiAnalysis: products.aiAnalysis,
-          ebayPrice: products.ebayPrice
-        }
-      })
-        .from(watchlist)
-        .leftJoin(products, eq(watchlist.productId, products.id))
-        .where(
-          and(
-            eq(watchlist.userId, req.user!.id),
-            eq(products.sold, false)
-          )
-        )
-        .orderBy(watchlist.createdAt);
+      console.log('[Watchlist API] Fetching watchlist for user:', req.user!.id);
 
-      res.json(items);
+      // Join watchlist with products to get full product details
+      const watchlistItems = await db.select({
+        watchlistId: watchlist.id,
+        createdAt: watchlist.createdAt,
+        product: products
+      })
+      .from(watchlist)
+      .where(eq(watchlist.userId, req.user!.id))
+      .innerJoin(products, eq(watchlist.productId, products.id))
+      .orderBy(desc(watchlist.createdAt));
+
+      console.log('[Watchlist API] Found items:', watchlistItems.length);
+
+      // Process watchlist items to ensure proper JSON parsing and image URLs
+      const processedItems = watchlistItems.map(item => ({
+        id: item.watchlistId,
+        createdAt: item.createdAt,
+        product: {
+          ...item.product,
+          imageUrl: getImageUrl(item.product.imageUrl),
+          aiAnalysis: ensureJSON(item.product.aiAnalysis),
+          ebayListingData: ensureJSON(item.product.ebayListingData)
+        }
+      }));
+
+      res.json(processedItems);
     } catch (error) {
-      console.error('Error fetching watchlist:', error);
+      console.error("[Watchlist API] Error fetching watchlist:", error);
       res.status(500).json({
         error: "Failed to fetch watchlist",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -1186,9 +1196,9 @@ Format the response as JSON with:
         return res.status(400).json({ error: "Invalid product ID" });
       }
 
-      console.log(`Attempting to delete watchlist item for product ${productId} and user ${req.user!.id}`);
+      console.log('[Watchlist API] Attempting to delete watchlist item for product:', productId);
 
-      // First verify the item exists
+      // First verify the item exists and belongs to the user
       const [existingItem] = await db.select()
         .from(watchlist)
         .where(
@@ -1200,14 +1210,12 @@ Format the response as JSON with:
         .limit(1);
 
       if (!existingItem) {
-        console.log(`No watchlist item found for product ${productId} and user ${req.user!.id}`);
+        console.log('[Watchlist API] No watchlist item found for product:', productId);
         return res.status(404).json({ error: "Watchlist item not found" });
       }
 
-      console.log(`Found watchlist item to delete:`, existingItem);
-
-      // Perform the deletion
-      const result = await db.delete(watchlist)
+      // Delete the watchlist item
+      const [deletedItem] = await db.delete(watchlist)
         .where(
           and(
             eq(watchlist.productId, productId),
@@ -1216,17 +1224,15 @@ Format the response as JSON with:
         )
         .returning();
 
-      console.log(`Deletion result:`, result);
-
-      if (!result.length) {
-        return res.status(404).json({ error: "Failed to delete watchlist item" });
-      }
-
-      res.status(200).json({ message: "Item removed from watchlist", deletedItem: result[0] });
+      console.log('[Watchlist API] Successfully deleted watchlist item:', deletedItem);
+      res.json({
+        message: "Product removed from watchlist",
+        deletedItem
+      });
     } catch (error) {
-      console.error('Error removing from watchlist:', error);
+      console.error("[Watchlist API] Error removing from watchlist:", error);
       res.status(500).json({
-        error: "Failed to remove item from watchlist",
+        error: "Failed to remove product from watchlist",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }

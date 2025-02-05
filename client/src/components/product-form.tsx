@@ -10,9 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
 import { getEbayMarketAnalysis, checkEbayAuth } from "@/lib/ebay";
-import { 
-  Loader2, BarChart2, BookMarked, PackageOpen, 
-  Sparkles, Info, TrendingUp, DollarSign 
+import {
+  Loader2, BarChart2, BookMarked, PackageOpen,
+  Sparkles, Info, TrendingUp, DollarSign
 } from "lucide-react";
 import { DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -91,6 +91,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingEbay, setIsLoadingEbay] = useState(false);
   const [isRefiningPrice, setIsRefiningPrice] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasEbayAuth, setHasEbayAuth] = useState<boolean | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
@@ -409,7 +410,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           <Form {...form}>
             <form onSubmit={form.handleSubmit(async (data) => {
               try {
-                // Create FormData instance for multipart/form-data
+                setIsSubmitting(true);
                 const formData = new FormData();
 
                 // Add all form fields to FormData
@@ -430,13 +431,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                 }
 
                 // Submit the form data
-                const endpoint = product
-                  ? `/api/products/${product.id}`
-                  : "/api/products";
-
+                const endpoint = product ? `/api/products/${product.id}` : "/api/products";
                 const method = product ? "PATCH" : "POST";
 
-                // Use fetch directly for FormData
                 const response = await fetch(endpoint, {
                   method,
                   body: formData,
@@ -444,7 +441,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                 });
 
                 if (!response.ok) {
-                  throw new Error("Failed to save product");
+                  throw new Error(`Failed to save product: ${response.statusText}`);
                 }
 
                 // Invalidate both products and watchlist queries to ensure UI updates
@@ -465,6 +462,8 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   description: "Failed to save product",
                   variant: "destructive",
                 });
+              } finally {
+                setIsSubmitting(false);
               }
             })} className="space-y-8">
               <div className="space-y-6">
@@ -744,8 +743,17 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                       disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
                       className="gap-2"
                     >
-                      {isAnalyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                      {fullAnalysis ? "Run Full Analysis" : "Analyze Product"}
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="mr-2 h-4 w-4" />
+                          {fullAnalysis ? "Run Full Analysis" : "Analyze Product"}
+                        </>
+                      )}
                     </Button>
 
                     {hasEbayAuth && !fullAnalysis && (
@@ -756,8 +764,17 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
                         className="gap-2"
                       >
-                        {isLoadingEbay ? <Loader2 className="h-4 w-4 animate-spin" /> : <BarChart2 className="h-4 w-4" />}
-                        Refine with eBay
+                        {isLoadingEbay ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          <>
+                            <BarChart2 className="mr-2 h-4 w-4" />
+                            Refine with eBay
+                          </>
+                        )}
                       </Button>
                     )}
                   </div>
@@ -910,7 +927,8 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                                 <span>Active Listings</span>
                                 <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
                               </div>
-                            </div>                          </div>
+                            </div>
+                          </div>
                           {!fullAnalysis && (
                             <Button
                               type="button"
@@ -945,10 +963,10 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                 </Button>
                 <Button
                   type="submit"
-                  disabled={form.formState.isSubmitting}
+                  disabled={isSubmitting}
                   className="min-w-[120px]"
                 >
-                  {form.formState.isSubmitting ? (
+                  {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2h-4 w-4 animate-spin" />
                       Saving...
@@ -964,9 +982,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           {showSmartListing && (
             <SmartListingModal
               open={showSmartListing}
-              onClose={() => setShowSmartListing(false)}
+              onOpenChange={setShowSmartListing}
               imageFiles={imageFiles}
-              onAnalysisComplete={handleAnalysisComplete}
+              onComplete={handleAnalysisComplete}
             />
           )}
         </div>

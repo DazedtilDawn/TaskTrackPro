@@ -159,89 +159,59 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         return;
       }
 
-      if (isWatchlistItem) {
-        // Create a new product first if no existing product is selected
-        if (!product) {
-          // First create the product
-          const formData = new FormData();
-          formData.append('name', trimmedName);
-          formData.append('description', data.description?.trim() || '');
-          const sku = data.sku?.trim();
-          if (sku) {
-            formData.append('sku', sku);
-          }
-          formData.append('price', data.price ? String(data.price) : '');
-          formData.append('quantity', '0'); // Watchlist items have 0 quantity
-          formData.append('condition', data.condition);
-          formData.append('brand', data.brand?.trim() || '');
-          formData.append('category', data.category?.trim() || '');
+      // Create FormData object
+      const formData = new FormData();
 
-          if (data.aiAnalysis) {
-            formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
-          }
-          if (data.ebayPrice) {
-            formData.append('ebayPrice', String(data.ebayPrice));
-          }
-          if (imageFiles.length > 0) {
-            formData.append('image', imageFiles[0]);
-          }
-
-          const response = await apiRequest("POST", "/api/products", formData);
-          const newProduct = await response.json();
-
-          // Then add to watchlist using the new product's ID
-          await apiRequest("POST", "/api/watchlist", {
-            productId: newProduct.id
-          }, { headers: { 'Content-Type': 'application/json' } });
-        } else {
-          // Add existing product to watchlist
-          await apiRequest("POST", "/api/watchlist", {
-            productId: product.id
-          }, { headers: { 'Content-Type': 'application/json' } });
-        }
-
-        queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
-        toast({
-          title: "Product added to watchlist",
-          description: trimmedName,
-        });
-      } else {
-        const formData = new FormData();
-        formData.append('name', trimmedName);
-        formData.append('description', data.description?.trim() || '');
-        // Only append SKU if it's not empty after trimming
-        const sku = data.sku?.trim();
-        if (sku) {
-          formData.append('sku', sku);
-        }
-        formData.append('price', data.price ? String(data.price) : '');
-        formData.append('quantity', String(data.quantity));
-        formData.append('condition', data.condition);
-        formData.append('brand', data.brand?.trim() || '');
-        formData.append('category', data.category?.trim() || '');
-
-        if (data.aiAnalysis) {
-          formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
-        }
-        if (data.ebayPrice) {
-          formData.append('ebayPrice', String(data.ebayPrice));
-        }
-        if (imageFiles.length > 0) {
-          formData.append('image', imageFiles[0]);
-        }
-
-        if (product) {
-          await apiRequest("PATCH", `/api/products/${product.id}`, formData);
-        } else {
-          await apiRequest("POST", "/api/products", formData);
-        }
-
-        queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-        toast({
-          title: product ? "Product updated" : "Product created",
-          description: trimmedName,
-        });
+      // Add basic fields
+      formData.append('name', trimmedName);
+      formData.append('description', data.description?.trim() || '');
+      if (data.sku?.trim()) {
+        formData.append('sku', data.sku.trim());
       }
+      if (data.price !== null && data.price !== undefined) {
+        formData.append('price', String(data.price));
+      }
+      formData.append('quantity', String(data.quantity || 0));
+      formData.append('condition', data.condition);
+      formData.append('brand', data.brand?.trim() || '');
+      formData.append('category', data.category?.trim() || '');
+
+      // Properly stringify AI analysis with eBay data
+      if (data.aiAnalysis) {
+        console.log('Serializing AI analysis:', data.aiAnalysis);
+        formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
+      }
+
+      // Add ebayPrice if available
+      if (data.ebayPrice !== null && data.ebayPrice !== undefined) {
+        console.log('Adding eBay price:', data.ebayPrice);
+        formData.append('ebayPrice', String(data.ebayPrice));
+      }
+
+      // Add image if present
+      if (imageFiles.length > 0) {
+        formData.append('image', imageFiles[0]);
+      }
+
+      if (product) {
+        // Log the data being sent in the update request
+        console.log('Updating product with data:', Object.fromEntries(formData.entries()));
+        const response = await apiRequest("PATCH", `/api/products/${product.id}`, formData);
+        const updatedProduct = await response.json();
+        console.log('Product updated successfully:', updatedProduct);
+      } else {
+        // Creating new product
+        console.log('Creating new product with data:', Object.fromEntries(formData.entries()));
+        const response = await apiRequest("POST", "/api/products", formData);
+        const newProduct = await response.json();
+        console.log('Product created successfully:', newProduct);
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+      toast({
+        title: product ? "Product updated" : "Product created",
+        description: trimmedName,
+      });
 
       onComplete();
     } catch (error) {

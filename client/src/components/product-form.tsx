@@ -26,7 +26,19 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
-// Schema update for better validation
+// Add EbayData interface after ProductFormData
+interface EbayData {
+  currentPrice: number;
+  averagePrice: number;
+  lowestPrice: number;
+  highestPrice: number;
+  soldCount: number;
+  activeListing: number;
+  recommendedPrice: number;
+  lastUpdated?: string;
+}
+
+// Update aiAnalysis in productFormSchema
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   description: z.string().min(10, "Description must be at least 10 characters").optional().nullable(),
@@ -37,7 +49,31 @@ const productFormSchema = z.object({
   price: z.coerce.number().min(0, "Price must be greater than 0").optional().nullable(),
   quantity: z.coerce.number().min(0, "Quantity must be 0 or greater").default(0),
   imageUrl: z.string().optional().nullable(),
-  aiAnalysis: z.any().optional().nullable(),
+  aiAnalysis: z.object({
+    title: z.string().optional(),
+    description: z.string().optional(),
+    category: z.string().optional(),
+    marketAnalysis: z.object({
+      demandScore: z.number(),
+      competitionLevel: z.string(),
+      priceSuggestion: z.object({
+        min: z.number(),
+        max: z.number()
+      })
+    }),
+    seoKeywords: z.array(z.string()),
+    suggestions: z.array(z.string()),
+    ebayData: z.object({
+      currentPrice: z.number(),
+      averagePrice: z.number(),
+      lowestPrice: z.number(),
+      highestPrice: z.number(),
+      soldCount: z.number(),
+      activeListing: z.number(),
+      recommendedPrice: z.number(),
+      lastUpdated: z.string().optional()
+    }).optional()
+  }).optional().nullable(),
   ebayPrice: z.coerce.number().optional().nullable(),
   weight: z.coerce.number().optional().nullable(),
   dimensions: z.string().optional().nullable(),
@@ -568,10 +604,60 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               </div>
 
                               {aiAnalysis.ebayData && (
-                                <div>
-                                  <span className="text-sm text-muted-foreground">Average eBay Price</span>
-                                  <div className="text-lg font-medium mt-1">
-                                    ${aiAnalysis.ebayData.recommendedPrice}
+                                <div className="mt-6 space-y-3 pt-4 border-t">
+                                  <div className="flex items-center gap-2">
+                                    <TrendingUp className="h-4 w-4 text-primary" />
+                                    <h4 className="font-medium">eBay Market Data</h4>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                      <div>
+                                        <div className="text-sm text-muted-foreground">Current Price</div>
+                                        <div className="text-lg font-semibold">
+                                          ${aiAnalysis.ebayData.currentPrice.toFixed(2)}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-sm text-muted-foreground">Average Price</div>
+                                        <div className="text-lg font-semibold">
+                                          ${aiAnalysis.ebayData.averagePrice.toFixed(2)}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-sm text-muted-foreground">Price Range</div>
+                                        <div className="flex items-baseline gap-2">
+                                          <span className="text-lg font-semibold">
+                                            ${aiAnalysis.ebayData.lowestPrice.toFixed(2)}
+                                          </span>
+                                          <span className="text-muted-foreground">-</span>
+                                          <span className="text-lg font-semibold">
+                                            ${aiAnalysis.ebayData.highestPrice.toFixed(2)}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <div className="space-y-2">
+                                      <div>
+                                        <div className="text-sm text-muted-foreground">Items Sold</div>
+                                        <div className="text-lg font-semibold">
+                                          {aiAnalysis.ebayData.soldCount.toLocaleString()}
+                                        </div>
+                                      </div>
+                                      <div>
+                                        <div className="text-sm text-muted-foreground">Active Listings</div>
+                                        <div className="text-lg font-semibold">
+                                          {aiAnalysis.ebayData.activeListing.toLocaleString()}
+                                        </div>
+                                      </div>
+                                      {aiAnalysis.ebayData.lastUpdated && (
+                                        <div>
+                                          <div className="text-sm text-muted-foreground">Last Updated</div>
+                                          <div className="text-sm">
+                                            {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}
+                                          </div>
+                                        </div>
+                                      )}
+                                    </div>
                                   </div>
                                 </div>
                               )}

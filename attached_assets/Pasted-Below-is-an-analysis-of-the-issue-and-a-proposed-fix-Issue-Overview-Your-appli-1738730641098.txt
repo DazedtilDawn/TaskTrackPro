@@ -1,0 +1,156 @@
+Below is an analysis of the issue and a proposed fix.
+
+---
+
+### **Issue Overview**
+
+Your application calls eBay’s Browse API (in your server’s **ebay.ts** module) to fetch pricing data such as current price, average price, lowest/highest price, sold count, and active listing count. That data is then (when available) merged into the AI analysis result in your product form (in **product-form.tsx**) via:
+
+```ts
+const combinedAnalysis = {
+  ...aiAnalysis,
+  ebayData: marketAnalysis,
+  marketAnalysis: {
+    ...aiAnalysis.marketAnalysis,
+    priceSuggestion: {
+      min: Math.min(aiAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
+      max: Math.max(aiAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
+    }
+  }
+};
+form.setValue("aiAnalysis", combinedAnalysis);
+form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
+```
+
+However, in your product card UI (**product-card.tsx**), you’re only checking if a product’s `ebayPrice` exists to display a small “eBay Price” badge. The richer pricing data (history, current price, # sold, etc.) isn’t displayed anywhere in your UI.
+
+---
+
+### **Proposed Fix**
+
+1. **Update the AI Analysis Type**
+
+   In **product-card.tsx** (or in a shared types file), extend your AI analysis interface so that it can include eBay pricing details. For example, add an optional property `ebayData`:
+
+   ```tsx
+   // At the top of product-card.tsx (or in a shared types file)
+   interface EbayData {
+     currentPrice: number;
+     averagePrice: number;
+     lowestPrice: number;
+     highestPrice: number;
+     soldCount: number;
+     activeListing: number;
+     recommendedPrice: number;
+     lastUpdated?: string;
+   }
+   
+   interface AIAnalysis {
+     category: string;
+     marketAnalysis: {
+       demandScore: number;
+       competitionLevel: string;
+       priceSuggestion: {
+         min: number;
+         max: number;
+       };
+     };
+     seoKeywords: string[];
+     suggestions: string[];
+     // New optional property for eBay pricing data:
+     ebayData?: EbayData;
+   }
+   ```
+
+2. **Enhance the UI in the Product Card**
+
+   In **product-card.tsx**, update the popover (or wherever you want to display the detailed analysis) so that if `aiAnalysis.ebayData` is available, it displays the additional information. For example, within your popover content below the Price Analysis block, add a section like this:
+
+   ```tsx
+   {aiAnalysis.ebayData && (
+     <div className="border-t pt-3">
+       <div className="flex items-center gap-2 mb-2">
+         {/* You can use any icon you prefer; here we use the Search icon */}
+         <Search className="h-4 w-4" />
+         <h5 className="font-medium">eBay Pricing Data</h5>
+       </div>
+       <div className="pl-4 space-y-1 text-sm">
+         <div>Current Price: ${Number(aiAnalysis.ebayData.currentPrice).toFixed(2)}</div>
+         <div>Average Price: ${Number(aiAnalysis.ebayData.averagePrice).toFixed(2)}</div>
+         <div>Lowest Price: ${Number(aiAnalysis.ebayData.lowestPrice).toFixed(2)}</div>
+         <div>Highest Price: ${Number(aiAnalysis.ebayData.highestPrice).toFixed(2)}</div>
+         <div>Sold Count: {aiAnalysis.ebayData.soldCount}</div>
+         <div>Active Listings: {aiAnalysis.ebayData.activeListing}</div>
+         <div>Recommended Price: ${Number(aiAnalysis.ebayData.recommendedPrice).toFixed(2)}</div>
+         {aiAnalysis.ebayData.lastUpdated && (
+           <div>Last Updated: {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}</div>
+         )}
+       </div>
+     </div>
+   )}
+   ```
+
+   **Example Modified Snippet (from product-card.tsx):**
+
+   ```tsx
+   // ...inside your popover content JSX, after the Price Analysis section:
+   <div className="space-y-4">
+     {/* Existing Market Analysis and Price Analysis sections go here */}
+     
+     {/* New eBay pricing data section */}
+     {aiAnalysis.ebayData && (
+       <div className="border-t pt-3">
+         <div className="flex items-center gap-2 mb-2">
+           <Search className="h-4 w-4" />
+           <h5 className="font-medium">eBay Pricing Data</h5>
+         </div>
+         <div className="pl-4 space-y-1 text-sm">
+           <div>Current Price: ${Number(aiAnalysis.ebayData.currentPrice).toFixed(2)}</div>
+           <div>Average Price: ${Number(aiAnalysis.ebayData.averagePrice).toFixed(2)}</div>
+           <div>Lowest Price: ${Number(aiAnalysis.ebayData.lowestPrice).toFixed(2)}</div>
+           <div>Highest Price: ${Number(aiAnalysis.ebayData.highestPrice).toFixed(2)}</div>
+           <div>Sold Count: {aiAnalysis.ebayData.soldCount}</div>
+           <div>Active Listings: {aiAnalysis.ebayData.activeListing}</div>
+           <div>Recommended Price: ${Number(aiAnalysis.ebayData.recommendedPrice).toFixed(2)}</div>
+           {aiAnalysis.ebayData.lastUpdated && (
+             <div>Last Updated: {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}</div>
+           )}
+         </div>
+       </div>
+     )}
+     
+     {/* Existing Optimization Tips section */}
+     <div className="border-t pt-3">
+       <div className="flex items-center gap-2 mb-2">
+         <TrendingUp className="h-4 w-4" />
+         <h5 className="font-medium">Optimization Tips</h5>
+       </div>
+       <ul className="grid grid-cols-2 gap-3">
+         {aiAnalysis.suggestions.slice(0, 4).map((suggestion: string, index: number) => (
+           <li
+             key={index}
+             className="text-sm text-muted-foreground p-3 bg-secondary/20 rounded-lg"
+           >
+             {suggestion}
+           </li>
+         ))}
+       </ul>
+     </div>
+   </div>
+   ```
+
+3. **Testing**
+
+   - Ensure that when an eBay-authenticated user analyzes a product (via **ProductForm**), the response from your `getEbayMarketAnalysis` call (which includes the eBay pricing details) is merged into the AI analysis.
+   - When viewing the product card, the new popover section will show the additional eBay pricing data.
+   - Also, verify that if no eBay data is available (for example if the user isn’t connected to eBay), then that section does not render.
+
+---
+
+### **Summary**
+
+The root cause is that while your backend correctly fetches detailed eBay pricing data (via `getEbayPrice` and `getEbayMarketAnalysis`), your UI only displays a single field (`ebayPrice`) on the product card. By updating your types to include an optional `ebayData` field and adding a new UI section (for example in the analysis popover) to display this extra pricing information, you can show the history, current price, # of items, # of times sold, and any other available details.
+
+Try applying these changes to your **product-card.tsx** file (and update any shared types if needed), then test the flow from analysis through display.
+
+Let me know if you have any questions or need further assistance!

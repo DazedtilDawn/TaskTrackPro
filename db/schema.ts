@@ -8,7 +8,6 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  // Add eBay OAuth credentials with proper constraints
   ebayAuthToken: text("ebay_auth_token"),
   ebayRefreshToken: text("ebay_refresh_token"),
   ebayTokenExpiry: timestamp("ebay_token_expiry"),
@@ -16,24 +15,23 @@ export const users = pgTable("users", {
 
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
+  userId: integer("user_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   sku: text("sku").unique(),
   price: decimal("price", { precision: 10, scale: 2 }),
-  quantity: integer("quantity").default(0),
+  quantity: integer("quantity").default(0).notNull(),
   imageUrl: text("image_url"),
   aiAnalysis: jsonb("ai_analysis"),
   ebayPrice: decimal("ebay_price", { precision: 10, scale: 2 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  sold: boolean("sold").default(false),
-  condition: text("condition").default("used_good"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  sold: boolean("sold").default(false).notNull(),
+  condition: text("condition").default("used_good").notNull(),
   brand: text("brand"),
   category: text("category"),
   weight: decimal("weight", { precision: 10, scale: 2 }),
   dimensions: text("dimensions"),
-  // Add eBay-specific fields
   ebayListingId: text("ebay_listing_id"),
   ebayListingStatus: text("ebay_listing_status"),
   ebayListingUrl: text("ebay_listing_url"),
@@ -44,35 +42,33 @@ export const products = pgTable("products", {
 
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  productId: integer("product_id").references(() => products.id),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id),
-  status: text("status").default("pending"),
-  total: decimal("total", { precision: 10, scale: 2 }),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
-  // Add eBay order reference
+  userId: integer("user_id").references(() => users.id).notNull(),
+  status: text("status").default("pending").notNull(),
+  total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
   ebayOrderId: text("ebay_order_id"),
   ebayOrderData: jsonb("ebay_order_data"),
 });
 
 export const orderItems = pgTable("order_items", {
   id: serial("id").primaryKey(),
-  orderId: integer("order_id").references(() => orders.id),
-  productId: integer("product_id").references(() => products.id),
+  orderId: integer("order_id").references(() => orders.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Define the eBay categories table with proper constraints
 export const ebayCategories = pgTable("ebay_categories", {
   id: serial("id").primaryKey(),
   categoryId: text("category_id").notNull(),
@@ -83,7 +79,7 @@ export const ebayCategories = pgTable("ebay_categories", {
   lastUpdate: timestamp("last_update").defaultNow().notNull(),
 });
 
-// Define relations
+// Relations configuration
 export const productsRelations = relations(products, ({ one }) => ({
   user: one(users, {
     fields: [products.userId],

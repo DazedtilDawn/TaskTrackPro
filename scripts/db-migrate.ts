@@ -2,8 +2,8 @@
 
 import { spawn, type SpawnOptionsWithStdioTuple } from "child_process";
 
-// Spawn the drizzle migration push command
-const migrate = spawn("drizzle-kit", ["push"], {
+// Spawn the drizzle migration push command with verbose output
+const migrate = spawn("drizzle-kit", ["push", "--verbose"], {
   stdio: ["pipe", "inherit", "inherit"]
 } as SpawnOptionsWithStdioTuple<"pipe", "inherit", "inherit">);
 

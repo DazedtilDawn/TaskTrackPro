@@ -5,7 +5,8 @@ import {
   Package, 
   Heart, 
   ShoppingCart, 
-  BarChart2 
+  BarChart2,
+  Settings 
 } from "lucide-react";
 
 const navItems = [
@@ -14,6 +15,7 @@ const navItems = [
   { href: "/watchlist", label: "Watchlist", icon: Heart },
   { href: "/orders", label: "Orders", icon: ShoppingCart },
   { href: "/analytics", label: "Analytics", icon: BarChart2 },
+  { href: "/settings/ebay-auth", label: "eBay Settings", icon: Settings },
 ];
 
 export default function Sidebar() {

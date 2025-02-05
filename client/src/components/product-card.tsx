@@ -194,7 +194,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
       // If we have a listing URL, open it in a new tab
       if (result.ebayListingUrl) {
-        window.open(result.ebayListingUrl, '_blank');
+        window.open(result.ebayListingUrl ?? undefined, '_blank');
       }
     } catch (error) {
       console.error('Error generating eBay listing:', error);
@@ -331,29 +331,33 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 </Button>
               )}
 
-              {/* Add eBay listing button */}
-              {!product.ebayListingId && !inWatchlist && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={generateEbayListing}
-                  disabled={isGeneratingListing}
-                  className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
-                  title="Generate eBay Listing"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              )}
-              {product.ebayListingUrl && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => window.open(product.ebayListingUrl, '_blank')}
-                  className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
-                  title="View on eBay"
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                </Button>
+              {/* Add eBay listing button - now always visible for non-watchlist items */}
+              {!inWatchlist && (
+                <>
+                  {!product.ebayListingUrl && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={generateEbayListing}
+                      disabled={isGeneratingListing}
+                      className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                      title="Generate eBay Listing"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {product.ebayListingUrl && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => window.open(product.ebayListingUrl ?? undefined, '_blank')}
+                      className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                      title="View on eBay"
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -587,29 +591,33 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                 </Button>
               )}
 
-              {/* Add eBay listing button */}
-              {!product.ebayListingId && !inWatchlist && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={generateEbayListing}
-                  disabled={isGeneratingListing}
-                  className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
-                  title="Generate eBay Listing"
-                >
-                  <Share2 className="h-4 w-4" />
-                </Button>
-              )}
-              {product.ebayListingUrl && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => window.open(product.ebayListingUrl, '_blank')}
-                  className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
-                  title="View on eBay"
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                </Button>
+              {/* Add eBay listing button - now always visible for non-watchlist items */}
+              {!inWatchlist && (
+                <>
+                  {!product.ebayListingUrl && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={generateEbayListing}
+                      disabled={isGeneratingListing}
+                      className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
+                      title="Generate eBay Listing"
+                    >
+                      <Share2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {product.ebayListingUrl && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => window.open(product.ebayListingUrl ?? undefined, '_blank')}
+                      className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                      title="View on eBay"
+                    >
+                      <ArrowUpRight className="h-4 w-4" />
+                    </Button>
+                  )}
+                </>
               )}
             </div>
             <Button

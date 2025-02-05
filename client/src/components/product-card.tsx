@@ -402,7 +402,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl || '', '_blank')}
+                      onClick={() => product.ebayListingUrl ? window.open(product.ebayListingUrl, '_blank') : null}
                       className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
                     >
@@ -494,47 +494,53 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
                         <div className="space-y-4">
                           <div className="p-3 bg-secondary/20 rounded-lg space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm font-medium">Market Demand</span>
-                              <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
-                            </div>
-                            <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
-                            <div className="flex items-center gap-2">
-                              <BarChart className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
-                            </div>
+                            {aiAnalysis?.marketAnalysis?.demandScore && (
+                              <div>
+                                <span className="text-sm font-medium">Market Demand</span>
+                                <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
+                              </div>
+                            )}
+                            {aiAnalysis?.marketAnalysis?.demandScore && <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />}
+                            {aiAnalysis?.marketAnalysis?.competitionLevel && (
+                              <div className="flex items-center gap-2">
+                                <BarChart className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
+                              </div>
+                            )}
                           </div>
 
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                              <Tag className="h-4 w-4" />
-                              <h5 className="font-medium">Price Analysis</h5>
-                            </div>
-
-                            <div className="pl-4 space-y-2">
-                              <div className="flex flex-col gap-1">
-                                <span className="text-sm text-muted-foreground">Current Price:</span>
-                                <span className={cn(
-                                  "text-lg font-semibold",
-                                  isUnderpriced && "text-yellow-600",
-                                  isOverpriced && "text-red-600",
-                                  isPricedRight && "text-green-600"
-                                )}>
-                                  ${currentPrice}
-                                </span>
+                          {aiAnalysis?.marketAnalysis?.priceSuggestion && (
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Tag className="h-4 w-4" />
+                                <h5 className="font-medium">Price Analysis</h5>
                               </div>
-                              <div className="flex flex-col gap-1">
-                                <span className="text-sm text-muted-foreground">Suggested Range:</span>
-                                <div className="flex items-baseline gap-2">
-                                  <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
-                                  <span className="text-muted-foreground">-</span>
-                                  <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+
+                              <div className="pl-4 space-y-2">
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-muted-foreground">Current Price:</span>
+                                  <span className={cn(
+                                    "text-lg font-semibold",
+                                    isUnderpriced && "text-yellow-600",
+                                    isOverpriced && "text-red-600",
+                                    isPricedRight && "text-green-600"
+                                  )}>
+                                    ${currentPrice}
+                                  </span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  <span className="text-sm text-muted-foreground">Suggested Range:</span>
+                                  <div className="flex items-baseline gap-2">
+                                    <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
+                                    <span className="text-muted-foreground">-</span>
+                                    <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                                  </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
+                          )}
 
-                          {aiAnalysis.ebayData && (
+                          {aiAnalysis?.ebayData && (
                             <div>
                               <div className="flex items-center gap-2 mb-2">
                                 <PackageOpen className="h-4 w-4" />
@@ -569,22 +575,24 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                             </div>
                           )}
 
-                          <div className="border-t pt-3">
-                            <div className="flex items-center gap-2 mb-2">
-                              <TrendingUp className="h-4 w-4" />
-                              <h5 className="font-medium">Optimization Tips</h5>
+                          {aiAnalysis?.suggestions && (
+                            <div className="border-t pt-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <TrendingUp className="h-4 w-4" />
+                                <h5 className="font-medium">Optimization Tips</h5>
+                              </div>
+                              <ul className="space-y-2">
+                                {aiAnalysis.suggestions.map((suggestion, index) => (
+                                  <li
+                                    key={index}
+                                    className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
+                                  >
+                                    {suggestion}
+                                  </li>
+                                ))}
+                              </ul>
                             </div>
-                            <ul className="space-y-2">
-                              {aiAnalysis.suggestions.map((suggestion, index) => (
-                                <li
-                                  key={index}
-                                  className="text-sm text-muted-foreground pl-4 border-l-2 border-primary/20"
-                                >
-                                  {suggestion}
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </ScrollArea>
@@ -706,7 +714,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     <Button
                       size="icon"
                       variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl, '_blank')}
+                      onClick={() => product.ebayListingUrl ? window.open(product.ebayListingUrl, '_blank') : null}
                       className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
                     >

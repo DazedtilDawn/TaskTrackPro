@@ -10,21 +10,45 @@ import multer from 'multer';
 import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 import { checkEbayAuth } from "./middleware/ebay-auth";
 
 // Get directory name in ESM
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Ensure uploads directory exists
+const uploadsDir = path.resolve(__dirname, "../uploads");
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: function (req, file, cb) {
+    cb(null, uploadsDir);
+  },
   filename: function (req, file, cb) {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    // Generate a unique filename with original extension
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    cb(null, `${uniqueSuffix}${ext}`);
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    // Accept images only
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  }
+});
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -40,6 +64,17 @@ function ensureJSON(data: unknown): object | null {
   }
 }
 
+// Helper to generate full URL for uploaded images
+function getImageUrl(filename: string | null): string | null {
+  if (!filename) return null;
+  // If filename already starts with /uploads/, use as is
+  if (filename.startsWith('/uploads/')) {
+    return filename;
+  }
+  // Otherwise, ensure proper path formatting
+  return `/uploads/${path.basename(filename)}`;
+}
+
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
@@ -51,8 +86,12 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
-  // Serve static files from uploads directory
-  app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+  // Configure static file serving for uploads directory
+  console.log('[Static Files] Serving uploads from:', uploadsDir);
+  app.use('/uploads', express.static(uploadsDir, {
+    fallthrough: true, // Continue to next handler if file not found
+    index: false, // Disable directory listing
+  }));
 
   // Add this near the top of the routes registration, before the eBay-specific endpoints
   app.get("/callback", (req, res) => {
@@ -483,6 +522,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   // Add GET products endpoint before the POST endpoint
   app.get("/api/products", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
     try {
       const productsList = await db.select().from(products)
         .where(and(
@@ -491,13 +531,15 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         ))
         .orderBy(products.createdAt);
 
-      // Ensure JSON fields are properly parsed
+      // Process products to ensure proper JSON parsing and image URLs
       const processedProducts = productsList.map(product => ({
         ...product,
+        imageUrl: getImageUrl(product.imageUrl),
         aiAnalysis: ensureJSON(product.aiAnalysis),
         ebayListingData: ensureJSON(product.ebayListingData)
       }));
 
+      console.log('[Products API] Serving products with processed image URLs');
       res.json(processedProducts);
     } catch (error) {
       console.error("Error fetching products:", error);
@@ -513,6 +555,8 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
+      console.log('[Products API] Creating product with image:', req.file);
+
       // Extract form data
       const productData = {
         name: req.body.name,
@@ -523,7 +567,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         condition: req.body.condition || 'used_good',
         brand: req.body.brand || null,
         category: req.body.category || null,
-        imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
+        imageUrl: req.file ? getImageUrl(req.file.filename) : null,
         aiAnalysis: req.body.aiAnalysis ? ensureJSON(req.body.aiAnalysis) : null,
         ebayPrice: req.body.ebayPrice || null,
         userId: req.user!.id,
@@ -533,16 +577,24 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         listedAt: new Date()
       };
 
+      console.log('[Products API] Product data prepared:', {
+        ...productData,
+        imageUrl: productData.imageUrl // Log the processed image URL
+      });
+
       const [product] = await db.insert(products)
         .values(productData)
         .returning();
 
       // Ensure JSON fields are parsed in response
-      res.status(201).json({
+      const processedProduct = {
         ...product,
+        imageUrl: getImageUrl(product.imageUrl),
         aiAnalysis: ensureJSON(product.aiAnalysis),
         ebayListingData: ensureJSON(product.ebayListingData)
-      });
+      };
+
+      res.status(201).json(processedProduct);
     } catch (error) {
       console.error('Error creating product:', error);
       res.status(500).json({
@@ -837,7 +889,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       // Construct an improved prompt
       const prompt = `We have a product with the following details:
 - Buy Price: $${buyPriceNum.toFixed(2)}
-- Current Market Price: ${currentPriceNum ? `$${currentPriceNum.toFixed(2)}` : "not available"}
+- Current Market Price:${currentPriceNum ? `$${currentPriceNum.toFixed(2)}` : "not available"}
 - Condition: ${condition || "unspecified"}
 - Category: ${category || "unspecified"}
 

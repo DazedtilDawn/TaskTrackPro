@@ -1,0 +1,58 @@
+Based on your code, it looks like the callback for handling image uploads is being called (i.e. you update the imageFiles state and call
+
+```tsx
+if (files.length > 0) {
+  setShowSmartListing(true);
+}
+```
+
+), but the SmartListing process isn’t running because the modal (SmartListingModal) that should trigger the analysis is not rendered anywhere in your JSX.
+
+### What to Check and Fix
+
+1. **Render the SmartListingModal:**  
+   In earlier versions you may have had something like this at the bottom of your JSX (after your form) to trigger the analysis modal when files are uploaded:
+
+   ```tsx
+   {showSmartListing && (
+     <SmartListingModal
+       open={showSmartListing}
+       onClose={() => setShowSmartListing(false)}
+       imageFiles={imageFiles}
+       onAnalysisComplete={(analysis) => {
+         // your handler for updating analysis results, e.g.:
+         form.setValue("aiAnalysis", analysis);
+         setShowSmartListing(false);
+       }}
+     />
+   )}
+   ```
+
+   Make sure that this modal is still imported (if needed) and that its JSX is present so that when `setShowSmartListing(true)` is called, the modal appears and triggers the AI analysis.
+
+2. **Remove any Placeholder Implementation:**  
+   If you still have a placeholder for the ImageUpload component (for example, a component that simply displays “Image Upload Component (Implementation Needed)”), remove that so that the actual component (from `"@/components/ui/image-upload"`) is used. This component should properly call the `onImagesUploaded` callback with the uploaded file(s).
+
+3. **Double-check Your Callback:**  
+   Add a `console.log` inside your `handleImagesUploaded` function to ensure it is being called with the correct files. For example:
+
+   ```tsx
+   const handleImagesUploaded = (files: File[]) => {
+     console.log("Files uploaded:", files);
+     setImageFiles(files);
+     if (files.length > 0) {
+       setShowSmartListing(true);
+     }
+   };
+   ```
+
+   If the log shows the correct files, then your file upload is working—but the SmartListing process will only trigger if the modal is rendered.
+
+4. **Verify SmartListingModal Functionality:**  
+   Ensure that your SmartListingModal component (imported from `"@/components/smart-listing-modal"`) is implemented correctly and that it indeed begins the analysis process (e.g. by using a timeout or immediately starting analysis when the modal is opened).
+
+### Summary
+
+It seems that the image upload itself is working (since you’re updating the state), but the SmartListing analysis isn’t triggered because the SmartListingModal isn’t rendered in your component. Restoring (or adding) the conditional rendering of SmartListingModal should resolve the issue.
+
+Let me know if you need further assistance!

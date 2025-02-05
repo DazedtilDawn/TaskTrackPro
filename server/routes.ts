@@ -45,30 +45,35 @@ export function registerRoutes(app: Express): Server {
 
   // Add eBay auth endpoints
   app.get("/api/ebay/auth-url", checkEbayAuth, async (req, res) => {
+    console.log("[eBay Auth URL] Generating auth URL");
     if (!req.isAuthenticated()) {
+      console.log("[eBay Auth URL] Unauthorized request");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // In a real implementation, this would generate an OAuth URL for eBay
-    // For now, we'll return a mock URL
-    res.json({
-      authUrl: `https://auth.ebay.com/oauth2/authorize?client_id=mock&response_type=code&redirect_uri=${
-        encodeURIComponent(`${process.env.APP_URL}/api/ebay/callback`)
-      }&scope=https://api.ebay.com/oauth/api_scope`
-    });
+    const authUrl = `https://auth.ebay.com/oauth2/authorize?client_id=mock&response_type=code&redirect_uri=${
+      encodeURIComponent(`${process.env.APP_URL}/api/ebay/callback`)
+    }&scope=https://api.ebay.com/oauth/api_scope`;
+
+    console.log("[eBay Auth URL] Generated URL:", authUrl);
+    res.json({ authUrl });
   });
 
   app.get("/api/ebay/callback", checkEbayAuth, async (req, res) => {
+    console.log("[eBay Callback] Received callback");
     if (!req.isAuthenticated()) {
+      console.log("[eBay Callback] Unauthorized request");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
+      console.log("[eBay Callback] Processing auth callback for user:", req.user!.id);
       // Mock successful eBay authentication
       const mockToken = `mock_token_${Date.now()}`;
       const expiryDate = new Date();
       expiryDate.setDate(expiryDate.getDate() + 30); // Token expires in 30 days
 
+      console.log("[eBay Callback] Updating user with token");
       // Update user with eBay credentials
       await db.update(users)
         .set({
@@ -78,23 +83,30 @@ export function registerRoutes(app: Express): Server {
         })
         .where(eq(users.id, req.user!.id));
 
+      console.log("[eBay Callback] Auth successful, redirecting");
       res.redirect("/settings/ebay-auth?status=success");
     } catch (error) {
-      console.error("eBay auth callback error:", error);
+      console.error("[eBay Callback] Error:", error);
       res.redirect("/settings/ebay-auth?status=error");
     }
   });
 
   // Add the eBay-specific endpoints with the auth middleware
   app.post("/api/products/:id/generate-ebay-listing", checkEbayAuth, async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    console.log("[Generate eBay Listing] Starting generation");
+    if (!req.isAuthenticated()) {
+      console.log("[Generate eBay Listing] Unauthorized request");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
 
     try {
       const productId = parseInt(req.params.id);
       if (isNaN(productId)) {
+        console.log("[Generate eBay Listing] Invalid product ID:", req.params.id);
         return res.status(400).json({ error: "Invalid product ID" });
       }
 
+      console.log("[Generate eBay Listing] Fetching product:", productId);
       // Fetch the product
       const [product] = await db.select()
         .from(products)
@@ -107,9 +119,11 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!product) {
+        console.log("[Generate eBay Listing] Product not found:", productId);
         return res.status(404).json({ error: "Product not found" });
       }
 
+      console.log("[Generate eBay Listing] Generating AI content for product:", product.name);
       // Use AI to optimize the listing
       const model = genAI.getGenerativeModel({ 
         model: "gemini-2.0-flash-exp",
@@ -140,8 +154,10 @@ Format the response as JSON with:
   "keywords": ["relevant", "search", "terms"]
 }`;
 
+      console.log("[Generate eBay Listing] AI prompt:", prompt);
       const result = await model.generateContent(prompt);
       const text = await result.response.text();
+      console.log("[Generate eBay Listing] AI response:", text);
 
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -151,6 +167,7 @@ Format the response as JSON with:
         const jsonStr = jsonMatch[0];
         const optimizedListing = JSON.parse(jsonStr);
 
+        console.log("[Generate eBay Listing] Parsed AI response:", optimizedListing);
         // For now, we'll just update the product with mock eBay data
         // In a real implementation, this would make actual eBay API calls
         const [updatedProduct] = await db.update(products)
@@ -164,17 +181,17 @@ Format the response as JSON with:
           })
           .where(eq(products.id, productId))
           .returning();
-
+        console.log("[Generate eBay Listing] Updated product:", updatedProduct);
         res.json(updatedProduct);
       } catch (parseError) {
-        console.error("Failed to parse AI response:", parseError);
+        console.error("[Generate eBay Listing] Failed to parse AI response:", parseError);
         res.status(500).json({
           error: "Failed to optimize listing",
           details: parseError instanceof Error ? parseError.message : "Unknown error"
         });
       }
     } catch (error) {
-      console.error("Error generating eBay listing:", error);
+      console.error("[Generate eBay Listing] Error generating eBay listing:", error);
       res.status(500).json({
         error: "Failed to generate eBay listing",
         details: error instanceof Error ? error.message : "Unknown error"

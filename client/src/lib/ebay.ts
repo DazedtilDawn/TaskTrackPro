@@ -13,25 +13,31 @@ interface EbayPriceData {
 export async function getEbayPrice(productName: string): Promise<EbayPriceData | null> {
   console.log("[eBay Price] Fetching price data for:", productName);
 
-  // Simulated API call to eBay
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      // Generate mock price data
-      const basePrice = Math.round(Math.random() * 190 + 10);
-      const mockData: EbayPriceData = {
-        currentPrice: basePrice,
-        averagePrice: basePrice * 1.1,
-        lowestPrice: basePrice * 0.8,
-        highestPrice: basePrice * 1.4,
-        soldCount: Math.floor(Math.random() * 50),
-        activeListing: Math.floor(Math.random() * 100),
-        recommendedPrice: basePrice * 1.05,
-        lastUpdated: new Date().toISOString()
-      };
-      console.log("[eBay Price] Generated price data:", mockData);
-      resolve(mockData);
-    }, 1000);
-  });
+  try {
+    const response = await fetch(`/api/ebay-price?productName=${encodeURIComponent(productName)}`, {
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      // If it's a 403, the user needs to authenticate with eBay
+      if (response.status === 403) {
+        const data = await response.json();
+        if (data.redirectTo) {
+          window.location.href = data.redirectTo;
+          return null;
+        }
+      }
+      console.error("[eBay Price] API error:", response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+    console.log("[eBay Price] Received price data:", data);
+    return data;
+  } catch (error) {
+    console.error("[eBay Price] Error fetching price:", error);
+    return null;
+  }
 }
 
 export async function checkEbayPrices(products: Array<{ name: string }>): Promise<Record<string, EbayPriceData>> {

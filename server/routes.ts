@@ -91,6 +91,90 @@ export function registerRoutes(app: Express): Server {
     }
   });
 
+  // Add the new eBay price endpoint after the existing eBay auth endpoints
+  app.get("/api/ebay-price", checkEbayAuth, async (req, res) => {
+    if (!req.isAuthenticated()) {
+      console.log("[eBay Price] Unauthorized request");
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const { productName } = req.query;
+    if (!productName || typeof productName !== "string") {
+      console.log("[eBay Price] Missing or invalid productName:", productName);
+      return res.status(400).json({ error: "Missing or invalid productName" });
+    }
+
+    // Ensure the user has valid eBay authentication
+    if (
+      !req.user?.ebayAuthToken ||
+      !req.user?.ebayTokenExpiry ||
+      new Date(req.user.ebayTokenExpiry) < new Date()
+    ) {
+      console.log("[eBay Price] Invalid or expired eBay token");
+      return res.status(403).json({
+        error: "eBay authentication required",
+        details: "Please authenticate with eBay first",
+        redirectTo: "/settings/ebay-auth"
+      });
+    }
+
+    try {
+      console.log("[eBay Price] Fetching data for:", productName);
+      // Call the eBay Browse API
+      const response = await fetch(
+        `https://api.ebay.com/buy/browse/v1/item_summary/search?q=${encodeURIComponent(productName)}&limit=10`,
+        {
+          headers: {
+            "Authorization": `Bearer ${req.user.ebayAuthToken}`,
+            "Content-Type": "application/json",
+            "X-EBAY-C-MARKETPLACE-ID": "EBAY-US"
+          }
+        }
+      );
+
+      if (!response.ok) {
+        console.error("[eBay Price] eBay API error:", response.status, await response.text());
+        return res.status(response.status).json({ error: "Failed to fetch eBay data" });
+      }
+
+      const data = await response.json();
+      console.log("[eBay Price] Raw eBay response:", data);
+
+      if (!data.itemSummaries?.length) {
+        console.log("[eBay Price] No items found");
+        return res.status(404).json({ error: "No pricing data available" });
+      }
+
+      // Process the returned listings
+      const prices = data.itemSummaries
+        .map((item: any) => Number(item.price?.value))
+        .filter((p: number) => !isNaN(p));
+
+      const currentPrices = prices.sort((a: number, b: number) => a - b);
+      const averagePrice = prices.reduce((sum: number, p: number) => sum + p, 0) / prices.length;
+
+      const priceData = {
+        currentPrice: currentPrices[Math.floor(currentPrices.length / 2)], // median price
+        averagePrice,
+        lowestPrice: Math.min(...prices),
+        highestPrice: Math.max(...prices),
+        soldCount: data.total || 0,
+        activeListing: data.itemSummaries.length,
+        recommendedPrice: averagePrice * 0.95, // Slightly below average for competitiveness
+        lastUpdated: new Date().toISOString()
+      };
+
+      console.log("[eBay Price] Processed price data:", priceData);
+      res.json(priceData);
+    } catch (error) {
+      console.error("[eBay Price] Error:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch eBay pricing data",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Add the eBay-specific endpoints with the auth middleware
   app.post("/api/products/:id/generate-ebay-listing", checkEbayAuth, async (req, res) => {
     console.log("[Generate eBay Listing] Starting generation");
@@ -257,7 +341,11 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         }
       }));
 
-      parts.unshift({ text: prompt });
+      // Add type-safe text part
+      parts.unshift({ 
+        text: prompt,
+        inlineData: undefined // Make TypeScript happy with union type
+      });
 
       const result = await model.generateContent({
         contents: [{ role: "user", parts }],
@@ -472,6 +560,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
 
+
   // Mark product as sold endpoint
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -496,10 +585,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         .values({
           userId: req.user!.id,
           status: "completed",
-          total: product.price,
+          total: product.price || "0",
           createdAt: new Date(),
-          updatedAt: new Date(),
-        })
+          updatedAt: new Date()
+        } as const)
         .returning();
 
       // Create order item
@@ -507,11 +596,12 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         .values({
           orderId: order.id,
           productId: product.id,
-          price: product.price,
+          price: product.price || "0",
           quantity: 1,
           createdAt: new Date(),
-          updatedAt: new Date(),
-        });
+          updatedAt: new Date()
+        } as const)
+        .returning();
 
       // Mark product as sold instead of deleting
       await db.update(products)
@@ -557,10 +647,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
           price: orderItems.price,
           product: {
             id: products.id,
-            name: products.name,
-            description: products.description,
-            sku: products.sku,
-            imageUrl: products.imageUrl
+            name: products.name.toString(),
+            description: products.description?.toString() || null,
+            sku: products.sku?.toString() || null,
+            imageUrl: products.imageUrl?.toString() || null
           }
         }
       })
@@ -570,17 +660,17 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       .where(eq(orders.userId, req.user!.id))
       .orderBy(desc(orders.createdAt));
 
-      // Group items by order
-      const groupedOrders = userOrders.reduce((acc: any[], order) => {
+      // Group items by order with proper type checking
+      const groupedOrders = userOrders.reduce((acc: typeof userOrders, order) => {
         const existingOrder = acc.find(o => o.id === order.id);
         if (existingOrder) {
-          if (order.items?.id) { // Only add if items exist
-            existingOrder.items.push(order.items);
+          if (order.items?.id) {
+            existingOrder.items = order.items;
           }
         } else {
           acc.push({
             ...order,
-            items: order.items?.id ? [order.items] : [] // Only include if items exist
+            items: order.items?.id ? order.items : null
           });
         }
         return acc;
@@ -815,7 +905,7 @@ Format the response as JSON with:
       } catch (parseError) {
         console.error("Failed to parse AI response:", parseError);
         res.status(500).json({
-          error: "Failed to optimize listing",
+          error: "Failedto optimize listing",
           details: parseError instanceof Error ? parseError.message : "Unknown error"
         });
       }

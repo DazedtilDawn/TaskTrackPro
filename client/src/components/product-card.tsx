@@ -44,6 +44,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const displayUrl = getImageUrl(product.imageUrl);
 
   const aiAnalysis = parseAiAnalysis(product.aiAnalysis);
   const hasAnalysis = Boolean(aiAnalysis);
@@ -235,9 +236,9 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors">
           {/* Product Image */}
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-            {!imageError && product.imageUrl ? (
+            {!imageError && displayUrl ? (
               <img
-                src={getImageUrl(product.imageUrl)}
+                src={displayUrl}
                 alt={product.name}
                 className="w-full h-full object-cover"
                 onError={() => setImageError(true)}
@@ -415,9 +416,9 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
           "relative",
           view === "grid" ? "w-full" : "w-48 shrink-0"
         )}>
-          {!imageError && product.imageUrl ? (
+          {!imageError && displayUrl ? (
             <img
-              src={getImageUrl(product.imageUrl)}
+              src={displayUrl}
               alt={product.name}
               className={cn(
                 "object-cover",

@@ -22,15 +22,15 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { 
-  formatPrice, 
-  calculatePriceStatus, 
-  parseAiAnalysis 
+import {
+  formatPrice,
+  calculatePriceStatus,
+  parseAiAnalysis
 } from "@/lib/json-utils";
 
 // Helper function to get image URL
-const getImageUrl = (imageUrl: string | null): string | null => {
-  if (!imageUrl) return null;
+const getImageUrl = (imageUrl: string | null): string | undefined => {
+  if (!imageUrl) return undefined;
   return imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`;
 };
 
@@ -61,6 +61,7 @@ export function ProductTable({
     status: true,
   });
   const [selectedProduct, setSelectedProduct] = useState<SelectProduct | null>(null);
+  const [imageError, setImageError] = useState<Record<string, boolean>>({});
 
   const handleRowClick = useCallback((product: SelectProduct) => {
     setSelectedProduct(product);
@@ -73,18 +74,16 @@ export function ProductTable({
       cell: ({ row }) => {
         const imageUrl = row.original.imageUrl;
         const displayUrl = getImageUrl(imageUrl);
+        const hasError = imageError[row.original.id];
 
         return (
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-            {displayUrl ? (
+            {!hasError && displayUrl ? (
               <img
                 src={displayUrl}
                 alt={row.original.name}
                 className="w-full h-full object-cover"
-                onError={(e) => {
-                  const img = e.target as HTMLImageElement;
-                  img.src = 'https://placehold.co/48';
-                }}
+                onError={() => setImageError(prev => ({ ...prev, [row.original.id]: true }))}
               />
             ) : (
               <div className="w-full h-full bg-secondary/20 flex items-center justify-center">

@@ -605,6 +605,9 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               <Input type="number" step="0.01" {...field} className="pl-9" placeholder="0.00" />
                             </div>
                           </FormControl>
+                          <div className="text-lg font-medium">
+                            ${Number(form.watch("price"))?.toFixed(2) ?? "N/A"}
+                          </div>
                           {buyPrice && (
                             <FormDescription>
                               Automatically calculated based on buy price and condition.
@@ -792,7 +795,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                             <div>
                               <span className="text-sm text-muted-foreground">Suggested Price Range</span>
                               <div className="text-lg font-medium">
-                                ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.min").toFixed(2)} - ${form.watch("aiAnalysis.marketAnalysis.priceSuggestion.max").toFixed(2)}
+                                ${Number(form.watch("aiAnalysis.marketAnalysis.priceSuggestion.min"))?.toFixed(2) ?? "N/A"} - ${Number(form.watch("aiAnalysis.marketAnalysis.priceSuggestion.max"))?.toFixed(2) ?? "N/A"}
                               </div>
                             </div>
                           )}
@@ -848,24 +851,24 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         <div>
                           <span className="text-sm text-muted-foreground">Current Market Price</span>
                           <div className="text-2xl font-semibold">
-                            ${form.watch("aiAnalysis.ebayData.currentPrice").toFixed(2)}
+                            ${Number(form.watch("aiAnalysis.ebayData.currentPrice"))?.toFixed(2) ?? "N/A"}
                           </div>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">Average Price</span>
                           <div className="text-2xl font-semibold">
-                            ${form.watch("aiAnalysis.ebayData.averagePrice").toFixed(2)}
+                            ${Number(form.watch("aiAnalysis.ebayData.averagePrice"))?.toFixed(2) ?? "N/A"}
                           </div>
                         </div>
                         <div>
                           <span className="text-sm text-muted-foreground">Price Range</span>
                           <div className="flex items-baseline gap-2">
                             <span className="text-lg font-medium">
-                              ${form.watch("aiAnalysis.ebayData.lowestPrice").toFixed(2)}
+                              ${Number(form.watch("aiAnalysis.ebayData.lowestPrice"))?.toFixed(2) ?? "N/A"}
                             </span>
                             <span className="text-muted-foreground">to</span>
                             <span className="text-lg font-medium">
-                              ${form.watch("aiAnalysis.ebayData.highestPrice").toFixed(2)}
+                              ${Number(form.watch("aiAnalysis.ebayData.highestPrice"))?.toFixed(2) ?? "N/A"}
                             </span>
                           </div>
                         </div>
@@ -874,19 +877,23 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         <div>
                           <span className="text-sm text-muted-foreground">Recommended Price</span>
                           <div className="text-2xl font-semibold text-primary">
-                            ${form.watch("aiAnalysis`.ebayData.recommendedPrice").toFixed(2)}
+                            ${Number(form.watch("aiAnalysis.ebayData.recommendedPrice"))?.toFixed(2) ?? "N/A"}
                           </div>
                         </div>
                         <div>
-                          <span className="text-sm text-muted-foreground">Market Activity</span>
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-sm text-muted-foreground">Sold Items</span>
-                              <span className="font-medium">{form.watch("aiAnalysis.ebayData.soldCount")}</span>
-                            </div>
-                            <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Market Statistics</span>
+                          <div className="grid grid-cols-2 gap-4 mt-2">
+                            <div>
                               <span className="text-sm text-muted-foreground">Active Listings</span>
-                              <span className="font-medium">{form.watch("aiAnalysis.ebayData.activeListing")}</span>
+                              <div className="text-lg font-medium">
+                                {form.watch("aiAnalysis.ebayData.activeListing") ?? "N/A"}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">Sold Items</span>
+                              <div className="text-lg font-medium">
+                                {form.watch("aiAnalysis.ebayData.soldCount") ?? "N/A"}
+                              </div>
                             </div>
                           </div>
                         </div>

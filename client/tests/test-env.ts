@@ -17,14 +17,14 @@ global.fetch = jest.fn(() =>
 
 // Mock ResizeObserver
 global.ResizeObserver = class ResizeObserver {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
+  observe() { }
+  unobserve() { }
+  disconnect() { }
 };
 
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
-  constructor() {}
+  constructor() { }
   observe() { return null; }
   unobserve() { return null; }
   disconnect() { return null; }

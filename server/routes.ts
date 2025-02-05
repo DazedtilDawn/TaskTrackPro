@@ -29,6 +29,17 @@ const upload = multer({ storage: storage });
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
+// Add JSON parsing utilities
+function ensureJSON(data: unknown): object | null {
+  if (!data) return null;
+  try {
+    return typeof data === 'string' ? JSON.parse(data) : data;
+  } catch (error) {
+    console.error('JSON parsing error:', error);
+    return null;
+  }
+}
+
 export function registerRoutes(app: Express): Server {
   setupAuth(app);
 
@@ -479,7 +490,15 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
           eq(products.sold, false)
         ))
         .orderBy(products.createdAt);
-      res.json(productsList);
+
+      // Ensure JSON fields are properly parsed
+      const processedProducts = productsList.map(product => ({
+        ...product,
+        aiAnalysis: ensureJSON(product.aiAnalysis),
+        ebayListingData: ensureJSON(product.ebayListingData)
+      }));
+
+      res.json(processedProducts);
     } catch (error) {
       console.error("Error fetching products:", error);
       res.status(500).json({
@@ -505,20 +524,25 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         brand: req.body.brand || null,
         category: req.body.category || null,
         imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
-        aiAnalysis: req.body.aiAnalysis ? JSON.parse(req.body.aiAnalysis) : null,
+        aiAnalysis: req.body.aiAnalysis ? ensureJSON(req.body.aiAnalysis) : null,
         ebayPrice: req.body.ebayPrice || null,
         userId: req.user!.id,
         createdAt: new Date(),
         updatedAt: new Date(),
         sold: false,
-        listedAt: new Date() //Added listedAt
+        listedAt: new Date()
       };
 
       const [product] = await db.insert(products)
         .values(productData)
         .returning();
 
-      res.status(201).json(product);
+      // Ensure JSON fields are parsed in response
+      res.status(201).json({
+        ...product,
+        aiAnalysis: ensureJSON(product.aiAnalysis),
+        ebayListingData: ensureJSON(product.ebayListingData)
+      });
     } catch (error) {
       console.error('Error creating product:', error);
       res.status(500).json({

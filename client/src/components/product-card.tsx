@@ -18,6 +18,12 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { 
+  parseAiAnalysis, 
+  formatPrice, 
+  calculatePriceStatus, 
+  type AiAnalysis 
+} from "@/lib/json-utils";
 
 interface ProductCardProps {
   product: SelectProduct;
@@ -26,52 +32,16 @@ interface ProductCardProps {
   view?: "grid" | "list" | "table";
 }
 
-interface AIAnalysis {
-  category: string;
-  marketAnalysis: {
-    demandScore: number;
-    competitionLevel: string;
-    priceSuggestion: {
-      min: number;
-      max: number;
-    };
-  };
-  suggestions: string[];
-  seoKeywords: string[];
-  ebayData?: {
-    currentPrice: number;
-    averagePrice: number;
-    lowestPrice: number;
-    highestPrice: number;
-    soldCount: number;
-    activeListing: number;
-    recommendedPrice: number;
-    lastUpdated: string;
-  };
-}
-
 export default function ProductCard({ product, onEdit, inWatchlist, view = "grid" }: ProductCardProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
 
-  let aiAnalysis: AIAnalysis | undefined;
-  try {
-    if (typeof product.aiAnalysis === 'string') {
-      aiAnalysis = JSON.parse(product.aiAnalysis);
-    } else {
-      aiAnalysis = product.aiAnalysis as AIAnalysis;
-    }
-  } catch (e) {
-    console.error('Failed to parse aiAnalysis:', e);
-  }
-
-  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+  const aiAnalysis = parseAiAnalysis(product.aiAnalysis);
+  const hasAnalysis = Boolean(aiAnalysis);
   const currentPrice = Number(product.price) || 0;
-  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
-  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
-  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
+  const { isUnderpriced, isOverpriced, isPricedRight } = calculatePriceStatus(currentPrice, aiAnalysis);
 
   const markAsSold = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -282,7 +252,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
           {/* Listing Price */}
           <div className="flex-shrink-0 w-[120px]">
             <div className="text-sm font-medium">
-              ${Number(product.price).toFixed(2)}
+              {formatPrice(product.price)}
             </div>
             <div className="text-xs text-muted-foreground">
               {inWatchlist ? "Recommended" : "List Price"}
@@ -294,7 +264,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             {product.ebayPrice ? (
               <>
                 <div className="text-sm font-medium">
-                  ${Number(product.ebayPrice).toFixed(2)}
+                  {formatPrice(product.ebayPrice)}
                 </div>
                 <div className="text-xs text-muted-foreground">eBay Price</div>
               </>
@@ -328,7 +298,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               </div>
               {aiAnalysis?.marketAnalysis?.priceSuggestion && (
                 <div className="text-xs text-muted-foreground mt-1">
-                  ${aiAnalysis.marketAnalysis.priceSuggestion.min.toFixed(2)} - ${aiAnalysis.marketAnalysis.priceSuggestion.max.toFixed(2)}
+                  {formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.min)} - {formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.max)}
                 </div>
               )}
             </div>
@@ -525,15 +495,15 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                                     isOverpriced && "text-red-600",
                                     isPricedRight && "text-green-600"
                                   )}>
-                                    ${currentPrice}
+                                    {formatPrice(currentPrice)}
                                   </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-sm text-muted-foreground">Suggested Range:</span>
                                   <div className="flex items-baseline gap-2">
-                                    <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.min}</span>
+                                    <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.min)}</span>
                                     <span className="text-muted-foreground">-</span>
-                                    <span className="text-lg font-semibold">${aiAnalysis.marketAnalysis.priceSuggestion.max}</span>
+                                    <span className="text-lg font-semibold">{formatPrice(aiAnalysis.marketAnalysis.priceSuggestion.max)}</span>
                                   </div>
                                 </div>
                               </div>
@@ -549,15 +519,15 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                               <div className="grid grid-cols-2 gap-2">
                                 <div className="flex flex-col gap-1">
                                   <span className="text-sm text-muted-foreground">Current Price:</span>
-                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.currentPrice}</span>
+                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.currentPrice)}</span>
                                   <span className="text-sm text-muted-foreground">Average Price:</span>
-                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.averagePrice}</span>
+                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.averagePrice)}</span>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-sm text-muted-foreground">Lowest Price:</span>
-                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.lowestPrice}</span>
+                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.lowestPrice)}</span>
                                   <span className="text-sm text-muted-foreground">Highest Price:</span>
-                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.highestPrice}</span>
+                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.highestPrice)}</span>
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-sm text-muted-foreground">Sold:</span>
@@ -567,7 +537,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                                 </div>
                                 <div className="flex flex-col gap-1">
                                   <span className="text-sm text-muted-foreground">Recommended Price:</span>
-                                  <span className="text-sm font-medium">${aiAnalysis.ebayData.recommendedPrice}</span>
+                                  <span className="text-sm font-medium">{formatPrice(aiAnalysis.ebayData.recommendedPrice)}</span>
                                   <span className="text-sm text-muted-foreground">Last Updated:</span>
                                   <span className="text-sm font-medium">{aiAnalysis.ebayData.lastUpdated}</span>
                                 </div>
@@ -614,14 +584,14 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     {inWatchlist ? "Recommended Buy Price" : "Selling Price"}
                   </div>
                   <div className="text-xl font-semibold text-primary">
-                    ${Number(product.price).toFixed(2)}
+                    {formatPrice(product.price)}
                   </div>
                 </div>
                 {product.ebayPrice && (
                   <div className="flex flex-col items-end">
                     <span className="text-sm text-muted-foreground">eBay Price</span>
                     <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
-                      ${Number(product.ebayPrice).toFixed(2)}
+                      {formatPrice(product.ebayPrice)}
                     </span>
                   </div>
                 )}

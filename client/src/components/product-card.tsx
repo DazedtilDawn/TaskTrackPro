@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
 import {
   Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box,
   BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen, Loader2, ChevronDown, ChevronUp
@@ -61,7 +62,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         throw new Error(result.error || 'Failed to mark product as sold');
       }
 
-      // Only update UI after successful response
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
@@ -108,7 +108,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         throw new Error(result.error || 'Failed to update watchlist');
       }
 
-      // For 204 No Content responses, don't try to parse JSON
       if (response.status !== 204) {
         const result = await response.json();
         if (result.error) {
@@ -116,7 +115,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         }
       }
 
-      // Only update UI after successful response
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/products"] })
@@ -149,7 +147,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       if (response.status === 404) {
         const result = await response.json();
         if (result.error === "Product not found") {
-          // Product already deleted or only exists in watchlist
           await Promise.all([
             queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
             queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
@@ -163,7 +160,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         }
       }
 
-      // Handle 204 No Content response
       if (response.status === 204) {
         await Promise.all([
           queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
@@ -186,7 +182,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         throw new Error(result.error);
       }
 
-      // Only update UI after successful response
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
@@ -278,7 +273,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
     return (
       <div className="group/row relative">
         <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors">
-          {/* Product Image */}
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
             {!imageError && displayUrl ? (
               <img
@@ -294,7 +288,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             )}
           </div>
 
-          {/* Product Name and Description */}
           <div className="flex-1 min-w-0 w-[300px]">
             <h3 className="font-medium line-clamp-1">{product.name}</h3>
             <p className="text-sm text-muted-foreground line-clamp-1">
@@ -302,7 +295,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </p>
           </div>
 
-          {/* Listing Price */}
           <div className="flex-shrink-0 w-[120px]">
             <div className="text-sm font-medium">
               {formatPrice(product.price)}
@@ -312,7 +304,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           </div>
 
-          {/* eBay Price */}
           <div className="flex-shrink-0 w-[120px]">
             {product.ebayPrice ? (
               <>
@@ -326,14 +317,12 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             )}
           </div>
 
-          {/* Condition */}
           <div className="flex-shrink-0 w-[100px]">
             <span className="text-sm capitalize">
               {product.condition?.replace(/_/g, ' ') || 'Not Specified'}
             </span>
           </div>
 
-          {/* AI Analysis */}
           {hasAnalysis && (
             <div className="flex-shrink-0 w-[150px]">
               <div
@@ -357,7 +346,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex-shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity duration-100 absolute right-4 bg-background/95 rounded-lg shadow-sm z-50">
             <div className="flex items-center gap-1 p-1">
               <Button
@@ -462,31 +450,43 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         isPricedRight && "border-green-500/50",
         view === "list" && "flex"
       )}>
-        {/* Image Section */}
         <div className={cn(
           "relative",
-          view === "grid" ? "w-full" : "w-48 shrink-0"
+          view === "grid" ? "w-full" : "w-48 shrink-0 h-48"
         )}>
           {!imageError && displayUrl ? (
-            <img
-              src={displayUrl}
-              alt={product.name}
-              className={cn(
-                "object-cover",
-                view === "grid" ? "w-full h-48" : "w-48 h-full"
-              )}
-              onError={() => setImageError(true)}
-            />
+            view === "grid" ? (
+              <AspectRatio ratio={4 / 3} className="bg-secondary/20">
+                <img
+                  src={displayUrl}
+                  alt={product.name}
+                  className="object-cover w-full h-full"
+                  onError={() => setImageError(true)}
+                />
+              </AspectRatio>
+            ) : (
+              <img
+                src={displayUrl}
+                alt={product.name}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            )
           ) : (
             <div className={cn(
               "bg-secondary/20 flex items-center justify-center",
-              view === "grid" ? "w-full h-48" : "w-48 h-full"
+              view === "grid" ? (
+                <AspectRatio ratio={4 / 3}>
+                  <div className="flex items-center justify-center w-full h-full">
+                    <Box className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                </AspectRatio>
+              ) : "w-full h-full"
             )}>
               <Box className="w-8 h-8 text-muted-foreground" />
             </div>
           )}
 
-          {/* Price Status Badge */}
           {hasAnalysis && (
             <div className={cn(
               "absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium",
@@ -516,7 +516,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               </div>
             </div>
 
-            {/* Market Analysis Section */}
             {hasAnalysis && aiAnalysis && (
               <div className="mt-4 border-t pt-4">
                 <div className="flex items-center justify-between">
@@ -645,7 +644,6 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               </div>
             )}
 
-            {/* Price and Details Section */}
             <div className={cn(
               "mt-4 space-y-2",
               view === "list" && "flex items-center gap-6"
@@ -656,7 +654,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               )}>
                 <div className="space-y-1">
                   <div className="text-sm text-muted-foreground font-medium">
-                    {inWatchlist ? "Recommended Buy Price" : "Selling Price"}
+                    {inWatchlist ? "Recommended Sell Price" : "Selling Price"}
                   </div>
                   <div className="text-xl font-semibold text-primary">
                     {formatPrice(product.price)}

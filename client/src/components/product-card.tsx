@@ -1,8 +1,8 @@
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { 
-  Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box, 
-  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen 
+import {
+  Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box,
+  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen
 } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -216,8 +216,8 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             description: "You need to connect your eBay account first.",
             variant: "default",
             action: (
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 size="sm"
                 onClick={() => {
                   window.location.href = "/settings/ebay-auth";
@@ -282,44 +282,36 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             </p>
           </div>
 
-          {/* Price Info */}
+          {/* List Price */}
           <div className="flex-shrink-0 w-32">
             <div className="text-sm font-medium">
               ${Number(product.price).toFixed(2)}
             </div>
             <div className="text-xs text-muted-foreground">
-              {inWatchlist ? "Recommended" : "Selling Price"}
+              {inWatchlist ? "Recommended" : "List Price"}
             </div>
           </div>
 
+          {/* eBay Price */}
+          <div className="flex-shrink-0 w-32">
+            {product.ebayPrice ? (
+              <>
+                <div className="text-sm font-medium">
+                  ${Number(product.ebayPrice).toFixed(2)}
+                </div>
+                <div className="text-xs text-muted-foreground">eBay Price</div>
+              </>
+            ) : (
+              <span className="text-sm text-muted-foreground">Not Listed</span>
+            )}
+          </div>
+
           {/* Condition */}
-          {product.condition && (
-            <div className="flex-shrink-0 w-24">
-              <span className="text-sm capitalize">
-                {product.condition.replace(/_/g, ' ')}
-              </span>
-            </div>
-          )}
-
-          {/* Weight */}
-          {product.weight !== undefined && (
-            <div className="flex-shrink-0 w-24">
-              <div className="text-sm font-medium">
-                {product.weight} lbs
-              </div>
-              <div className="text-xs text-muted-foreground">Weight</div>
-            </div>
-          )}
-
-          {/* Dimensions */}
-          {product.dimensions && (
-            <div className="flex-shrink-0 w-32">
-              <div className="text-sm font-medium">
-                {product.dimensions}
-              </div>
-              <div className="text-xs text-muted-foreground">Dimensions</div>
-            </div>
-          )}
+          <div className="flex-shrink-0 w-24">
+            <span className="text-sm capitalize">
+              {product.condition?.replace(/_/g, ' ') || 'Not Specified'}
+            </span>
+          </div>
 
           {/* Market Analysis */}
           {hasAnalysis && (

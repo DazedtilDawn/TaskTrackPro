@@ -1,0 +1,102 @@
+3. toFixed() Error
+
+File: client/src/components/product-form.tsx
+
+Checklist:
+
+Use optional chaining (?.) and nullish coalescing (??) to safely access nested properties of aiAnalysis and ebayData.
+
+Before using .toFixed(), ensure the value is a number. Use Number() to attempt conversion, and check with isNaN() if necessary.
+```ts
+// Inside ProductForm, where you display eBay data.
+{aiAnalysis?.ebayData && (
+
+<div>
+{/* Other fields... */}
+<div>Current Price: ${Number(aiAnalysis.ebayData.currentPrice).toFixed(2)}</div>
+<div>
+)}
+
+//Or if you store the results in a seperate state called ebayData
+  {ebayData && (
+  <div>
+      {/* Other fields... */}
+      <div>Current Price: ${Number(ebayData.currentPrice).toFixed(2)}</div>
+  <div>
+)}
+```
+Use code with caution.
+Provide default values or fallback text if data is missing (e.g., display "N/A" if ebayData is unavailable).
+
+Ensure that the ebayData object, and the nested lastUpdated property is correctly populated after fetching eBay data.
+
+Considerations:
+
+Data Integrity: Ensure the server is consistently returning the expected data structure.
+
+User Experience: Display loading states or placeholders while data is being fetched.
+
+4. Gemini API Parsing Error (HTML Response)
+
+Files: server/routes.ts, client/src/lib/gemini.ts, possibly server/index.ts
+
+Checklist:
+
+Server Route Order (server/index.ts): Ensure that registerRoutes(app) is called before setupVite(app, server) or serveStatic(app). This prevents the static file serving from intercepting API requests.
+
+Robust JSON Parsing (server/routes.ts): In the /api/analyze-images route, verify that the AI response is actually valid JSON before attempting to parse it. Use a try-catch block. Use a regular expression to locate a valid JSON structure within the response.
+
+Await response.text() (client/src/lib/gemini.ts): Ensure that you use await response.text() in generateSmartListing. This was the primary cause of the initial parsing issue.
+
+Response Status: Ensure your server's /api/analyze-images endpoint is always returning a 200 status code with a valid JSON response when successful, or a different status code (e.g., 500) with an error object if something goes wrong. Check for cases where your Gemini API call is throwing an error.
+
+Logging: Add console.log statements to both the client and server to inspect the data being sent and received. This is crucial for debugging.
+
+Error Handling: Ensure your client-side code gracefully handles API errors (e.g., by displaying an error message to the user).
+
+Considerations:
+
+API Rate Limits: The Gemini API might have rate limits. Implement retry logic with exponential backoff if necessary.
+
+Error Messages: Provide clear and informative error messages to the user when the analysis fails.
+
+5. Product Creation Error ("Product name is required")
+
+File: server/routes.ts, client/src/components/product-form.tsx
+
+Checklist:
+
+Server-Side: In server/routes.ts, add upload.single('image') as middleware to the PATCH route (/api/products/:id) for updating products, just like you have for the POST route. This enables multer to handle multipart/form-data correctly.
+
+Client-Side (Form Submission): In ProductForm.tsx, use FormData to send the product data, especially when images are involved. Don't force the Content-Type to application/json.
+
+Client-Side (Input Sanitization): Trim whitespace from the product name before submitting the form: const trimmedName = data.name.trim();
+
+Considerations:
+
+Consistency: Use FormData consistently for both creating and updating products when images are involved.
+
+User Feedback: Provide immediate feedback to the user if the product name is missing or invalid.
+
+6. Watchlist POST 500 Error
+
+File: server/routes.ts
+
+Checklist:
+
+Database Errors: In your POST /api/watchlist handler, add more detailed error logging. Print the specific database error message if the insert operation fails.
+
+Product ID Validation: Ensure that productId is a valid number and exists in the products table.
+
+User ID Validation: Ensure that the product to be added does not belong to current user.
+
+Duplicate Check: Ensure that the user is not attempting to add the same item to the watchlist twice. Check for existing entry before insert.
+
+Transaction: Consider wrapping your logic (product check + insert) within a database transaction.
+
+Return Values: Ensure you're returning the expected data (e.g., the newly created watchlist item) on success.
+
+Considerations:
+
+Data Integrity: Enforce foreign key constraints in your database schema to prevent orphaned records.
+

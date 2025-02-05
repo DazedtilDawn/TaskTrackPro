@@ -309,7 +309,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
           <div className="flex-shrink-0 w-[120px]">
             <div className="text-sm font-medium">
-              {formatPrice(product.price)}
+              {formatPrice(Number(product.price) || 0)}
             </div>
             <div className="text-xs text-muted-foreground">
               {inWatchlist ? "Recommended" : "List Price"}
@@ -320,7 +320,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
             {product.ebayPrice ? (
               <>
                 <div className="text-sm font-medium">
-                  {formatPrice(product.ebayPrice)}
+                  {formatPrice(Number(product.ebayPrice) || 0)}
                 </div>
                 <div className="text-xs text-muted-foreground">eBay Price</div>
               </>
@@ -697,7 +697,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                   <div className="flex flex-col items-end">
                     <span className="text-sm text-muted-foreground">eBay Price</span>
                     <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
-                      {formatPrice(Number(product.ebayPrice))}
+                      {formatPrice(Number(product.ebayPrice) || 0)}
                     </span>
                   </div>
                 )}

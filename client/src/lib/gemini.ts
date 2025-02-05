@@ -139,12 +139,6 @@ export async function generateSmartListing(
           { images: imageParts }
         );
 
-        console.log('generateSmartListing: Received response:', {
-          status: response.status,
-          statusText: response.statusText,
-          headers: Object.fromEntries(response.headers.entries())
-        });
-
         if (response.status === 429) {
           console.log(`Rate limited, attempt ${retries + 1} of ${maxRetries}`);
           await new Promise(resolve => setTimeout(resolve, retryDelay * (retries + 1)));

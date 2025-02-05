@@ -14,10 +14,10 @@ import { Loader2, BarChart2, BookMarked, PackageOpen, Sparkles, Info, TrendingUp
 import { DialogContent, DialogHeader, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+import ImageUpload from "@/components/ui/image-upload";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
@@ -738,8 +738,3 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     </DialogContent>
   );
 }
-
-// Placeholder for ImageUpload component -  needs to be defined elsewhere
-const ImageUpload = ({ onImagesUploaded }: { onImagesUploaded: (files: File[]) => void }) => {
-    return <div>Image Upload Component (Implementation Needed)</div>;
-};

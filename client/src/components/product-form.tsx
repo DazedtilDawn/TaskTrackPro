@@ -361,6 +361,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           <Form {...form}>
             <form onSubmit={form.handleSubmit(async (data) => {
               try {
+                // Add isWatchlistItem to the payload
+                const payload = {
+                  ...data,
+                  isWatchlistItem: isWatchlistItem ? "true" : "false",
+                };
+
                 // Submit the form data
                 const endpoint = product
                   ? `/api/products/${product.id}`
@@ -368,12 +374,17 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
                 const method = product ? "PATCH" : "POST";
 
-                const response = await apiRequest(method, endpoint, data);
+                const response = await apiRequest(method, endpoint, payload);
                 if (!response.ok) {
                   throw new Error("Failed to save product");
                 }
 
-                queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+                // Invalidate both products and watchlist queries to ensure UI updates
+                await Promise.all([
+                  queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+                  queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+                ]);
+
                 toast({
                   title: product ? "Product updated" : "Product created",
                   description: data.name.trim(),

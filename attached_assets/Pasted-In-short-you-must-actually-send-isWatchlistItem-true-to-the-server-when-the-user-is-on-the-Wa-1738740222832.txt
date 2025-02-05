@@ -1,0 +1,72 @@
+In short, you must **actually send `isWatchlistItem=true`** to the server when the user is on the Watchlist page. By default, our `/api/products` endpoint sets `userId` (i.e. Inventory ownership) unless `isWatchlistItem==='true'`. Right now, the form never includes that flag in the request body, so it always lands in your inventory.
+
+---
+
+### How to fix
+
+1. **Include `isWatchlistItem` in the product creation request** when you’re on the Watchlist page.  
+2. In your `ProductForm` component, if you’re passed `isWatchlistItem` as a prop, merge that into the POST/PATCH body so the server sees `isWatchlistItem: "true"`.
+
+Here’s an example change in your `ProductForm`:
+
+```tsx
+export default function ProductForm({
+  product,
+  onComplete,
+  isWatchlistItem = false, // <- already in your props
+}: ProductFormProps) {
+  // ... form logic ...
+
+  const onSubmit = async (formData: ProductFormData) => {
+    try {
+      // Merge in isWatchlistItem so the server sees "true" if it's a watchlist item
+      const payload = {
+        ...formData,
+        isWatchlistItem: isWatchlistItem ? "true" : "false",
+      };
+
+      const endpoint = product
+        ? `/api/products/${product.id}`
+        : "/api/products";
+      const method = product ? "PATCH" : "POST";
+
+      await apiRequest(method, endpoint, payload);
+      // etc...
+      onComplete();
+    } catch (error) {
+      // handle error
+    }
+  };
+
+  // ...
+}
+```
+
+Then, in your **Watchlist** page:
+
+```tsx
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  <DialogContent>
+    <ProductForm
+      product={selectedProduct}
+      onComplete={handleDialogClose}
+      isWatchlistItem={true} // <== This triggers the server to put it on watchlist
+    />
+  </DialogContent>
+</Dialog>
+```
+
+With that, the server-side route:
+
+```js
+// POST /api/products
+const isWatchlistItem = req.body.isWatchlistItem === 'true';
+...
+if (isWatchlistItem) {
+  // put in watchlist, userId = null
+} else {
+  // put in inventory (userId = req.user!.id)
+}
+```
+
+will correctly add the item to the watchlist instead of inventory.

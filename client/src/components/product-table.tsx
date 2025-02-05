@@ -22,10 +22,10 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import { 
-  formatPrice, 
-  calculatePriceStatus, 
-  parseAiAnalysis 
+import {
+  formatPrice,
+  calculatePriceStatus,
+  parseAiAnalysis
 } from "@/lib/json-utils";
 
 interface ProductTableProps {
@@ -65,7 +65,11 @@ export function ProductTable({
       accessorKey: "imageUrl",
       header: "Image",
       cell: ({ row }) => {
-        const displayUrl = getDisplayUrl(row.original.imageUrl);
+        const imageUrl = row.original.imageUrl;
+        const displayUrl = getDisplayUrl(imageUrl);
+
+        console.log("Product imageUrl:", imageUrl);
+        console.log("Computed displayUrl:", displayUrl);
 
         return (
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
@@ -75,6 +79,7 @@ export function ProductTable({
                 alt={row.original.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
+                  console.error(`Image load failed for URL: ${displayUrl}`);
                   (e.target as HTMLImageElement).src = 'https://placehold.co/48';
                 }}
               />

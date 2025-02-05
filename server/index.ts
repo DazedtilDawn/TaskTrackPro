@@ -2,6 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
+import { db } from "@db";
+import { Pool } from "@neondatabase/serverless";
 
 const app = express();
 app.use(express.json());
@@ -9,8 +11,17 @@ app.use(express.urlencoded({ extended: false }));
 
 // Security and CORS headers middleware
 app.use((req, res, next) => {
-  // Allow Replit domains in development
-  const allowedOrigins = ['https://*.replit.dev', 'https://*.repl.co'];
+  // Get the host from the request
+  const host = req.get('host');
+
+  // Allow Replit domains and our development domains
+  const allowedOrigins = [
+    'https://*.replit.dev',
+    'https://*.repl.co',
+    `https://${host}`,
+    `http://${host}`
+  ];
+
   const origin = req.headers.origin;
   if (origin && allowedOrigins.some(allowed => 
     origin.match(new RegExp(allowed.replace('*', '.*')))
@@ -22,11 +33,21 @@ app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-  // Set CSP headers
-  res.setHeader(
-    'Content-Security-Policy',
-    "default-src 'self' https://*.replit.dev https://*.repl.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: https://*.replit.dev https://*.repl.co;"
-  );
+  // Security headers
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+
+  // Fix CSP header formatting
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    `connect-src 'self' ws: wss: https://*.replit.dev https://*.repl.co https://${host}`
+  ].join('; ');
+
+  res.setHeader('Content-Security-Policy', csp);
   next();
 });
 
@@ -47,13 +68,9 @@ app.use((req, res, next) => {
     if (path.startsWith("/api")) {
       let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
       if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+        const summary = JSON.stringify(capturedJsonResponse).slice(0, 50);
+        logLine += ` :: ${summary}${summary.length >= 50 ? '...' : ''}`;
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
       log(logLine);
     }
   });
@@ -64,6 +81,15 @@ app.use((req, res, next) => {
 (async () => {
   try {
     console.log('[Server] Starting server initialization...');
+
+    // Test database connection
+    try {
+      await db.execute('SELECT 1');
+      console.log('[Server] Database connection verified');
+    } catch (error) {
+      console.error('[Server] Database connection failed:', error);
+      process.exit(1);
+    }
 
     // Setup authentication
     setupAuth(app);
@@ -84,7 +110,10 @@ app.use((req, res, next) => {
         stack: err.stack
       });
 
-      res.status(status).json({ message });
+      res.status(status).json({ 
+        error: message,
+        ...(process.env.NODE_ENV !== 'production' ? { stack: err.stack } : {})
+      });
     });
 
     // Setup Vite middleware in development
@@ -96,21 +125,11 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    const PORT = Number(process.env.PORT) || 4000; // Changed to 4000 to avoid conflicts
-
-    // Try to start the server with better error handling
-    server.on('error', (error: any) => {
-      if (error.code === 'EADDRINUSE') {
-        console.error(`[Server] Port ${PORT} is already in use. Please try a different port.`);
-        process.exit(1);
-      } else {
-        console.error('[Server] Failed to start:', error);
-        process.exit(1);
-      }
-    });
+    const PORT = Number(process.env.PORT) || 4000;
 
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server is running on port ${PORT}`);
+      console.log(`[Server] Full URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
     });
 
   } catch (error) {

@@ -146,6 +146,19 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         }
       }
 
+      // Handle 204 No Content response
+      if (response.status === 204) {
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+        ]);
+        toast({
+          title: "Product deleted",
+          description: product.name,
+        });
+        return;
+      }
+
       const result = await response.json();
       if (result.error) {
         throw new Error(result.error);

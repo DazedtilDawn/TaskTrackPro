@@ -1,17 +1,31 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { setupAuth } from "./auth";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Security headers middleware
+// Security and CORS headers middleware
 app.use((req, res, next) => {
+  // Allow Replit domains in development
+  const allowedOrigins = ['https://*.replit.dev', 'https://*.repl.co'];
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.some(allowed => 
+    origin.match(new RegExp(allowed.replace('*', '.*')))
+  )) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
   // Set CSP headers
   res.setHeader(
     'Content-Security-Policy',
-    "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss:;"
+    "default-src 'self' https://*.replit.dev https://*.repl.co; script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ws: wss: https://*.replit.dev https://*.repl.co;"
   );
   next();
 });
@@ -51,7 +65,11 @@ app.use((req, res, next) => {
   try {
     console.log('[Server] Starting server initialization...');
 
-    // Register API routes first
+    // Setup authentication
+    setupAuth(app);
+    console.log('[Server] Auth setup complete');
+
+    // Register API routes
     const server = registerRoutes(app);
     console.log('[Server] API routes registered');
 
@@ -69,8 +87,8 @@ app.use((req, res, next) => {
       res.status(status).json({ message });
     });
 
-    // Setup Vite middleware or static files based on environment
-    if (app.get("env") === "development") {
+    // Setup Vite middleware in development
+    if (process.env.NODE_ENV !== "production") {
       console.log('[Server] Setting up Vite middleware in development mode');
       await setupVite(app, server);
     } else {
@@ -78,11 +96,11 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    const PORT = Number(process.env.PORT) || 5000;
-    // Fix the listen parameters order: port first, then hostname
+    const PORT = Number(process.env.PORT) || 3000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server is running on port ${PORT}`);
     });
+
   } catch (error) {
     console.error('[Server] Failed to start:', error);
     process.exit(1);

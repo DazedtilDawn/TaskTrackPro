@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -7,8 +8,7 @@ import { type InsertProduct, type SelectProduct } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { analyzeProduct } from "@/lib/gemini";
-import { getEbayPrice } from "@/lib/ebay";
-import { useState } from "react";
+import { getEbayMarketAnalysis } from "@/lib/ebay";
 import { Loader2, BarChart2, Tag, TrendingUp, BookMarked, PackageOpen, Sparkles, InfoIcon, Info } from "lucide-react";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -59,6 +59,7 @@ const conditionOptions = [
 export default function ProductForm({ product, onComplete, isWatchlistItem = false }: ProductFormProps) {
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [isLoadingEbay, setIsLoadingEbay] = useState(false);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
 
@@ -276,19 +277,44 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
     setIsAnalyzing(true);
     try {
-      const [aiAnalysis, ebayPrice] = await Promise.all([
-        analyzeProduct({ name, description }),
-        getEbayPrice(name),
-      ]);
+      // First get AI analysis
+      const aiAnalysis = await analyzeProduct({ name, description });
+      console.log("[Product Analysis] Initial AI analysis:", aiAnalysis);
 
-      form.setValue("aiAnalysis", aiAnalysis);
-      if (ebayPrice) {
-        form.setValue("ebayPrice", ebayPrice);
-      }
+      // Then get eBay market data and refined analysis
+      setIsLoadingEbay(true);
+      const marketAnalysis = await getEbayMarketAnalysis(name, aiAnalysis);
+      console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
+
+      // Combine AI and eBay analysis
+      const combinedAnalysis = {
+        ...aiAnalysis,
+        ebayData: marketAnalysis,
+        marketAnalysis: {
+          ...aiAnalysis.marketAnalysis,
+          priceSuggestion: {
+            min: Math.min(aiAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
+            max: Math.max(aiAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
+          }
+        }
+      };
+
+      form.setValue("aiAnalysis", combinedAnalysis);
+      form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
+
+      // Set optimal price based on condition and market data
+      const condition = form.getValues("condition");
+      const conditionData = conditionOptions.find(opt => opt.value === condition);
+      const conditionDiscount = conditionData?.discount ?? 1;
+
+      const adjustedPrice = Math.floor(
+        marketAnalysis.aiSuggestedPrice! * conditionDiscount
+      );
+      form.setValue("price", adjustedPrice);
 
       toast({
         title: "Analysis complete",
-        description: "Product details have been analyzed",
+        description: "Product details have been analyzed with eBay market data",
       });
     } catch (error) {
       console.error('Analysis error:', error);
@@ -299,6 +325,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       });
     } finally {
       setIsAnalyzing(false);
+      setIsLoadingEbay(false);
     }
   };
 
@@ -309,7 +336,8 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
           {product ? "Edit Product" : "Add New Product"}
         </h2>
         <DialogDescription>
-          Enter product details and use AI analysis for optimal pricing. Required fields are marked with an asterisk (*).
+          Enter product details and use AI analysis with eBay market data for optimal pricing.
+          Required fields are marked with an asterisk (*).
         </DialogDescription>
       </DialogHeader>
       <ScrollArea className="max-h-[80vh]">
@@ -332,14 +360,21 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         size="sm"
                         className="gap-2"
                         onClick={analyzeProductDetails}
-                        disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
+                        disabled={isAnalyzing || isLoadingEbay || !form.getValues("name") || !form.getValues("description")}
                       >
                         {isAnalyzing ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : isLoadingEbay ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Checking eBay
+                          </>
                         ) : (
-                          <Sparkles className="h-4 w-4" />
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            Analyze Product
+                          </>
                         )}
-                        Analyze Product
                       </Button>
                     </div>
                     <ImageUpload onImagesUploaded={handleImagesUploaded} />
@@ -453,11 +488,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                                 </div>
                               </div>
 
-                              {form.getValues("ebayPrice") && (
+                              {aiAnalysis.ebayData && (
                                 <div>
                                   <span className="text-sm text-muted-foreground">Average eBay Price</span>
                                   <div className="text-lg font-medium mt-1">
-                                    ${form.getValues("ebayPrice")}
+                                    ${aiAnalysis.ebayData.recommendedPrice}
                                   </div>
                                 </div>
                               )}

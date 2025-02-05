@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn, getDisplayUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   parseAiAnalysis,
   formatPrice,
@@ -402,28 +402,22 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         isPricedRight && "border-green-500/50",
         view === "list" && "flex"
       )}>
-        <div className={cn(
-          "relative",
-          view === "grid" ? "w-full" : "w-48 shrink-0"
-        )}>
-          {(() => {
-            const imageUrl = product.imageUrl;
-            const displayUrl = getDisplayUrl(imageUrl);
-
-            console.log("ProductCard imageUrl:", imageUrl);
-            console.log("ProductCard displayUrl:", displayUrl);
-
-            return displayUrl ? (
+        {product.imageUrl && (
+          <div className={cn(
+            "relative",
+            view === "grid" ? "w-full" : "w-48 shrink-0"
+          )}>
+            {product.imageUrl ? (
               <img
-                src={displayUrl}
+                src={product.imageUrl.startsWith('http') ? product.imageUrl : `/uploads/${product.imageUrl}`}
                 alt={product.name}
                 className={cn(
                   "object-cover",
                   view === "grid" ? "w-full h-48" : "w-48 h-full"
                 )}
                 onError={(e) => {
-                  console.error(`Image load failed for URL: ${displayUrl}`);
-                  (e.target as HTMLImageElement).src = 'https://placehold.co/200';
+                  const img = e.target as HTMLImageElement;
+                  img.src = 'https://placehold.co/200';
                 }}
               />
             ) : (
@@ -433,21 +427,9 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
               )}>
                 <Box className="w-8 h-8 text-muted-foreground" />
               </div>
-            );
-          })()}
-          {hasAnalysis && (
-            <div className={cn(
-              "absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium",
-              isUnderpriced && "bg-yellow-500/90 text-yellow-50",
-              isOverpriced && "bg-red-500/90 text-red-50",
-              isPricedRight && "bg-green-500/90 text-green-50"
-            )}>
-              {isUnderpriced ? 'Underpriced' :
-                isOverpriced ? 'Overpriced' :
-                  'Optimal Price'}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
         <div className={cn(
           view === "list" && "flex-1 flex flex-col"
         )}>

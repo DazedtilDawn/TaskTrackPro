@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { cn, getDisplayUrl } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import ProductCard from "@/components/product-card";
 import {
   type ColumnDef,
@@ -22,10 +22,10 @@ import {
   getCoreRowModel,
   useReactTable,
 } from "@tanstack/react-table";
-import {
-  formatPrice,
-  calculatePriceStatus,
-  parseAiAnalysis
+import { 
+  formatPrice, 
+  calculatePriceStatus, 
+  parseAiAnalysis 
 } from "@/lib/json-utils";
 
 interface ProductTableProps {
@@ -66,10 +66,7 @@ export function ProductTable({
       header: "Image",
       cell: ({ row }) => {
         const imageUrl = row.original.imageUrl;
-        const displayUrl = getDisplayUrl(imageUrl);
-
-        console.log("Product imageUrl:", imageUrl);
-        console.log("Computed displayUrl:", displayUrl);
+        const displayUrl = imageUrl ? (imageUrl.startsWith('http') ? imageUrl : `/uploads/${imageUrl}`) : null;
 
         return (
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
@@ -79,8 +76,8 @@ export function ProductTable({
                 alt={row.original.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {
-                  console.error(`Image load failed for URL: ${displayUrl}`);
-                  (e.target as HTMLImageElement).src = 'https://placehold.co/48';
+                  const img = e.target as HTMLImageElement;
+                  img.src = 'https://placehold.co/48';
                 }}
               />
             ) : (
@@ -212,6 +209,7 @@ export function ProductTable({
                     <th
                       key={header.id}
                       className="h-12 px-4 text-left align-middle font-medium text-muted-foreground"
+                      style={{ width: header.getSize() }}
                     >
                       {header.isPlaceholder
                         ? null

@@ -739,25 +739,45 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(400).json({ error: "Invalid product ID" });
       }
 
-      // Verify the product exists and belongs to the user
+      // First check if the product exists at all
       const [existingProduct] = await db.select()
         .from(products)
-        .where(
-          and(
-            eq(products.id, productId),
-            eq(products.userId, req.user!.id)
-          )
-        )
+        .where(eq(products.id, productId))
         .limit(1);
 
       if (!existingProduct) {
         return res.status(404).json({ error: "Product not found" });
       }
 
-      console.log('[Delete Product] Starting deletion process for product:', productId);
+      // If the product exists but doesn't belong to the user,
+      // only remove it from their watchlist if it exists there
+      if (existingProduct.userId !== req.user!.id) {
+        const [watchlistItem] = await db.select()
+          .from(watchlist)
+          .where(
+            and(
+              eq(watchlist.productId, productId),
+              eq(watchlist.userId, req.user!.id)
+            )
+          )
+          .limit(1);
+
+        if (watchlistItem) {
+          await db.delete(watchlist)
+            .where(
+              and(
+                eq(watchlist.productId, productId),
+                eq(watchlist.userId, req.user!.id)
+              )
+            );
+          return res.status(204).end();
+        }
+
+        return res.status(404).json({ error: "Product not found in your inventory or watchlist" });
+      }
 
       // Start a transaction to ensure all cleanup operations succeed or fail together
-      const result = await db.transaction(async (tx) => {
+      await db.transaction(async (tx) => {
         // Remove from watchlists first (foreign key constraint)
         await tx.delete(watchlist)
           .where(eq(watchlist.productId, productId));
@@ -780,18 +800,12 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         }
 
         // Delete the product
-        const [deletedProduct] = await tx.delete(products)
-          .where(eq(products.id, productId))
-          .returning();
-
-        return deletedProduct;
+        await tx.delete(products)
+          .where(eq(products.id, productId));
       });
 
       console.log('[Delete Product] Successfully deleted product:', productId);
-      res.json({
-        message: "Product and related data deleted successfully",
-        deletedProduct: result
-      });
+      res.status(204).end();
     } catch (error) {
       console.error("Error deleting product:", error);
       res.status(500).json({
@@ -800,7 +814,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       });
     }
   });
-
 
   app.get("/api/analytics/sale-velocity", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

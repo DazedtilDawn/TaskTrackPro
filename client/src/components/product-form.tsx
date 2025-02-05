@@ -99,7 +99,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
   const { toast } = useToast();
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isLoadingEbay, setIsLoadingEbay] = useState(false);
-  const [includeEbayData, setIncludeEbayData] = useState(true);
+  const [isRefiningPrice, setIsRefiningPrice] = useState(false);
   const [hasEbayAuth, setHasEbayAuth] = useState<boolean | null>(null);
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
@@ -273,7 +273,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     }
   };
 
-  const analyzeProductDetails = async () => {
+  const analyzeProductAI = async () => {
     const name = form.getValues("name");
     const description = form.getValues("description");
 
@@ -288,91 +288,27 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
     setIsAnalyzing(true);
     try {
-      // First get AI analysis
+      // Get AI analysis
       const aiAnalysis = await analyzeProduct({ name, description });
       console.log("[Product Analysis] Initial AI analysis:", aiAnalysis);
 
-      // Then get eBay market data if enabled and authenticated
-      let marketAnalysis = null;
-      if (includeEbayData && hasEbayAuth) {
-        try {
-          setIsLoadingEbay(true);
-          marketAnalysis = await getEbayMarketAnalysis(name, aiAnalysis);
-          console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
+      form.setValue("aiAnalysis", aiAnalysis);
 
-          // Combine AI and eBay analysis
-          const combinedAnalysis = {
-            ...aiAnalysis,
-            ebayData: {
-              currentPrice: marketAnalysis.currentPrice,
-              averagePrice: marketAnalysis.averagePrice,
-              lowestPrice: marketAnalysis.lowestPrice,
-              highestPrice: marketAnalysis.highestPrice,
-              soldCount: marketAnalysis.soldCount,
-              activeListing: marketAnalysis.activeListing,
-              recommendedPrice: marketAnalysis.recommendedPrice,
-              lastUpdated: new Date().toISOString()
-            },
-            marketAnalysis: {
-              ...aiAnalysis.marketAnalysis,
-              priceSuggestion: {
-                min: Math.min(aiAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
-                max: Math.max(aiAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
-              }
-            }
-          };
+      // Set the initial price based on AI analysis
+      if (aiAnalysis.marketAnalysis?.priceSuggestion?.min) {
+        const condition = form.getValues("condition");
+        const conditionData = conditionOptions.find(opt => opt.value === condition);
+        const conditionDiscount = conditionData?.discount ?? 1;
 
-          console.log("[Product Analysis] Combined analysis:", combinedAnalysis);
-          form.setValue("aiAnalysis", combinedAnalysis);
-          form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
-
-          // Set optimal price based on condition and market data
-          const condition = form.getValues("condition");
-          const conditionData = conditionOptions.find(opt => opt.value === condition);
-          const conditionDiscount = conditionData?.discount ?? 1;
-
-          const adjustedPrice = Math.floor(
-            marketAnalysis.recommendedPrice * conditionDiscount
-          );
-          form.setValue("price", adjustedPrice);
-        } catch (error) {
-          console.error('[Product Analysis] eBay market analysis error:', error);
-          if (error instanceof Error && error.message.includes('eBay authentication required')) {
-            toast({
-              title: "eBay Authentication Required",
-              description: "Please connect your eBay account in Settings to include market data",
-              action: (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.location.href = "/settings/ebay-auth"}
-                >
-                  Connect eBay
-                </Button>
-              ),
-            });
-          } else {
-            toast({
-              title: "eBay Market Analysis Failed",
-              description: "Could not fetch eBay market data. Using AI analysis only.",
-              variant: "destructive",
-            });
-          }
-          // Continue with just AI analysis
-          form.setValue("aiAnalysis", aiAnalysis);
-        } finally {
-          setIsLoadingEbay(false);
-        }
-      } else {
-        // If eBay data not included, just use AI analysis
-        form.setValue("aiAnalysis", aiAnalysis);
+        const adjustedPrice = Math.floor(
+          aiAnalysis.marketAnalysis.priceSuggestion.min * conditionDiscount
+        );
+        form.setValue("price", adjustedPrice);
       }
 
       toast({
         title: "Analysis complete",
-        description: marketAnalysis
-          ? "Product details have been analyzed with eBay market data"
-          : "Product details have been analyzed",
+        description: "Product details have been analyzed with AI",
       });
     } catch (error) {
       console.error('Analysis error:', error);
@@ -386,12 +322,140 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     }
   };
 
+  const refineWithEbay = async () => {
+    const name = form.getValues("name");
+    const currentAnalysis = form.getValues("aiAnalysis");
+
+    if (!name || !currentAnalysis) {
+      toast({
+        title: "Missing details",
+        description: "Please analyze the product with AI first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingEbay(true);
+    try {
+      const marketAnalysis = await getEbayMarketAnalysis(name, currentAnalysis);
+      console.log("[Product Analysis] eBay market analysis:", marketAnalysis);
+
+      // Combine AI and eBay analysis
+      const combinedAnalysis = {
+        ...currentAnalysis,
+        ebayData: {
+          currentPrice: marketAnalysis.currentPrice,
+          averagePrice: marketAnalysis.averagePrice,
+          lowestPrice: marketAnalysis.lowestPrice,
+          highestPrice: marketAnalysis.highestPrice,
+          soldCount: marketAnalysis.soldCount,
+          activeListing: marketAnalysis.activeListing,
+          recommendedPrice: marketAnalysis.recommendedPrice,
+          lastUpdated: new Date().toISOString()
+        },
+        marketAnalysis: {
+          ...currentAnalysis.marketAnalysis,
+          priceSuggestion: {
+            min: Math.min(currentAnalysis.marketAnalysis.priceSuggestion.min, marketAnalysis.recommendedPrice * 0.9),
+            max: Math.max(currentAnalysis.marketAnalysis.priceSuggestion.max, marketAnalysis.recommendedPrice * 1.1)
+          }
+        }
+      };
+
+      console.log("[Product Analysis] Combined analysis:", combinedAnalysis);
+      form.setValue("aiAnalysis", combinedAnalysis);
+      form.setValue("ebayPrice", marketAnalysis.recommendedPrice);
+
+      // Update price based on condition and market data
+      const condition = form.getValues("condition");
+      const conditionData = conditionOptions.find(opt => opt.value === condition);
+      const conditionDiscount = conditionData?.discount ?? 1;
+
+      const adjustedPrice = Math.floor(
+        marketAnalysis.recommendedPrice * conditionDiscount
+      );
+      form.setValue("price", adjustedPrice);
+
+      toast({
+        title: "eBay Analysis Complete",
+        description: "Product details have been refined with eBay market data",
+      });
+    } catch (error) {
+      console.error('[Product Analysis] eBay market analysis error:', error);
+      if (error instanceof Error && error.message.includes('eBay authentication required')) {
+        toast({
+          title: "eBay Authentication Required",
+          description: "Please connect your eBay account in Settings to include market data",
+          action: (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.location.href = "/settings/ebay-auth"}
+            >
+              Connect eBay
+            </Button>
+          ),
+        });
+      } else {
+        toast({
+          title: "eBay Market Analysis Failed",
+          description: "Could not fetch eBay market data",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setIsLoadingEbay(false);
+    }
+  };
+
+  const refinePricingWithAI = async () => {
+    const currentAnalysis = form.getValues("aiAnalysis");
+    const currentPrice = form.getValues("price");
+
+    if (!currentAnalysis || !currentPrice) {
+      toast({
+        title: "Missing details",
+        description: "Please complete the analysis steps first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsRefiningPrice(true);
+    try {
+      const response = await apiRequest("POST", "/api/generate-sale-price", {
+        analysis: currentAnalysis,
+        currentPrice
+      });
+      const result = await response.json();
+
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      form.setValue("price", result.recommendedPrice);
+      toast({
+        title: "Price Refined",
+        description: "The recommended sale price has been updated",
+      });
+    } catch (error) {
+      console.error('Price refinement error:', error);
+      toast({
+        title: "Refinement Failed",
+        description: "Could not refine the sale price",
+        variant: "destructive",
+      });
+    } finally {
+      setIsRefiningPrice(false);
+    }
+  };
+
   useEffect(() => {
     // Check eBay auth status when component mounts
     const checkAuth = async () => {
       const isAuthenticated = await checkEbayAuth();
       setHasEbayAuth(isAuthenticated);
-      setIncludeEbayData(isAuthenticated); // Only enable by default if authenticated
+      // Only enable by default if authenticated
     };
     checkAuth();
   }, []);
@@ -425,57 +489,77 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                           Upload clear, high-quality images of your product
                         </FormDescription>
                       </div>
-                      <div className="space-y-2">
-                        {hasEbayAuth !== null && (
-                          <div className="flex items-center space-x-2 mb-2">
-                            <Switch
-                              checked={includeEbayData}
-                              onCheckedChange={setIncludeEbayData}
-                              disabled={!hasEbayAuth}
-                            />
-                            <Label className="cursor-pointer">
-                              Include eBay Market Data
-                            </Label>
-                          </div>
-                        )}
-                        {!hasEbayAuth && (
-                          <Alert className="py-2">
-                            <AlertDescription className="text-sm">
-                              Connect your eBay account to access market pricing data.{' '}
-                              <a href="/settings/ebay-auth" className="font-medium underline">
-                                Connect Now
-                              </a>
-                            </AlertDescription>
-                          </Alert>
-                        )}
+                      <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
                           className="gap-2"
-                          onClick={analyzeProductDetails}
-                          disabled={isAnalyzing || isLoadingEbay || !form.getValues("name") || !form.getValues("description")}
+                          onClick={analyzeProductAI}
+                          disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
                         >
                           {isAnalyzing ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : isLoadingEbay ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                              Checking eBay
-                            </>
                           ) : (
-                            <>
-                              <Sparkles className="h-4 w-4" />
-                              Analyze Product
-                            </>
+                            <Sparkles className="h-4 w-4" />
                           )}
+                          Analyze Product
                         </Button>
+
+                        {hasEbayAuth && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2"
+                            onClick={refineWithEbay}
+                            disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
+                          >
+                            {isLoadingEbay ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <BarChart2 className="h-4 w-4" />
+                            )}
+                            Refine with eBay
+                          </Button>
+                        )}
+
+                        {form.getValues("aiAnalysis")?.ebayData && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="gap-2"
+                            onClick={refinePricingWithAI}
+                            disabled={isRefiningPrice}
+                          >
+                            {isRefiningPrice ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <TrendingUp className="h-4 w-4" />
+                            )}
+                            Refine Pricing
+                          </Button>
+                        )}
                       </div>
                     </div>
                     <ImageUpload onImagesUploaded={handleImagesUploaded} />
                   </div>
 
-                  <Separator />
+                  {!hasEbayAuth && (
+                    <Alert className="mb-6">
+                      <AlertDescription className="text-sm flex items-center justify-between">
+                        <span>
+                          Connect your eBay account to access market pricing data
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.location.href = "/settings/ebay-auth"}
+                          className="ml-4"
+                        >
+                          Connect eBay Account
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
                   {hasAnalysis && (
                     <Card className={cn(
@@ -660,6 +744,72 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               </li>
                             ))}
                           </ul>
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {hasAnalysis && aiAnalysis?.ebayData && (
+                    <Card className="p-6 border-primary/20">
+                      <div className="space-y-6">
+                        <div className="flex items-center justify-between border-b pb-4">
+                          <div className="flex items-center gap-2">
+                            <BarChart2 className="h-5 w-5 text-primary" />
+                            <h3 className="font-semibold text-lg">eBay Market Data</h3>
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            Last updated: {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-6">
+                          <div className="space-y-4">
+                            <div>
+                              <span className="text-sm text-muted-foreground">Current Market Price</span>
+                              <div className="text-2xl font-semibold">
+                                ${aiAnalysis.ebayData.currentPrice.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">Average Price</span>
+                              <div className="text-2xl font-semibold">
+                                ${aiAnalysis.ebayData.averagePrice.toFixed(2)}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">Price Range</span>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-xl font-semibold">
+                                  ${aiAnalysis.ebayData.lowestPrice.toFixed(2)}
+                                </span>
+                                <span className="text-muted-foreground">-</span>
+                                <span className="text-xl font-semibold">
+                                  ${aiAnalysis.ebayData.highestPrice.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-4">
+                            <div>
+                              <span className="text-sm text-muted-foreground">Items Sold</span>
+                              <div className="text-2xl font-semibold">
+                                {aiAnalysis.ebayData.soldCount.toLocaleString()}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">Active Listings</span>
+                              <div className="text-2xl font-semibold">
+                                {aiAnalysis.ebayData.activeListing.toLocaleString()}
+                              </div>
+                            </div>
+                            <div>
+                              <span className="text-sm text-muted-foreground">Recommended Price</span>
+                              <div className="text-2xl font-semibold text-primary">
+                                ${aiAnalysis.ebayData.recommendedPrice.toFixed(2)}
+                              </div>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </Card>

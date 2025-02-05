@@ -66,18 +66,51 @@ export function registerRoutes(app: Express): Server {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
+    // Extract the code from query parameters
+    const { code } = req.query;
+    if (!code || typeof code !== "string") {
+      console.log("[eBay Callback] Missing or invalid authorization code");
+      return res.status(400).send("Missing or invalid authorization code.");
+    }
+
     try {
       console.log("[eBay Callback] Processing auth callback for user:", req.user!.id);
-      // Mock successful eBay authentication
-      const mockToken = `mock_token_${Date.now()}`;
+
+      // Exchange the authorization code for access and refresh tokens
+      const tokenResponse = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Authorization": "Basic " + Buffer.from(
+            `${process.env.EBAY_CLIENT_ID}:${process.env.EBAY_CLIENT_SECRET}`
+          ).toString("base64"),
+        },
+        body: new URLSearchParams({
+          grant_type: "authorization_code",
+          code: code,
+          redirect_uri: process.env.EBAY_REDIRECT_URI || `${process.env.APP_URL}/api/ebay/callback`,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error("[eBay Callback] Token exchange failed:", errorText);
+        return res.redirect("/settings/ebay-auth?status=error&message=token_exchange_failed");
+      }
+
+      const tokenData = await tokenResponse.json();
+      console.log("[eBay Callback] Received token data");
+
+      // Calculate token expiry
       const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 30); // Token expires in 30 days
+      expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
 
       console.log("[eBay Callback] Updating user with token");
       // Update user with eBay credentials
       await db.update(users)
         .set({
-          ebayAuthToken: mockToken,
+          ebayAuthToken: tokenData.access_token,
+          ebayRefreshToken: tokenData.refresh_token,
           ebayTokenExpiry: expiryDate,
           updatedAt: new Date()
         })
@@ -177,20 +210,14 @@ export function registerRoutes(app: Express): Server {
 
   // Add the eBay-specific endpoints with the auth middleware
   app.post("/api/products/:id/generate-ebay-listing", checkEbayAuth, async (req, res) => {
-    console.log("[Generate eBay Listing] Starting generation");
-    if (!req.isAuthenticated()) {
-      console.log("[Generate eBay Listing] Unauthorized request");
-      return res.status(401).json({ error: "Unauthorized" });
-    }
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
       const productId = parseInt(req.params.id);
       if (isNaN(productId)) {
-        console.log("[Generate eBay Listing] Invalid product ID:", req.params.id);
         return res.status(400).json({ error: "Invalid product ID" });
       }
 
-      console.log("[Generate eBay Listing] Fetching product:", productId);
       // Fetch the product
       const [product] = await db.select()
         .from(products)
@@ -203,11 +230,17 @@ export function registerRoutes(app: Express): Server {
         .limit(1);
 
       if (!product) {
-        console.log("[Generate eBay Listing] Product not found:", productId);
         return res.status(404).json({ error: "Product not found" });
       }
 
-      console.log("[Generate eBay Listing] Generating AI content for product:", product.name);
+      // Verify eBay authentication
+      if (!req.user!.ebayAuthToken || new Date(req.user!.ebayTokenExpiry!) < new Date()) {
+        return res.status(403).json({
+          error: "eBay authentication required",
+          details: "Please authenticate with eBay first"
+        });
+      }
+
       // Use AI to optimize the listing
       const model = genAI.getGenerativeModel({ 
         model: "gemini-2.0-flash-exp",
@@ -223,7 +256,7 @@ export function registerRoutes(app: Express): Server {
 Name: ${product.name}
 Description: ${product.description}
 Condition: ${product.condition}
-Price: $${product.price}
+Price: ${product.price}
 Category: ${product.category || "unspecified"}
 Brand: ${product.brand || "unspecified"}
 
@@ -238,10 +271,8 @@ Format the response as JSON with:
   "keywords": ["relevant", "search", "terms"]
 }`;
 
-      console.log("[Generate eBay Listing] AI prompt:", prompt);
       const result = await model.generateContent(prompt);
       const text = await result.response.text();
-      console.log("[Generate eBay Listing] AI response:", text);
 
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -251,7 +282,6 @@ Format the response as JSON with:
         const jsonStr = jsonMatch[0];
         const optimizedListing = JSON.parse(jsonStr);
 
-        console.log("[Generate eBay Listing] Parsed AI response:", optimizedListing);
         // For now, we'll just update the product with mock eBay data
         // In a real implementation, this would make actual eBay API calls
         const [updatedProduct] = await db.update(products)
@@ -265,17 +295,17 @@ Format the response as JSON with:
           })
           .where(eq(products.id, productId))
           .returning();
-        console.log("[Generate eBay Listing] Updated product:", updatedProduct);
+
         res.json(updatedProduct);
       } catch (parseError) {
-        console.error("[Generate eBay Listing] Failed to parse AI response:", parseError);
+        console.error("Failed to parse AI response:", parseError);
         res.status(500).json({
           error: "Failed to optimize listing",
           details: parseError instanceof Error ? parseError.message : "Unknown error"
         });
       }
     } catch (error) {
-      console.error("[Generate eBay Listing] Error generating eBay listing:", error);
+      console.error("Error generating eBay listing:", error);
       res.status(500).json({
         error: "Failed to generate eBay listing",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -560,7 +590,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
 
-
   // Mark product as sold endpoint
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -812,7 +841,6 @@ Do not include any additional text.`;
     }
   });
 
-
   // generate-ebay-listing endpoint
   app.post("/api/products/:id/generate-ebay-listing", checkEbayAuth, async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -861,7 +889,7 @@ Do not include any additional text.`;
 Name: ${product.name}
 Description: ${product.description}
 Condition: ${product.condition}
-Price: $${product.price}
+Price: ${product.price}
 Category: ${product.category || "unspecified"}
 Brand: ${product.brand || "unspecified"}
 
@@ -876,8 +904,7 @@ Format the response as JSON with:
   "keywords": ["relevant", "search", "terms"]
 }`;
 
-      const result = await model.generateContent(prompt);
-      const text = await result.response.text();
+      const result = await model.generateContent(prompt);const text = await result.response.text();
 
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -905,7 +932,7 @@ Format the response as JSON with:
       } catch (parseError) {
         console.error("Failed to parse AI response:", parseError);
         res.status(500).json({
-          error: "Failedto optimize listing",
+          error: "Failed to optimize listing",
           details: parseError instanceof Error ? parseError.message : "Unknown error"
         });
       }

@@ -428,14 +428,15 @@ export default function ProductCard({
               )}
               {inWatchlist && (
                 <Button
-                  size="icon"
-                  variant="ghost"
+                  size="sm"
+                  variant="default"
                   onClick={handleConvertDialog}
-                  className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
-                  title="Convert to Inventory"
-                  aria-label="Convert to Inventory"
+                  className="h-8 px-3 bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-1"
+                  title="Add to Inventory"
+                  aria-label="Add to Inventory"
                 >
                   <ArrowUpRight className="h-4 w-4" />
+                  Add to Inventory
                 </Button>
               )}
               {!location.includes("/watchlist") && (
@@ -763,14 +764,14 @@ export default function ProductCard({
               )}
               {inWatchlist && (
                 <Button
-                  size="icon"
-                  variant="ghost"
+                  variant="default"
                   onClick={handleConvertDialog}
-                  className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
-                  title="Convert to Inventory"
-                  aria-label="Convert to Inventory"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
+                  title="Add to Inventory"
+                  aria-label="Add to Inventory"
                 >
                   <ArrowUpRight className="h-4 w-4" />
+                  Add to Inventory
                 </Button>
               )}
 

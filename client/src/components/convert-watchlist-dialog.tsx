@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
 import type { SelectProduct } from "@db/schema";
+import { cn } from "@/lib/utils";
 
 interface ConvertWatchlistFormData {
   buyPrice: number;
@@ -30,6 +31,7 @@ export default function ConvertWatchlistDialog({
     handleSubmit,
     setValue,
     getValues,
+    watch,
     reset,
     formState: { isSubmitting },
   } = useForm<ConvertWatchlistFormData>({
@@ -40,6 +42,14 @@ export default function ConvertWatchlistDialog({
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+
+  // Watch form values for real-time calculations
+  const buyPrice = watch("buyPrice");
+  const recommendedSalePrice = watch("recommendedSalePrice");
+
+  // Calculate potential profit
+  const potentialProfit = recommendedSalePrice - buyPrice;
+  const profitMargin = buyPrice > 0 ? (potentialProfit / buyPrice) * 100 : 0;
 
   const generateRecommendation = async () => {
     setIsGenerating(true);
@@ -103,7 +113,6 @@ export default function ConvertWatchlistDialog({
 
       if (itemToDelete) {
         const deleteResponse = await apiRequest("DELETE", `/api/watchlist/${itemToDelete.id}`);
-        // Handle 404 gracefully - item is already removed
         if (!deleteResponse.ok && deleteResponse.status !== 404) {
           const error = await deleteResponse.json();
           throw new Error(error.error || "Failed to remove from watchlist");
@@ -117,7 +126,7 @@ export default function ConvertWatchlistDialog({
       ]);
 
       toast({
-        title: "Product Converted",
+        title: "Added to Inventory",
         description: `${product.name} has been added to your inventory.`,
       });
 
@@ -139,11 +148,25 @@ export default function ConvertWatchlistDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Convert to Inventory Item</DialogTitle>
+          <DialogTitle className="text-xl">Convert to Inventory</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Buy Price ($)</label>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          {/* Product Info */}
+          <div className="bg-secondary/10 p-4 rounded-lg">
+            <h3 className="font-medium mb-2">{product.name}</h3>
+            <p className="text-sm text-muted-foreground mb-2">{product.description}</p>
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium">Market Price:</span>
+              <span className="text-primary">${Number(product.price).toFixed(2)}</span>
+            </div>
+          </div>
+
+          {/* Buy Price Input */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium flex items-center gap-2">
+              <DollarSign className="h-4 w-4 text-primary" />
+              Purchase Price
+            </label>
             <Input
               type="number"
               step="0.01"
@@ -153,41 +176,76 @@ export default function ConvertWatchlistDialog({
                 min: 0,
                 valueAsNumber: true
               })}
-              className="w-full"
+              className="text-lg font-medium"
+              placeholder="0.00"
             />
           </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <label className="block text-sm font-medium mb-1">
-                Recommended Sale Price ($)
+
+          {/* Sale Price Section */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <TrendingUp className="h-4 w-4 text-primary" />
+                Sale Price
               </label>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                {...register("recommendedSalePrice", { 
-                  required: true,
-                  min: 0,
-                  valueAsNumber: true
-                })}
-                className="w-full"
-              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={generateRecommendation}
+                disabled={isGenerating || !(Number(getValues("buyPrice")) > 0)}
+                className="h-8"
+              >
+                {isGenerating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  "Generate Recommendation"
+                )}
+              </Button>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={generateRecommendation}
-              disabled={isGenerating || !(Number(getValues("buyPrice")) > 0)}
-              className="mt-6"
-            >
-              {isGenerating ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                "Generate"
-              )}
-            </Button>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              {...register("recommendedSalePrice", { 
+                required: true,
+                min: 0,
+                valueAsNumber: true
+              })}
+              className="text-lg font-medium"
+              placeholder="0.00"
+            />
           </div>
-          <div className="pt-4 flex justify-end gap-2">
+
+          {/* Profit Calculator */}
+          {buyPrice > 0 && recommendedSalePrice > 0 && (
+            <div className={cn(
+              "p-4 rounded-lg space-y-2",
+              potentialProfit > 0 ? "bg-green-500/10" : "bg-red-500/10"
+            )}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Potential Profit:</span>
+                <span className={cn(
+                  "font-semibold",
+                  potentialProfit > 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  ${potentialProfit.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Profit Margin:</span>
+                <span className={cn(
+                  "font-semibold",
+                  profitMargin > 0 ? "text-green-600" : "text-red-600"
+                )}>
+                  {profitMargin.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-2 pt-4">
             <Button 
               type="button" 
               variant="outline" 
@@ -198,11 +256,12 @@ export default function ConvertWatchlistDialog({
             <Button 
               type="submit" 
               disabled={isSubmitting || !(Number(getValues("buyPrice")) > 0)}
+              className="min-w-[120px]"
             >
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                "Convert"
+                'Add to Inventory'
               )}
             </Button>
           </div>

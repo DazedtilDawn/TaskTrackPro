@@ -166,6 +166,7 @@ export default function ProductForm({
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
   const [runAllAnalysis, setRunAllAnalysis] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Added state for submit button
   const { toast } = useToast();
 
   const steps = [
@@ -226,7 +227,6 @@ export default function ProductForm({
     }
     setIsAnalyzing(true);
     try {
-      // Generate a temporary ID for analysis
       const tempId = Date.now();
       const aiResult = await analyzeProduct({ 
         id: tempId, 
@@ -258,7 +258,6 @@ export default function ProductForm({
         variant: "destructive",
       });
 
-      // Reset analysis state
       setIsAnalyzing(false);
       return false;
     } finally {
@@ -376,18 +375,19 @@ export default function ProductForm({
     }
   };
 
-  const handleImagesUploaded = (files: File[]) => {
+  const handleImagesUploaded = async (files: File[]) => {
     setImageFiles(files);
-    if (files.length > 0) {
+    if (files.length > 0 && runAllAnalysis) {
       setShowSmartListing(true);
     }
   };
 
-  const handleAnalysisComplete = (analysis: any) => {
+  const handleAnalysisComplete = async (analysis: any) => {
     form.setValue("aiAnalysis", analysis);
     if (analysis.title) form.setValue("name", analysis.title);
     if (analysis.description) form.setValue("description", analysis.description);
     if (analysis.category) form.setValue("category", analysis.category);
+
     if (analysis.marketAnalysis?.priceSuggestion?.min) {
       const conditionVal = form.getValues("condition");
       const conditionData = conditionOptions.find((opt) => opt.value === conditionVal);
@@ -395,14 +395,23 @@ export default function ProductForm({
       const adjustedPrice = Math.floor(analysis.marketAnalysis.priceSuggestion.min * discount);
       form.setValue("price", adjustedPrice);
     }
+
     setShowSmartListing(false);
+
+    if (runAllAnalysis && hasEbayAuth) {
+      await refineWithEbay();
+    }
+
+    setCurrentStep("details");
+
     toast({
-      title: "Image Analysis Complete",
-      description: "Product details have been extracted from images",
+      title: "Analysis Complete",
+      description: "Product details have been extracted and analyzed",
     });
   };
 
   const onSubmit = form.handleSubmit(async (data) => {
+    setIsSubmitting(true); // Set submitting state to true
     try {
       const formData = new FormData();
       formData.append("name", data.name.trim());
@@ -461,6 +470,8 @@ export default function ProductForm({
           error instanceof Error ? error.message : "Failed to save product",
         variant: "destructive",
       });
+    } finally {
+      setIsSubmitting(false); // Set submitting state to false
     }
   });
 
@@ -482,14 +493,11 @@ export default function ProductForm({
   const handleNext = async () => {
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
     if (currentIndex < steps.length - 1) {
-      if (currentStep === "basic" && runAllAnalysis) {
-        const analysisSuccess = await analyzeProductAI();
-        if (!analysisSuccess) {
-          return; // Don't proceed if analysis failed
+      if (currentStep === "basic" && runAllAnalysis && !form.getValues("aiAnalysis")) {
+        if (imageFiles.length === 0) {
+          setCurrentStep(steps[currentIndex + 1].id);
         }
-        if (hasEbayAuth) {
-          await refineWithEbay();
-        }
+        return;
       }
       setCurrentStep(steps[currentIndex + 1].id);
     }
@@ -957,70 +965,69 @@ export default function ProductForm({
 
         <ScrollArea className="max-h-[80vh]">
           <div className="p-6">
-            <StepIndicator currentStep={currentStep} steps={steps} />
-
             <Form {...form}>
-              <form onSubmit={onSubmit} className="space-y-8">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <StepIndicator currentStep={currentStep} steps={steps} />
+
                 {renderStepContent()}
 
-                <div className="flex items-center justify-between pt-6 border-t">
-                  {currentStep === "basic" ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={onComplete}
-                    >
-                      Cancel
-                    </Button>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={handleBack}
-                    >
-                      <ChevronLeft className="w-4 h-4 mr-2" />
-                      Back
-                    </Button>
-                  )}
+                <div className="flex justify-between pt-6">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleBack}
+                    disabled={currentStep === "basic" || isAnalyzing}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Back
+                  </Button>
 
-                  {currentStep === "review" ? (
-                    <Button
-                      type="submit"
-                      disabled={form.formState.isSubmitting}
-                      className="min-w-[120px]"
-                    >
-                      {form.formState.isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save Product"
-                      )}
-                    </Button>
-                  ) : (
+                  {currentStep !== "review" ? (
                     <Button
                       type="button"
                       onClick={handleNext}
-                      disabled={!canAdvance()}
+                      disabled={!canAdvance() || isAnalyzing}
                     >
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-2" />
+                      {isAnalyzing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Analyzing...
+                        </>
+                      ) : (
+                        <>
+                          Next
+                          <ChevronRight className="h-4 w-4 ml-2" />
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button 
+                      type="submit"
+                      disabled={isSubmitting || !canAdvance()}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Product'
+                      )}
                     </Button>
                   )}
                 </div>
+
+                <SmartListingModal
+                  open={showSmartListing}
+                  onOpenChange={setShowSmartListing}
+                  images={imageFiles}
+                  onAnalysisComplete={handleAnalysisComplete}
+                />
               </form>
             </Form>
           </div>
         </ScrollArea>
       </DialogContent>
-
-      <SmartListingModal
-        open={showSmartListing}
-        onOpenChange={setShowSmartListing}
-        images={imageFiles}
-        onAnalysisComplete={handleAnalysisComplete}
-      />
     </Dialog>
   );
 }

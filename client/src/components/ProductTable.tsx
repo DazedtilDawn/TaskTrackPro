@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import {
   ColumnDef,
   VisibilityState,
@@ -14,14 +14,14 @@ import { cn } from "@/lib/utils"
 interface Product {
   id: number
   name: string
-  description?: string
-  sku?: string
-  price?: number
+  description: string | null
+  sku: string | null
+  price: string | null
   quantity: number
   condition: string
-  brand?: string
-  category?: string
-  image_url?: string
+  brand: string | null
+  category: string | null
+  image_url: string | null
   sold: boolean
 }
 
@@ -52,8 +52,9 @@ export function ProductTable({ products }: ProductTableProps) {
       accessorKey: "price",
       header: "Price",
       cell: ({ row }) => {
-        const price = row.getValue<number | undefined>("price")
-        return price ? `$${price.toFixed(2)}` : "-"
+        const price = row.getValue<string | null>("price")
+        const numPrice = price ? parseFloat(price) : null
+        return numPrice ? `$${numPrice.toFixed(2)}` : "-"
       },
     },
     {

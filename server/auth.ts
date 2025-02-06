@@ -9,6 +9,8 @@ import { users, insertUserSchema, type SelectUser } from "@db/schema";
 import { db, pool } from "@db";
 import { eq } from "drizzle-orm";
 import { fromZodError } from "zod-validation-error";
+import csurf from "csurf";
+import cookieParser from "cookie-parser";
 
 declare global {
   namespace Express {
@@ -49,9 +51,24 @@ export function setupAuth(app: Express) {
     app.set("trust proxy", 1);
   }
 
+  // Required middleware
+  app.use(cookieParser());
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
+
+  // Setup CSRF protection
+  const csrfProtection = csurf({
+    cookie: {
+      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production'
+    }
+  });
+
+  // Endpoint to get CSRF token
+  app.get('/api/csrf-token', csrfProtection, (req, res) => {
+    res.json({ csrfToken: req.csrfToken() });
+  });
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
@@ -75,7 +92,8 @@ export function setupAuth(app: Express) {
     done(null, user);
   });
 
-  app.post("/api/register", async (req, res, next) => {
+  // Protected routes with CSRF
+  app.post("/api/register", csrfProtection, async (req, res, next) => {
     const result = insertUserSchema.safeParse(req.body);
     if (!result.success) {
       const error = fromZodError(result.error);
@@ -101,11 +119,11 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
+  app.post("/api/login", csrfProtection, passport.authenticate("local"), (req, res) => {
     res.status(200).json(req.user);
   });
 
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/logout", csrfProtection, (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
       res.sendStatus(200);

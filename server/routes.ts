@@ -59,13 +59,6 @@ export function registerRoutes(app: Express): Express {
   });
 
 
-  // Serve static files from uploads directory with proper logging
-  console.log('[Static Files] Configuring uploads directory:', uploadsPath);
-  app.use("/uploads", (req, res, next) => {
-    console.log('[Static Files] Accessing:', req.url);
-    express.static(uploadsPath)(req, res, next);
-  });
-
   // Add this near the top of the routes registration, before the eBay-specific endpoints
   app.get("/callback", (req, res) => {
     console.log("[eBay Legacy Callback] Received request, redirecting to /api/ebay/callback");
@@ -894,7 +887,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       const { productId, buyPrice, currentPrice, condition, category } = req.body;
       const buyPriceNum = Number(buyPrice);
       if (isNaN(buyPriceNum) || buyPriceNum <= 0) {
-        return res.status(400).json({ error: "Invalid buyPrice. It must be a number greater than 0." });
+        return res.status(400).json({ error: "Invalid buyPrice. Itmust be a number greater than 0." });
       }
       const currentPriceNum = currentPrice ? Number(currentPrice) : null;
 

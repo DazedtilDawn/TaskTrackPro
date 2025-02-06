@@ -648,8 +648,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
+      console.log("[Product Delete] Starting deletion process for product ID:", req.params.id);
       const productId = parseInt(req.params.id);
       if (isNaN(productId)) {
+        console.log("[Product Delete] Invalid product ID:", req.params.id);
         return res.status(400).json({ error: "Invalid product ID" });
       }
 
@@ -665,24 +667,28 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         .limit(1);
 
       if (!existingProduct) {
+        console.log("[Product Delete] Product not found or unauthorized:", productId);
         return res.status(404).json({ error: "Product not found" });
       }
 
       // Remove from any watchlists first (foreign key constraint)
+      console.log("[Product Delete] Removing watchlist entries for product:", productId);
       await db.delete(watchlist)
         .where(eq(watchlist.productId, productId));
 
       // Delete the product
+      console.log("[Product Delete] Deleting product:", productId);
       const [deletedProduct] = await db.delete(products)
         .where(eq(products.id, productId))
         .returning();
 
+      console.log("[Product Delete] Successfully deleted product:", deletedProduct);
       res.json({
         message: "Product deleted successfully",
         deletedProduct
       });
     } catch (error) {
-      console.error("Error deleting product:", error);
+      console.error("[Product Delete] Error deleting product:", error);
       res.status(500).json({
         error: "Failed to delete product",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -877,7 +883,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       }
       const currentPriceNum = currentPrice ? Number(currentPrice) : null;
 
-      // Construct an improved prompt
+      // Construct an improved prompt      
       const prompt = `We have a product with the following details:
 - Buy Price: $${buyPriceNum.toFixed(2)}
 - Current Market Price: ${currentPriceNum ? `$${currentPriceNum.toFixed(2)}` : "not available"}
@@ -888,8 +894,9 @@ Please recommend a competitive sale price that would secure a healthy profit mar
 
 Format your answer strictly as valid JSON in the following format:
 {
-  "recommendedSalePrice": number}
-Do not include any additional text;.`;
+  "recommendedSalePrice": number
+}
+Do not include any additional text.`;
 
       // Log the prompt for debugging
       console.log("Sale price prompt:", prompt);

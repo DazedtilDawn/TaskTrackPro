@@ -1,0 +1,107 @@
+Below is a **concise** plan to preserve your multi-step wizard but **automatically trigger AI analysis** when an image is uploaded. Each item includes a **brief implementation tip** to guide you.
+
+---
+
+## **Checklist for Automatic Image-Based AI Analysis**
+
+1. **Maintain the Multi-Step Wizard**  
+   - **What**: Keep the step-based approach (`basic` → `analysis` → `details` → `images` → `review`).  
+   - **Tip**: Use the same structure for collecting user inputs and navigating steps.
+
+2. **Trigger AI Analysis Upon Image Upload**  
+   - **What**: When the user uploads an image, open the “Smart Listing” modal and run AI automatically.  
+   - **Tip**:  
+     - In `handleImagesUploaded`, call `setShowSmartListing(true)`.  
+     - After analysis completes in `SmartListingModal`, merge the returned `analysis` into the main form (just as you do now).  
+     - Optionally, if `runAllAnalysis` is enabled and eBay is connected, call `refineWithEbay` automatically as well.
+
+3. **Keep the “Run All Analysis” Checkbox**  
+   - **What**: Let users decide whether to auto-run AI + eBay analysis after basic info.  
+   - **Tip**:  
+     - On the `basic` step, if `runAllAnalysis` is checked, call both `analyzeProductAI()` and `refineWithEbay()` before moving to `analysis`.  
+     - If the user then uploads images, run image-based analysis too.
+
+4. **Consolidate “AI + eBay” Steps**  
+   - **What**: If `runAllAnalysis` is on, unify the logic in a single call or flow: AI → eBay → price refinement.  
+   - **Tip**:  
+     - After you finish the `analyzeProductAI()` call, immediately check `hasEbayAuth` and call `refineWithEbay()`.  
+     - Then optionally call `refinePricingWithAI()` if your workflow requires it.  
+
+5. **Show or Hide the Analysis Toolbar**  
+   - **What**: On the `analysis` step, still show manual controls (Analyze Product, Refine with eBay, etc.) for users who turned off `runAllAnalysis`.  
+   - **Tip**: Condition the toolbar’s visibility based on `!runAllAnalysis` or if user wants to adjust analysis results again.
+
+6. **Ensure Final Review Before Submission**  
+   - **What**: On the `review` step, display all automatically generated fields (title, description, AI suggestions, price) for the user to confirm.  
+   - **Tip**: Summarize everything from `form.getValues()`; highlight any fields changed by AI/eBay for visibility (e.g., bold text or a “(AI-Generated)” label).
+
+7. **Retain Single Submission Logic**  
+   - **What**: Continue using a single `onSubmit` to POST or PATCH everything to `/api/products`.  
+   - **Tip**: Build `FormData` exactly as you do now, including AI + eBay + image data. Invalidate queries once at the end.
+
+---
+
+## **Implementation Highlights**
+
+1. **`handleImagesUploaded`**  
+   ```tsx
+   const handleImagesUploaded = (files: File[]) => {
+     setImageFiles(files);
+     if (files.length > 0) {
+       // Open the Smart Listing modal
+       setShowSmartListing(true);
+     }
+   };
+   ```
+   - **SmartListingModal** immediately triggers image-based AI analysis and calls `onAnalysisComplete` to update the form.
+
+2. **`onAnalysisComplete`**  
+   ```tsx
+   const handleAnalysisComplete = (analysis: any) => {
+     // Merge AI results
+     form.setValue("aiAnalysis", analysis);
+     // If the analysis returned title/description, merge them too
+     if (analysis.title) form.setValue("name", analysis.title);
+     if (analysis.description) form.setValue("description", analysis.description);
+     // Price, condition discount, category, etc.
+     setShowSmartListing(false);
+   };
+   ```
+   - Any future logic to also refine with eBay if `runAllAnalysis` is on can go here.
+
+3. **Auto-Run eBay After AI**  
+   ```tsx
+   if (runAllAnalysis) {
+     await analyzeProductAI();
+     if (hasEbayAuth) {
+       await refineWithEbay();
+     }
+     // Optionally call refinePricingWithAI() last if you want it automatic
+   }
+   ```
+   - This can happen on the “Next” button from the `basic` step or inside your `SmartListingModal` after images are analyzed.
+
+4. **Final Review**  
+   ```tsx
+   case 'review':
+     return (
+       <>
+         <p><strong>Name:</strong> {form.getValues("name")}</p>
+         <p><strong>Description:</strong> {form.getValues("description")}</p>
+         <p><strong>Price:</strong> {form.getValues("price")}</p>
+         {/* etc. */}
+       </>
+     );
+   ```
+   - Make sure users see the final AI/eBay adjusted info.
+
+---
+
+### **Summary**
+
+- **Keep** your wizard steps for a guided flow.  
+- **Auto-trigger** AI from image uploads using `SmartListingModal` just like before.  
+- **Optionally chain** eBay analysis if `runAllAnalysis` is on.  
+- **Review** everything on the final step, then submit once.
+
+With these minimal additions, you’ll maintain the **automatic image-based AI** workflow **and** the new multi-step wizard, ensuring users can either let the system do everything for them or selectively run each analysis step.

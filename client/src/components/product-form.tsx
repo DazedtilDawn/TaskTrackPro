@@ -918,113 +918,84 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       case 'review':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold">Review Your Product</h3>
-            <div className="grid gap-4">
+            <h3 className="text-lg font-medium">Review Your Product</h3>
+            <div className="space-y-4">
               <div>
-                <span className="font-medium">Name:</span>
-                <p>{form.getValues("name")}</p>
+                <p className="text-sm font-medium text-muted-foreground">Name</p>
+                <p className="text-base">{form.getValues("name")}</p>
               </div>
               <div>
-                <span className="font-medium">Description:</span>
-                <p>{form.getValues("description")}</p>
+                <p className="text-sm font-medium text-muted-foreground">Description</p>
+                <p className="text-base">{form.getValues("description")}</p>
               </div>
               <div>
-                <span className="font-medium">Price:</span>
-                <p>${form.getValues("price")?.toFixed(2)}</p>
+                <p className="text-sm font-medium text-muted-foreground">Price</p>
+                <p className="text-base">${form.getValues("price")?.toFixed(2)}</p>
               </div>
-              <div>
-                <span className="font-medium">Condition:</span>
-                <p>{conditionOptions.find(opt => opt.value === form.getValues("condition"))?.label}</p>
-              </div>
-              {form.getValues("brand") && (
+              {form.getValues("aiAnalysis") && (
                 <div>
-                  <span className="font-medium">Brand:</span>
-                  <p>{form.getValues("brand")}</p>
+                  <p className="text-sm font-medium text-muted-foreground">AI Analysis</p>
+                  <div className="text-base">
+                    <p>Category: {form.getValues("aiAnalysis.category")}</p>
+                    <p>Demand Score: {form.getValues("aiAnalysis.marketAnalysis.demandScore")}/10</p>
+                    <p>Competition: {form.getValues("aiAnalysis.marketAnalysis.competitionLevel")}</p>
+                  </div>
                 </div>
               )}
-              {imageFiles.length > 0 && (
-                <div>
-                  <span className="font-medium">Images:</span>
-                  <p>{imageFiles.length} image(s) selected</p>
-                </div>
-              )}
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Images</p>
+                <p className="text-base">{imageFiles.length} images selected</p>
+              </div>
             </div>
           </div>
         );
+      default:
+        return null;
     }
   };
 
   return (
-    <DialogContent className="max-w-2xl overflow-hidden">
-      <DialogHeader>
-        <h2 className="text-2xl font-semibold tracking-tight">
-          {product ? "Edit Product" : "Add New Product"}
-        </h2>
-        <DialogDescription>
-          Enter product details and use AI analysis with eBay market data for optimal pricing.
-          Required fields are marked with an asterisk (*).
-        </DialogDescription>
-      </DialogHeader>
-
-      <ScrollArea className="max-h-[80vh]">
-        <div className="p-6">
+    <Form {...form}>
+      <form onSubmit={onSubmit} className="space-y-8">
+        <div className="space-y-6">
           <StepIndicator currentStep={currentStep} steps={steps} />
 
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-              {renderStepContent()}
+          {renderStepContent()}
 
-              <div className="flex justify-between pt-6">
-                {currentStep !== 'basic' && (
-                  <Button type="button" variant="outline" onClick={handleBack}>
-                    <ChevronLeft className="w-4 h-4 mr-2" />
-                    Back
-                  </Button>
-                )}
-                {currentStep === 'basic' && (
-                  <Button type="button" variant="ghost" onClick={onComplete}>
-                    Cancel
-                  </Button>
-                )}
-                {currentStep !== 'review' ? (
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    disabled={!canAdvance()}
-                  >
-                    Next
-                    <ChevronRight className="w-4 h-4 ml-2" />
-                  </Button>
-                ) : (
-                  <Button
-                    type="submit"
-                    disabled={form.formState.isSubmitting}
-                    className="min-w-[120px]"
-                  >
-                    {form.formState.isSubmitting ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Product"
-                    )}
-                  </Button>
-                )}
-              </div>
-            </form>
-          </Form>
+          <div className="flex justify-between pt-6">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleBack}
+              disabled={currentStep === 'basic'}
+            >
+              <ChevronLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+            {currentStep === 'review' ? (
+              <Button type="submit" disabled={!canAdvance()}>
+                {product ? 'Update Product' : 'Create Product'}
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                onClick={handleNext}
+                disabled={!canAdvance()}
+              >
+                Next
+                <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            )}
+          </div>
         </div>
-      </ScrollArea>
+      </form>
 
-      {showSmartListing && (
-        <SmartListingModal
-          open={showSmartListing}
-          onOpenChange={setShowSmartListing}
-          images={imageFiles}
-          onAnalysisComplete={handleAnalysisComplete}
-        />
-      )}
-    </DialogContent>
+      <SmartListingModal
+        open={showSmartListing}
+        onOpenChange={setShowSmartListing}
+        images={imageFiles}
+        onAnalysisComplete={handleAnalysisComplete}
+      />
+    </Form>
   );
 }

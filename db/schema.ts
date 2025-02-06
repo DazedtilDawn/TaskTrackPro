@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
@@ -48,7 +48,9 @@ export const watchlist = pgTable("watchlist", {
   productId: integer("product_id").references(() => products.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
+}, (table) => ({
+  userProductUnique: unique().on(table.userId, table.productId)
+}));
 
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),

@@ -664,12 +664,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // Remove from any watchlists first (foreign key constraint)
-      console.log("[Product Delete] Removing watchlist entries for product:", productId);
-      await db.delete(watchlist)
-        .where(eq(watchlist.productId, productId));
-
-      // Delete the product
+      // Delete the product - watchlist entries will be automatically deleted due to ON DELETE CASCADE
       console.log("[Product Delete] Deleting product:", productId);
       const [deletedProduct] = await db.delete(products)
         .where(eq(products.id, productId))
@@ -901,12 +896,12 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         error: "Failed to delete order",
         details: error instanceof Error ? error.message : "Unknown error"
       });
-        }
+    }
   });
 
   // generate-sale-price endpoint
   app.post("/api/generate-sale-price", async (req, res) => {
-    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    if (!req.isAuthenticated()) returnres.status(401).json({ error: "Unauthorized" });
     try {
       // Validate and parse input data
       const { productId, buyPrice, currentPrice, condition, category } = req.body;

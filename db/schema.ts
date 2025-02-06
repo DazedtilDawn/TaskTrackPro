@@ -103,7 +103,9 @@ export const products = pgTable("products", {
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").references(() => users.id).notNull(),
-  productId: integer("product_id").references(() => products.id).notNull(),
+  productId: integer("product_id")
+    .references(() => products.id, { onDelete: 'cascade' })
+    .notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (table) => ({

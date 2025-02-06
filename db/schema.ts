@@ -1,6 +1,7 @@
 import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
+import { z } from "zod";
 
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -133,14 +134,15 @@ export const selectOrderSchema = createSelectSchema(orders);
 export const insertEbayCategorySchema = createInsertSchema(ebayCategories);
 export const selectEbayCategorySchema = createSelectSchema(ebayCategories);
 
-// Export types
-export type InsertUser = typeof users.$inferInsert;
-export type SelectUser = typeof users.$inferSelect;
-export type InsertProduct = typeof products.$inferInsert;
-export type SelectProduct = typeof products.$inferSelect;
-export type InsertWatchlist = typeof watchlist.$inferInsert;
-export type SelectWatchlist = typeof watchlist.$inferSelect;
-export type InsertOrder = typeof orders.$inferInsert;
-export type SelectOrder = typeof orders.$inferSelect;
-export type InsertEbayCategory = typeof ebayCategories.$inferInsert;
-export type SelectEbayCategory = typeof ebayCategories.$inferSelect;
+// Add login credentials schema
+export const loginCredentialsSchema = z.object({
+  username: z.string()
+    .min(3, "Username must be at least 3 characters")
+    .max(50, "Username must not exceed 50 characters")
+    .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
+  password: z.string()
+    .min(8, "Password must be at least 8 characters")
+    .max(100, "Password must not exceed 100 characters")
+});
+
+export type LoginCredentials = z.infer<typeof loginCredentialsSchema>;

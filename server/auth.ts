@@ -5,7 +5,7 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
-import { users, insertUserSchema, type SelectUser } from "@db/schema";
+import { users, insertUserSchema, loginCredentialsSchema, type SelectUser } from "@db/schema";
 import { db, pool } from "@db";
 import { eq } from "drizzle-orm";
 import { fromZodError } from "zod-validation-error";
@@ -136,8 +136,34 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login", csrfProtection, passport.authenticate("local"), (req, res) => {
-    res.status(200).json(req.user);
+  // Add middleware to validate login credentials
+  const validateLoginCredentials = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
+    const result = loginCredentialsSchema.safeParse(req.body);
+    if (!result.success) {
+      const error = fromZodError(result.error);
+      return res.status(400).json({ 
+        error: "Invalid credentials format",
+        details: error.toString()
+      });
+    }
+    next();
+  };
+
+  app.post("/api/login", csrfProtection, validateLoginCredentials, (req, res, next) => {
+    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(401).json({ error: "Invalid credentials" });
+      }
+      req.logIn(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        return res.status(200).json(user);
+      });
+    })(req, res, next);
   });
 
   app.post("/api/logout", csrfProtection, (req, res, next) => {

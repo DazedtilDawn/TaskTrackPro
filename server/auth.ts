@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { fromZodError } from "zod-validation-error";
 import csurf from "csurf";
 import cookieParser from "cookie-parser";
+import { AuthenticationError, ValidationError, DatabaseError } from "./lib/errors";
 
 declare global {
   namespace Express {
@@ -25,12 +26,23 @@ const scryptAsync = promisify(scrypt);
 const PostgresSessionStore = connectPg(session);
 
 async function hashPassword(password: string) {
+  // For blank passwords, store a special hash that can't be bruteforced
+  if (!password) {
+    return 'BLANK';
+  }
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString("hex")}.${salt}`;
 }
 
 async function comparePasswords(supplied: string, stored: string) {
+  // Handle blank password case
+  if (stored === 'BLANK' && !supplied) {
+    return true;
+  }
+  if (stored === 'BLANK' || !supplied) {
+    return false;
+  }
   const [hashed, salt] = stored.split(".");
   const hashedBuf = Buffer.from(hashed, "hex");
   const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
@@ -38,7 +50,11 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 async function getUserByUsername(username: string) {
-  return db.select().from(users).where(eq(users.username, username)).limit(1);
+  try {
+    return await db.select().from(users).where(eq(users.username, username)).limit(1);
+  } catch (error) {
+    throw new DatabaseError("Error fetching user", error);
+  }
 }
 
 export function setupAuth(app: Express) {
@@ -56,28 +72,25 @@ export function setupAuth(app: Express) {
     resave: false,
     saveUninitialized: false,
     store,
-    name: 'sid', // Use a generic name instead of 'connect.sid'
+    name: 'sid',
     cookie: {
-      httpOnly: true, // Prevent client-side access to the cookie
-      secure: isProduction, // Require HTTPS in production
-      sameSite: 'lax', // Protect against CSRF
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000,
     },
-    // Additional production settings
-    proxy: isProduction // Trust the reverse proxy in production
+    proxy: isProduction
   };
 
   if (isProduction) {
     app.set("trust proxy", 1);
   }
 
-  // Required middleware
   app.use(cookieParser());
   app.use(session(sessionSettings));
   app.use(passport.initialize());
   app.use(passport.session());
 
-  // Setup CSRF protection
   const csrfProtection = csurf({
     cookie: {
       sameSite: 'strict',
@@ -85,22 +98,20 @@ export function setupAuth(app: Express) {
     }
   });
 
-  // Endpoint to get CSRF token
   app.get('/api/csrf-token', csrfProtection, (req, res) => {
     res.json({ csrfToken: req.csrfToken() });
   });
 
-  // Add middleware to validate login credentials
   const validateLoginCredentials = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
-    const result = loginCredentialsSchema.safeParse(req.body);
-    if (!result.success) {
-      const error = fromZodError(result.error);
-      return res.status(400).json({ 
-        error: "Invalid credentials format",
-        details: error.toString()
-      });
+    try {
+      const result = loginCredentialsSchema.safeParse(req.body);
+      if (!result.success) {
+        throw new ValidationError("Invalid credentials format", fromZodError(result.error).toString());
+      }
+      next();
+    } catch (error) {
+      next(error);
     }
-    next();
   };
 
   passport.use(
@@ -109,9 +120,8 @@ export function setupAuth(app: Express) {
         const [user] = await getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false);
-        } else {
-          return done(null, user);
         }
+        return done(null, user);
       } catch (error) {
         return done(error);
       }
@@ -126,7 +136,9 @@ export function setupAuth(app: Express) {
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
-
+      if (!user) {
+        throw new AuthenticationError("User not found");
+      }
       done(null, user);
     } catch (error) {
       done(error);
@@ -134,21 +146,15 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/register", csrfProtection, async (req, res, next) => {
-    const result = insertUserSchema.safeParse(req.body);
-    if (!result.success) {
-      const error = fromZodError(result.error);
-      return res.status(400).json({
-        error: "Invalid registration data",
-        details: error.toString()
-      });
-    }
-
     try {
+      const result = insertUserSchema.safeParse(req.body);
+      if (!result.success) {
+        throw new ValidationError("Invalid registration data", fromZodError(result.error).toString());
+      }
+
       const [existingUser] = await getUserByUsername(result.data.username);
       if (existingUser) {
-        return res.status(400).json({
-          error: "Username already exists"
-        });
+        throw new ValidationError("Username already exists");
       }
 
       const [user] = await db
@@ -174,7 +180,7 @@ export function setupAuth(app: Express) {
         return next(err);
       }
       if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
+        return next(new AuthenticationError("Invalid credentials"));
       }
       req.logIn(user, (err) => {
         if (err) {
@@ -192,8 +198,10 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get("/api/user", (req, res, next) => {
+    if (!req.isAuthenticated()) {
+      return next(new AuthenticationError());
+    }
     res.json(req.user);
   });
 }

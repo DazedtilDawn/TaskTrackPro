@@ -120,8 +120,8 @@ export default function ProductCard({
   const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis.marketAnalysis.priceSuggestion.max ?? 0);
   const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
 
-  const getImageUrl = (url: string | null): string | null => {
-    if (!url) return null;
+  const getImageUrl = (url: string | null | undefined): string | undefined => {
+    if (!url) return undefined;
     if (url.startsWith('http://') || url.startsWith('https://')) {
       return url;
     }
@@ -322,19 +322,16 @@ export default function ProductCard({
           tabIndex={0}
           onKeyDown={handleKeyDown}
         >
-          <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
+          <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-secondary/20">
             {product.imageUrl && !imageError ? (
               <img
                 src={getImageUrl(product.imageUrl)}
                 alt={`Image of ${product.name}`}
                 className="w-full h-full object-cover"
-                onError={() => {
-                  console.error(`Failed to load image: ${product.imageUrl}`);
-                  setImageError(true);
-                }}
+                onError={() => setImageError(true)}
               />
             ) : (
-              <div className="w-full h-full bg-secondary/20 flex items-center justify-center" aria-label="No image available">
+              <div className="w-full h-full flex items-center justify-center">
                 <ImageIcon className="w-6 h-6 text-muted-foreground" />
               </div>
             )}
@@ -508,44 +505,41 @@ export default function ProductCard({
         tabIndex={0}
         onKeyDown={handleKeyDown}
       >
-        {product.imageUrl && !imageError ? (
-          <div className={cn(
-            "relative",
-            view === "grid" ? "w-full" : "w-48 shrink-0"
-          )}>
+        <div
+          className={cn(
+            "relative bg-secondary/20",
+            view === "grid" ? "aspect-square w-full" : "w-48 h-48 shrink-0"
+          )}
+        >
+          {product.imageUrl && !imageError ? (
             <img
               src={getImageUrl(product.imageUrl)}
               alt={`Image of ${product.name}`}
               className={cn(
-                "object-cover",
-                view === "grid" ? "w-full h-48" : "w-48 h-full"
+                "object-cover transition-transform duration-200",
+                view === "grid" ? "w-full h-full hover:scale-105" : "w-48 h-full"
               )}
-              onError={() => {
-                console.error(`Failed to load image: ${product.imageUrl}`);
-                setImageError(true);
-              }}
+              onError={() => setImageError(true)}
+              loading="lazy"
             />
-            {hasAnalysis && (
-              <div className={cn(
-                "absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium",
-                isUnderpriced && "bg-yellow-500/90 text-yellow-50",
-                isOverpriced && "bg-red-500/90 text-red-50",
-                isPricedRight && "bg-green-500/90 text-green-50"
-              )}>
-                {isUnderpriced ? 'Underpriced' :
-                  isOverpriced ? 'Overpriced' :
-                    'Optimal Price'}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className={cn(
-            "bg-secondary/20 flex items-center justify-center",
-            view === "grid" ? "w-full h-48" : "w-48 h-full"
-          )} aria-label="No image available">
-            <ImageIcon className="w-8 h-8 text-muted-foreground" />
-          </div>
-        )}
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-8 h-8 text-muted-foreground" />
+            </div>
+          )}
+          {hasAnalysis && (
+            <div className={cn(
+              "absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium shadow-sm",
+              isUnderpriced && "bg-yellow-500/90 text-yellow-50",
+              isOverpriced && "bg-red-500/90 text-red-50",
+              isPricedRight && "bg-green-500/90 text-green-50"
+            )}>
+              {isUnderpriced ? 'Underpriced' :
+                isOverpriced ? 'Overpriced' :
+                  'Optimal Price'}
+            </div>
+          )}
+        </div>
         <div className={cn(
           view === "list" && "flex-1 flex flex-col"
         )}>

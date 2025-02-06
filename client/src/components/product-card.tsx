@@ -1,14 +1,14 @@
+import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box,
   BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen, ImageIcon
 } from "lucide-react";
-import { type SelectProduct } from "@db/schema";
+import type { SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
-import { useState, useCallback } from "react";
 import ConvertWatchlistDialog from "./convert-watchlist-dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,45 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+
+interface AIAnalysis {
+  category: string;
+  marketAnalysis: {
+    demandScore: number;
+    competitionLevel: string;
+    priceSuggestion: {
+      min: number;
+      max: number;
+    };
+  };
+  suggestions: string[];
+  seoKeywords: string[];
+  ebayData?: {
+    currentPrice: number;
+    averagePrice: number;
+    lowestPrice: number;
+    highestPrice: number;
+    soldCount: number;
+    activeListing: number;
+    recommendedPrice: number;
+    lastUpdated: string;
+  };
+}
+
+const DEFAULT_AI_ANALYSIS: AIAnalysis = {
+  category: 'Uncategorized',
+  marketAnalysis: {
+    demandScore: 0,
+    competitionLevel: 'Unknown',
+    priceSuggestion: {
+      min: 0,
+      max: 0
+    }
+  },
+  suggestions: ['No analysis available'],
+  seoKeywords: [],
+  ebayData: undefined
+};
 
 interface ProductCardProps {
   product: SelectProduct;
@@ -30,10 +69,10 @@ interface ProductCardProps {
 export default function ProductCard({
   product,
   onEdit,
-  inWatchlist,
+  inWatchlist = false,
   view = "grid",
   watchlistId
-}: ProductCardProps) {
+}: ProductCardProps): JSX.Element {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
@@ -75,7 +114,6 @@ export default function ProductCard({
   }, [onEdit, product]);
 
   const aiAnalysis = parseAIAnalysis(product.aiAnalysis);
-
   const hasAnalysis = aiAnalysis !== DEFAULT_AI_ANALYSIS;
   const currentPrice = Number(product.price) || 0;
   const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis.marketAnalysis.priceSuggestion.min ?? 0);
@@ -272,21 +310,6 @@ export default function ProductCard({
       setIsGeneratingListing(false);
     }
   }, [product.id, toast]);
-
-  const DEFAULT_AI_ANALYSIS: AIAnalysis = {
-    category: 'Uncategorized',
-    marketAnalysis: {
-      demandScore: 0,
-      competitionLevel: 'Unknown',
-      priceSuggestion: {
-        min: 0,
-        max: 0
-      }
-    },
-    suggestions: ['No analysis available'],
-    seoKeywords: [],
-    ebayData: undefined
-  };
 
 
   if (view === "table") {
@@ -806,28 +829,4 @@ export default function ProductCard({
       />
     </>
   );
-}
-
-interface AIAnalysis {
-  category: string;
-  marketAnalysis: {
-    demandScore: number;
-    competitionLevel: string;
-    priceSuggestion: {
-      min: number;
-      max: number;
-    };
-  };
-  suggestions: string[];
-  seoKeywords: string[];
-  ebayData?: {
-    currentPrice: number;
-    averagePrice: number;
-    lowestPrice: number;
-    highestPrice: number;
-    soldCount: number;
-    activeListing: number;
-    recommendedPrice: number;
-    lastUpdated: string;
-  };
 }

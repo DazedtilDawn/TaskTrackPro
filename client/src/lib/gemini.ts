@@ -278,10 +278,10 @@ async function fileToBase64(file: File): Promise<string> {
 export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<number, AIAnalysisResult>> {
   const genAI = await initializeGemini();
   const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash-exp",
+    model: "gemini-2.0-flash-001",
     generationConfig: {
       maxOutputTokens: 8192,
-      temperature: 0.7,
+      temperature: 0.2,
       topP: 0.8,
       topK: 40,
     }

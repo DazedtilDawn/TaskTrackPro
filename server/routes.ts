@@ -304,10 +304,10 @@ export function registerRoutes(app: Express): Express {
 
       // Use AI to optimize the listing
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash-001",
         generationConfig: {
           maxOutputTokens: 8192,
-          temperature: 0.7,
+          temperature: 0.2,
           topP: 0.8,
           topK: 40,
         }
@@ -386,10 +386,10 @@ Format the response as JSON with:
       }
 
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash-001",
         generationConfig: {
           maxOutputTokens: 8192,
-          temperature: 0.7,
+          temperature: 0.2,
           topP: 0.8,
           topK: 40,
         }
@@ -930,10 +930,10 @@ Do not include any additional text.`;
 
       // Get the generative model and send the prompt
       const model = genAI.getGenerativeModel({
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash-001",
         generationConfig: {
           maxOutputTokens: 100,
-          temperature: 0.7,
+          temperature: 0.2,
         },
       });
       const result = await model.generateContent(prompt);

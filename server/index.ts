@@ -1,4 +1,7 @@
 import express from "express";
+import { setupVite, serveStatic } from "./vite";
+import { registerRoutes } from "./routes";
+import { db } from "@db";
 
 const app = express();
 
@@ -10,22 +13,26 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
 });
 
-// Basic error handler
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
-});
-
 // Initialize server with proper error handling
 async function initializeServer() {
   try {
     const PORT = Number(process.env.PORT) || 4000;
     const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`Minimal server running on port ${PORT}`);
+      console.log(`Server running on port ${PORT}`);
       if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
         console.log(`Full URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
       }
     });
+
+    // Setup Vite for development
+    if (process.env.NODE_ENV !== 'production') {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    // Register all routes
+    registerRoutes(app);
 
     // Handle shutdown gracefully
     process.on('SIGTERM', () => {
@@ -42,6 +49,12 @@ async function initializeServer() {
     process.exit(1);
   }
 }
+
+// Basic error handler
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(err.stack);
+  res.status(500).send('Something broke!');
+});
 
 // Start server
 initializeServer().catch((error) => {

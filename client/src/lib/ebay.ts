@@ -143,9 +143,13 @@ function calculateOptimalPrice(ebayData: EbayPriceData, aiAnalysis: any): number
   console.log("[eBay Price Calculation] Starting price calculation");
   console.log("[eBay Price Calculation] Input data:", { ebayData, aiAnalysis });
 
-  // Start with eBay's recommended price
-  let basePrice = ebayData.recommendedPrice;
+  let basePrice = Number(ebayData.recommendedPrice);
   console.log("[eBay Price Calculation] Starting with base price:", basePrice);
+
+  if (Number.isNaN(basePrice)) {
+    console.warn("[eBay Price Calculation] ebayData.recommendedPrice is NaN. Using 0 as fallback.");
+    basePrice = 0;
+  }
 
   // Adjust based on market conditions
   if (ebayData.soldCount > 30) { // High demand
@@ -166,9 +170,23 @@ function calculateOptimalPrice(ebayData: EbayPriceData, aiAnalysis: any): number
   if (aiAnalysis?.marketAnalysis?.priceSuggestion) {
     const aiPrice = aiAnalysis.marketAnalysis.priceSuggestion;
     console.log("[eBay Price Calculation] AI price suggestion:", aiPrice);
-    // Weighted average between eBay and AI suggestions
-    basePrice = (basePrice * 0.6) + (aiPrice * 0.4);
-    console.log("[eBay Price Calculation] After AI weighted adjustment:", basePrice);
+
+    // Handle min/max price suggestions if they exist
+    let minPrice = Number(aiPrice.min);
+    let maxPrice = Number(aiPrice.max);
+
+    if (Number.isNaN(minPrice)) minPrice = 0;
+    if (Number.isNaN(maxPrice)) maxPrice = 0;
+
+    // Only adjust if we have valid min/max prices
+    if (minPrice > 0 || maxPrice > 0) {
+      // Weighted average between eBay and AI suggestions
+      const aiSuggestedPrice = (minPrice + maxPrice) / 2;
+      basePrice = (basePrice * 0.6) + (aiSuggestedPrice * 0.4);
+      console.log("[eBay Price Calculation] After AI weighted adjustment:", basePrice);
+    } else {
+      console.warn("[eBay Price Calculation] Invalid AI price suggestions, skipping adjustment");
+    }
   }
 
   const finalPrice = Math.round(basePrice * 100) / 100; // Round to 2 decimal places

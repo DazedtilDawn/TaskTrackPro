@@ -1,0 +1,95 @@
+You’re calling `onClose()` inside the `SmartListingModal` but the prop doesn’t actually exist or is named differently (e.g., `onOpenChange`). Since `onClose` is not defined as a function, you get the runtime error.
+
+Below are **two** ways to fix it:
+
+---
+
+## **Option A: Rename `onClose` to `onOpenChange`**
+
+1. In your parent component, you likely have:
+
+   ```tsx
+   <SmartListingModal
+     open={showSmartListing}
+     onOpenChange={setShowSmartListing}
+     images={imageFiles}
+     // ...
+   />
+   ```
+
+2. In `smart-listing-modal.tsx`, change references of `onClose()` to `onOpenChange(false)`:
+
+   ```tsx
+   interface SmartListingModalProps {
+     open: boolean;
+     onOpenChange: (open: boolean) => void;  // rename if needed
+     images: File[];
+     // ...
+   }
+
+   export default function SmartListingModal({
+     open,
+     onOpenChange,
+     images,
+     // ...
+   }: SmartListingModalProps) {
+
+     // Example fix in your effect:
+     useEffect(() => {
+       if (open && (!images?.length)) {
+         onOpenChange(false);  // instead of onClose()
+         // ...
+       }
+     }, [open, images, onOpenChange]);
+
+     // ...
+   }
+   ```
+
+**Explanation**: Vite complains because you’re calling `onClose()` but the actual prop is `onOpenChange` (which is a function). Simply use that function to set `false` when you want to close the modal.
+
+---
+
+## **Option B: Provide Both a `onClose` and `onOpenChange`**
+
+If you want to keep a named `onClose` prop for clarity:
+
+1. **Add** `onClose` to the props interface:
+
+   ```tsx
+   interface SmartListingModalProps {
+     open: boolean;
+     onClose: () => void;  // Provide an actual function here
+     images: File[];
+     // ...
+   }
+   ```
+
+2. **Pass** the actual function from the parent:
+
+   ```tsx
+   <SmartListingModal
+     open={showSmartListing}
+     onClose={() => setShowSmartListing(false)}
+     images={imageFiles}
+     // ...
+   />
+   ```
+
+3. **Use** `onClose()` in your `SmartListingModal`:
+
+   ```tsx
+   useEffect(() => {
+     if (open && (!images?.length)) {
+       onClose();  // Now it's defined
+     }
+   }, [open, images, onClose]);
+   ```
+
+**Explanation**: If you want a prop literally called `onClose`, define it and make sure the parent passes a function. Then, calling `onClose()` will work without error.
+
+---
+
+### **Summary**
+
+The error “`onClose` is not a function” means you’re calling `onClose()` but never provided a prop by that name. Either rename the usage to `onOpenChange(false)` or define a proper `onClose` prop. Once you make that adjustment, the runtime error will go away.

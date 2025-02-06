@@ -235,3 +235,13 @@ export const orderCreateSchema = z.object({
 export const watchlistCreateSchema = z.object({
   productId: z.number().int().positive("Invalid product ID"),
 });
+
+// Add type exports at the end of the file after all other exports
+export type SelectUser = typeof users.$inferSelect;
+export type InsertUser = typeof users.$inferInsert;
+export type SelectProduct = typeof products.$inferSelect;
+export type InsertProduct = typeof products.$inferInsert;
+export type SelectWatchlist = typeof watchlist.$inferSelect;
+export type InsertWatchlist = typeof watchlist.$inferInsert;
+export type SelectOrder = typeof orders.$inferSelect;
+export type InsertOrder = typeof orders.$inferInsert;

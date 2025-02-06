@@ -1,0 +1,65 @@
+Examine queryClient.ts: You have a file client/src/lib/queryClient.ts that likely handles your API requests. Open it and look for any hardcoded URLs. Specifically, this part:
+
+export async function apiRequest(method: string, url: string, data?: unknown): Promise<Response> {
+    // ...
+    const res = await fetch(url, {
+        // ...
+    });
+    // ...
+}
+Use code with caution.
+TypeScript
+And also this part:
+
+export const getQueryFn: <T>(options: {
+on401: UnauthorizedBehavior;
+ }) => QueryFunction<T> =
+({ on401: unauthorizedBehavior }) =>
+async ({ queryKey }) => {
+const res = await fetch(queryKey[0] as string, { // This line matters!
+credentials: "include",
+});
+Use code with caution.
+TypeScript
+queryKey[0] and the url in apiRequest are what matters. They're being used directly in the fetch calls. These need to be relative paths (like /api/products), not absolute URLs with localhost. If you have https://localhost:5000 (or any other full URL) hardcoded in these places, that's a problem. Change them to relative paths, like this:
+
+// Correct:
+const res = await fetch("/api/products", { /* ... */ });
+
+// Incorrect:
+const res = await fetch("https://localhost:5000/api/products", { /* ... */ });
+Use code with caution.
+TypeScript
+Correct usages of those functions elsewhere in your code (e.g., inside components) should also use relative URLs:
+
+// Example in a component:
+const { data, error } = useQuery({ queryKey: ["/api/products"] }); // Correct
+const response = await apiRequest("GET", "/api/user"); // Correct
+Use code with caution.
+TypeScript
+Check your Vite configuration (less likely, but still possible): Open vite.config.ts. Look for a server section, and specifically a proxy configuration within that. If you have a proxy set up, it might be interfering. If you're not intentionally using a proxy for development, you can comment it out. Your current config doesn't show a proxy, which is good:
+
+export default defineConfig({
+ plugins: [react(), runtimeErrorOverlay(), themePlugin()],
+ resolve: { /* ... */ },
+ root: path.resolve(__dirname, "client"),
+ build: { /* ... */ },
+ // server: { // If this section exists, check it!
+ //   proxy: { /* ... */ }, // Comment out this whole 'proxy' block if present
+ // },
+ });
+Use code with caution.
+TypeScript
+In summary, the most likely issue is that Replit's proxy hasn't caught up, or your client code is trying to connect to the wrong URL. Focus on getting the correct URL from Replit's Webview, and then make sure your client-side code is using relative paths for API requests.
+
+Try those steps and let me know the results:
+
+Did waiting and refreshing help?
+
+What URL does Replit's Webview show?
+
+Did you find any hardcoded localhost URLs in queryClient.ts or elsewhere?
+
+Did you find and comment out/fix any proxy settings in vite.config.ts?
+
+Do you get different errors after those changes?

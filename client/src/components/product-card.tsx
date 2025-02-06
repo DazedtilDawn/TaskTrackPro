@@ -2,7 +2,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box,
-  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen
+  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen, ImageIcon
 } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -26,35 +26,12 @@ interface ProductCardProps {
   view?: "grid" | "list" | "table";
 }
 
-interface AIAnalysis {
-  category: string;
-  marketAnalysis: {
-    demandScore: number;
-    competitionLevel: string;
-    priceSuggestion: {
-      min: number;
-      max: number;
-    };
-  };
-  suggestions: string[];
-  seoKeywords: string[];
-  ebayData?: {
-    currentPrice: number;
-    averagePrice: number;
-    lowestPrice: number;
-    highestPrice: number;
-    soldCount: number;
-    activeListing: number;
-    recommendedPrice: number;
-    lastUpdated: string;
-  };
-}
-
 export default function ProductCard({ product, onEdit, inWatchlist, view = "grid" }: ProductCardProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
+  const [imageError, setImageError] = useState(false);
 
   let aiAnalysis: AIAnalysis | undefined;
   try {
@@ -72,6 +49,17 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
   const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
   const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
   const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
+
+  const getImageUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('/uploads/')) {
+      return url;
+    }
+    return `/uploads/${url.replace(/^\/+/, '')}`;
+  };
 
   const markAsSold = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -257,15 +245,19 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       <>
         <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
-            {product.imageUrl ? (
+            {product.imageUrl && !imageError ? (
               <img
-                src={product.imageUrl}
+                src={getImageUrl(product.imageUrl)}
                 alt={product.name}
                 className="w-full h-full object-cover"
+                onError={() => {
+                  console.error(`Failed to load image: ${product.imageUrl}`);
+                  setImageError(true);
+                }}
               />
             ) : (
               <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
-                <Box className="w-6 h-6 text-muted-foreground" />
+                <ImageIcon className="w-6 h-6 text-muted-foreground" />
               </div>
             )}
           </div>
@@ -425,18 +417,22 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         isPricedRight && "border-green-500/50",
         view === "list" && "flex"
       )}>
-        {product.imageUrl && (
+        {product.imageUrl && !imageError ? (
           <div className={cn(
             "relative",
             view === "grid" ? "w-full" : "w-48 shrink-0"
           )}>
             <img
-              src={product.imageUrl}
+              src={getImageUrl(product.imageUrl)}
               alt={product.name}
               className={cn(
                 "object-cover",
                 view === "grid" ? "w-full h-48" : "w-48 h-full"
               )}
+              onError={() => {
+                console.error(`Failed to load image: ${product.imageUrl}`);
+                setImageError(true);
+              }}
             />
             {hasAnalysis && (
               <div className={cn(
@@ -450,6 +446,13 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
                     'Optimal Price'}
               </div>
             )}
+          </div>
+        ) : (
+          <div className={cn(
+            "bg-secondary/20 flex items-center justify-center",
+            view === "grid" ? "w-full h-48" : "w-48 h-full"
+          )}>
+            <ImageIcon className="w-8 h-8 text-muted-foreground" />
           </div>
         )}
         <div className={cn(
@@ -727,4 +730,28 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
       />
     </>
   );
+}
+
+interface AIAnalysis {
+  category: string;
+  marketAnalysis: {
+    demandScore: number;
+    competitionLevel: string;
+    priceSuggestion: {
+      min: number;
+      max: number;
+    };
+  };
+  suggestions: string[];
+  seoKeywords: string[];
+  ebayData?: {
+    currentPrice: number;
+    averagePrice: number;
+    lowestPrice: number;
+    highestPrice: number;
+    soldCount: number;
+    activeListing: number;
+    recommendedPrice: number;
+    lastUpdated: string;
+  };
 }

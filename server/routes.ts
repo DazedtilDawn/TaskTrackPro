@@ -5,7 +5,6 @@ import { db } from "@db";
 import { products, watchlist, orders, orderItems, users } from "@db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import bodyParser from "body-parser";
 import multer from 'multer';
 import path from 'path';
 import express from 'express';
@@ -59,13 +58,6 @@ export function registerRoutes(app: Express): Express {
     res.json({ status: "ok" });
   });
 
-  app.use(bodyParser.json({
-    limit: '50mb',
-    verify: (req, res, buf) => {
-      // @ts-ignore
-      req.rawBody = buf;
-    }
-  }));
 
   // Serve static files from uploads directory with proper logging
   console.log('[Static Files] Configuring uploads directory:', uploadsPath);
@@ -696,7 +688,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       });
     }
   });
-
 
 
   // Mark product as sold endpoint

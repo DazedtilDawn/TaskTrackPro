@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import type { InsertUser } from "@db/schema";
+import { ROUTES } from "@/lib/routes";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -17,7 +18,7 @@ export default function AuthPage() {
   // Handle redirection in useEffect
   useEffect(() => {
     if (user) {
-      setLocation("/");
+      setLocation(ROUTES.dashboard);
     }
   }, [user, setLocation]);
 

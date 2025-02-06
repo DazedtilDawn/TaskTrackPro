@@ -8,6 +8,7 @@ import { AlertCircle, CheckCircle2, RefreshCcw, Search } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { getEbayPrice } from "@/lib/ebay";
+import { ROUTES } from "@/lib/routes";
 
 interface User {
   id: string;

@@ -1,12 +1,18 @@
 import * as React from "react"
-
 import { cn } from "@/lib/utils"
 
 export interface InputProps
-  extends React.InputHTMLAttributes<HTMLInputElement> {}
+  extends React.InputHTMLAttributes<HTMLInputElement> {
+  // Add support for controlled input handling
+  value?: string | number | readonly string[] | undefined;
+  defaultValue?: string | number | readonly string[] | undefined;
+}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
-  ({ className, type, ...props }, ref) => {
+  ({ className, type, value, defaultValue, ...props }, ref) => {
+    // Ensure value is never null, convert to empty string if undefined
+    const inputValue = value === null || value === undefined ? "" : value;
+
     return (
       <input
         type={type}
@@ -15,6 +21,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
           className
         )}
         ref={ref}
+        value={inputValue}
+        defaultValue={defaultValue}
         {...props}
       />
     )

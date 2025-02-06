@@ -2,12 +2,11 @@
 
 import { spawn, type SpawnOptionsWithStdioTuple } from "child_process";
 
-// Spawn the drizzle migration push command with verbose output
 console.log('[Migration] Starting database migration process...');
 
 const migrate = spawn("drizzle-kit", ["push", "--verbose"], {
-  stdio: ["pipe", "inherit", "inherit"]
-} as SpawnOptionsWithStdioTuple<"pipe", "inherit", "inherit">);
+  stdio: ["pipe", "pipe", "inherit"]
+} as SpawnOptionsWithStdioTuple<"pipe", "pipe", "inherit">);
 
 // Set up error handling
 migrate.on('error', (err) => {
@@ -15,34 +14,20 @@ migrate.on('error', (err) => {
   process.exit(1);
 });
 
-let promptCount = 0;
-const maxPrompts = 10; // Maximum number of prompts we'll handle
-let responseInterval: NodeJS.Timeout;
+// Listen for the confirmation prompt in stdout
+migrate.stdout.on('data', (data) => {
+  const output = data.toString();
+  console.log('[Migration] Process output:', output);
 
-// Function to handle sending confirmations
-const sendConfirmation = () => {
-  if (promptCount < maxPrompts) {
-    console.log("[Migration] Sending confirmation 'y' to migration prompt");
+  // Check for confirmation prompts
+  if (output.toLowerCase().includes('are you sure') || 
+      output.toLowerCase().includes('proceed with')) {
+    console.log("[Migration] Detected confirmation prompt, sending 'y'");
     migrate.stdin.write("y\n");
-    promptCount++;
-  } else {
-    // If we've hit our max prompts, clean up
-    console.log("[Migration Warning] Reached maximum number of prompts:", maxPrompts);
-    clearInterval(responseInterval);
-    migrate.stdin.end();
   }
-};
-
-// Start sending confirmations periodically
-console.log('[Migration] Setting up automatic confirmation handling...');
-responseInterval = setInterval(sendConfirmation, 500);
-
-// Also send an immediate confirmation
-sendConfirmation();
+});
 
 migrate.on("exit", (code: number | null) => {
-  clearInterval(responseInterval);
-
   if (code === 0) {
     console.log('[Migration] Migration completed successfully');
     console.log('[Migration] Remember to verify your database state using:');
@@ -62,7 +47,6 @@ migrate.on("exit", (code: number | null) => {
 // Add SIGINT handler for graceful shutdown
 process.on('SIGINT', () => {
   console.log('\n[Migration] Received SIGINT. Cleaning up...');
-  clearInterval(responseInterval);
   migrate.kill();
   process.exit(1);
 });

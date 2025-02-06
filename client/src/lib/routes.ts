@@ -1,46 +1,77 @@
 // Centralized route configuration
-export const ROUTES = {
-  dashboard: {
-    path: "/",
-    title: "Dashboard"
-  },
-  inventory: {
-    path: "/inventory",
-    title: "Products & Inventory"
-  },
-  watchlist: {
-    path: "/watchlist",
-    title: "Price Watchlist"
-  },
-  orders: {
-    path: "/orders",
-    title: "Order Management"
-  },
-  analytics: {
-    path: "/analytics",
-    title: "Analytics & Insights"
-  },
-  settings: {
-    ebayAuth: {
-      path: "/settings/ebay-auth",
-      title: "eBay Settings"
-    }
-  },
-  auth: {
-    path: "/auth",
-    title: "Authentication"
-  }
-} as const;
+import Dashboard from "@/pages/dashboard";
+import Inventory from "@/pages/inventory";
+import Watchlist from "@/pages/watchlist";
+import Orders from "@/pages/orders";
+import Analytics from "@/pages/analytics";
+import EbayAuthSettings from "@/pages/settings/ebay-auth";
+import AuthPage from "@/pages/auth-page";
+import NotFound from "@/pages/not-found";
 
-// Helper types for route paths and metadata
 type RouteConfig = {
   path: string;
   title: string;
+  component: () => JSX.Element;
+  protected?: boolean;
 };
 
 type NestedRoutes = {
   [K: string]: RouteConfig | NestedRoutes;
 };
+
+// Centralized route configuration
+export const ROUTES = {
+  dashboard: {
+    path: "/",
+    title: "Dashboard",
+    component: Dashboard,
+    protected: true
+  },
+  inventory: {
+    path: "/inventory",
+    title: "Products & Inventory",
+    component: Inventory,
+    protected: true
+  },
+  watchlist: {
+    path: "/watchlist",
+    title: "Price Watchlist",
+    component: Watchlist,
+    protected: true
+  },
+  orders: {
+    path: "/orders",
+    title: "Order Management",
+    component: Orders,
+    protected: true
+  },
+  analytics: {
+    path: "/analytics",
+    title: "Analytics & Insights",
+    component: Analytics,
+    protected: true
+  },
+  settings: {
+    ebayAuth: {
+      path: "/settings/ebay-auth",
+      title: "eBay Settings",
+      component: EbayAuthSettings,
+      protected: true
+    }
+  },
+  auth: {
+    path: "/auth",
+    title: "Authentication",
+    component: AuthPage,
+    protected: false
+  },
+  notFound: {
+    path: "*",
+    title: "Page Not Found",
+    component: NotFound,
+    protected: false
+  }
+} as const;
 
 // Extract all possible route paths from the ROUTES object
 type ExtractRoutePaths<T> = T extends { path: string }
@@ -83,22 +114,21 @@ export function getRouteTitle(path: string): string {
     .join(' ');
 }
 
-// Helper function to get path from route config
-export function getRoutePath(route: keyof typeof ROUTES): string {
-  const config = ROUTES[route];
-  if ('path' in config) {
-    return config.path;
-  }
-  throw new Error(`Invalid route: ${route}`);
-}
+// Helper function to flatten nested routes
+export function getFlattenedRoutes(routes: NestedRoutes = ROUTES): RouteConfig[] {
+  const flattened: RouteConfig[] = [];
 
-// Helper function to generate route paths with parameters
-export function generatePath(route: keyof typeof ROUTES, params?: Record<string, string>): string {
-  const path = getRoutePath(route);
-  if (!params) return path;
+  const flatten = (routes: NestedRoutes) => {
+    for (const key in routes) {
+      const route = routes[key];
+      if ('path' in route && 'component' in route) {
+        flattened.push(route as RouteConfig);
+      } else {
+        flatten(route as NestedRoutes);
+      }
+    }
+  };
 
-  return Object.entries(params).reduce(
-    (acc, [key, value]) => acc.replace(`:${key}`, value),
-    path
-  );
+  flatten(routes);
+  return flattened;
 }

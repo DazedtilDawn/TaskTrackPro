@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
+import { refreshEbayToken } from "../lib/ebay";
 
-export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
+export async function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
   console.log(`[eBay Auth] Checking auth for path: ${req.path}`);
   console.log(`[eBay Auth] User authenticated:`, req.isAuthenticated());
   console.log(`[eBay Auth] Query params:`, req.query);
@@ -17,17 +18,9 @@ export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
     return next();
   }
 
-  // Add explicit path check for ebay-price endpoint
-  if (req.path === "/api/ebay-price") {
-    console.log("[eBay Auth] eBay price endpoint detected");
-    if (!req.user?.ebayAuthToken) {
-      console.log("[eBay Auth] No eBay token found for price endpoint");
-      return res.status(403).json({
-        error: "eBay authentication required",
-        details: "Please authenticate with eBay first",
-        redirectTo: "/settings/ebay-auth"
-      });
-    }
+  // Skip token check for callback endpoint
+  if (req.path === "/api/ebay/callback") {
+    console.log("[eBay Auth] Skipping token check for callback endpoint");
     return next();
   }
 
@@ -37,20 +30,40 @@ export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
     console.log(`[eBay Auth] User eBay token:`, req.user?.ebayAuthToken ? 'Present' : 'Missing');
     console.log(`[eBay Auth] Token expiry:`, req.user?.ebayTokenExpiry);
 
-    // Skip token check for callback endpoint
-    if (req.path === "/api/ebay/callback") {
-      console.log("[eBay Auth] Skipping token check for callback endpoint");
-      return next();
+    // If no token exists or token is expired, try to refresh
+    if (!req.user?.ebayAuthToken || new Date(req.user.ebayTokenExpiry!) < new Date()) {
+      console.log(`[eBay Auth] Token missing or expired, attempting refresh`);
+
+      // Only attempt refresh if we have a refresh token
+      if (req.user?.ebayRefreshToken) {
+        try {
+          console.log("[eBay Auth] Token refresh started");
+          const { accessToken, expiryDate } = await refreshEbayToken(req.user);
+
+          // Update session with new token data
+          req.user.ebayAuthToken = accessToken;
+          req.user.ebayTokenExpiry = expiryDate;
+
+          console.log("[eBay Auth] Token refresh successful");
+          return next();
+        } catch (error) {
+          console.error("[eBay Auth] Token refresh failed:", error);
+          return res.status(403).json({
+            error: "eBay authentication required",
+            details: "Please authenticate with eBay first",
+            redirectTo: "/settings/ebay-auth"
+          });
+        }
+      } else {
+        console.log("[eBay Auth] No refresh token available");
+        return res.status(403).json({
+          error: "eBay authentication required",
+          details: "Please authenticate with eBay first",
+          redirectTo: "/settings/ebay-auth"
+        });
+      }
     }
 
-    if (!req.user?.ebayAuthToken || new Date(req.user.ebayTokenExpiry!) < new Date()) {
-      console.log(`[eBay Auth] Invalid or expired eBay token, returning 403`);
-      return res.status(403).json({
-        error: "eBay authentication required",
-        details: "Please authenticate with eBay first",
-        redirectTo: "/settings/ebay-auth"
-      });
-    }
     console.log(`[eBay Auth] Valid eBay token found, proceeding`);
   }
 

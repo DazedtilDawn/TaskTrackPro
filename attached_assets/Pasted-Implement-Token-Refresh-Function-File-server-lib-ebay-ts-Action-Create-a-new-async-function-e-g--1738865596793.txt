@@ -1,0 +1,82 @@
+Implement Token Refresh Function
+
+File: server/lib/ebay.ts
+Action:
+Create a new async function, e.g. refreshEbayToken(user), that:
+Reads user.ebayRefreshToken from the current authenticated user.
+Sends a POST request to https://api.ebay.com/identity/v1/oauth2/token with:
+grant_type=refresh_token
+The refresh token value
+The appropriate headers (Content-Type and Authorization using EBAY_CLIENT_ID and EBAY_CLIENT_SECRET).
+Parses the returned JSON to extract the new access_token and its expires_in value.
+Updates the user record in the database (using db.update(users)) to store the new token and new expiry.
+Example Code Snippet:
+ts
+Copy
+// server/lib/ebay.ts
+export async function refreshEbayToken(user: Express.User) {
+  const refreshToken = user.ebayRefreshToken;
+  if (!refreshToken) {
+    throw new Error("Missing refresh token");
+  }
+  const response = await fetch("https://api.ebay.com/identity/v1/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Authorization": "Basic " + Buffer.from(`${process.env.EBAY_CLIENT_ID}:${process.env.EBAY_CLIENT_SECRET}`).toString("base64"),
+    },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: refreshToken,
+      redirect_uri: process.env.EBAY_REDIRECT_URI || `${process.env.APP_URL}/api/ebay/callback`,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error("Failed to refresh token");
+  }
+  const tokenData = await response.json();
+  const expiryDate = new Date();
+  expiryDate.setSeconds(expiryDate.getSeconds() + tokenData.expires_in);
+  // Update the user record in DB (this code assumes req.user is available and db.update is configured)
+  await db.update(users)
+    .set({
+      ebayAuthToken: tokenData.access_token,
+      ebayTokenExpiry: expiryDate,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, user.id));
+  return { accessToken: tokenData.access_token, expiryDate };
+}
+Integrate Refresh into Middleware
+
+File: server/middleware/ebay-auth.ts
+Action:
+In the checkEbayAuth middleware, if the token is expired, call the new refreshEbayToken function before calling next(). Wrap the refresh call in a try/catch so that if it fails, you still return a 403.
+Example Code Snippet:
+ts
+Copy
+// server/middleware/ebay-auth.ts (modification)
+if (req.path.includes("/ebay") && req.path !== "/api/ebay/callback") {
+  if (!req.user?.ebayAuthToken || new Date(req.user.ebayTokenExpiry!) < new Date()) {
+    try {
+      console.log("[eBay Auth] Token expired, attempting refresh");
+      const { accessToken, expiryDate } = await refreshEbayToken(req.user);
+      // Optionally update req.user in session if needed
+      req.user.ebayAuthToken = accessToken;
+      req.user.ebayTokenExpiry = expiryDate.toISOString();
+    } catch (refreshError) {
+      console.log("[eBay Auth] Token refresh failed", refreshError);
+      return res.status(403).json({
+        error: "eBay authentication required",
+        details: "Please authenticate with eBay first",
+        redirectTo: "/settings/ebay-auth"
+      });
+    }
+  }
+}
+next();
+Update Client and Test Endpoints
+
+File: client/src/lib/ebay.ts and related pages
+Action:
+Ensure that calls like getEbayPrice now work seamlessly with the refreshed token. Simulate token expiry by manually setting ebayTokenExpiry in your test user record and verify that the refresh occurs.

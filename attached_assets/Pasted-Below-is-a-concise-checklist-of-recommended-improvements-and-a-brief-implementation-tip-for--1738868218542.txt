@@ -1,0 +1,57 @@
+Below is a **concise checklist** of recommended improvements and a **brief implementation tip** for each. This includes adding an **“All Analysis”** option—on by default if eBay is connected—to seamlessly run AI and eBay refinements together.
+
+---
+
+## **Checklist**
+
+1. **Adopt a Multi-Step Wizard (Progressive Disclosure)**  
+   - **Need:** Reduce user overwhelm by splitting form into logical steps (Basic Info → AI/Ebay Analysis → Pricing → Images → Review).  
+   - **Implementation Tip:** Wrap each step in a small sub-component; use a shared `FormProvider` from `react-hook-form` or store partial data in state and pass to each step. Add a top progress indicator.
+
+2. **Add “All Analysis” Toggle**  
+   - **Need:** Let users enable a single-click analysis that runs AI first, then automatically fetches eBay data (if connected), and refines pricing.  
+   - **Implementation Tip:**  
+     - **Toggle On** (default if eBay is connected): Immediately run `analyzeProduct()`, then call `getEbayMarketAnalysis()`, finally finalize or “refine pricing.”  
+     - **Toggle Off**: Keep manual “Analyze” and “Refine” buttons.  
+   - **Best Flow**: 
+     1. User enters **Basic Info**  
+     2. If “All Analysis” is on, sequentially run AI → eBay → Price refinement, then present a combined analysis result.  
+     3. User can review or edit final values before continuing.
+
+3. **Move Advanced Fields Behind a Toggle**  
+   - **Need:** Hide seldom-used fields (SKU, weight, dimensions) by default to prevent visual clutter.  
+   - **Implementation Tip:** Use a simple “Show Advanced Options” button that toggles these fields with state.  
+
+4. **Improve Image Handling**  
+   - **Need:** Provide drag-and-drop, previews, optional reordering.  
+   - **Implementation Tip:** Continue using a dedicated `<ImageUpload>` component. If you run image-based AI analysis, automatically open the “Smart Listing” modal once images are uploaded.
+
+5. **Refined Visual Hierarchy**  
+   - **Need:** Distinguish sections more clearly.  
+   - **Implementation Tip:** Use `<Card>` blocks or background panels for each step, bold headings, and inline error messages near fields.
+
+6. **Inline Validation and Error Messages**  
+   - **Need:** Guide users as they type.  
+   - **Implementation Tip:** Use Zod + `react-hook-form`'s `onBlur` or `onChange` validation. Show short, specific error texts under each input.
+
+7. **Review & Submit Step**  
+   - **Need:** Final checkpoint before sending data to the server.  
+   - **Implementation Tip:** Summarize all user-input and AI/eBay details. Provide a final “Finish” button that posts the data to `/api/products`.
+
+8. **API and Query Handling**  
+   - **Need:** Keep consistent data submission and react-query invalidations.  
+   - **Implementation Tip:** On finishing the wizard, send a single consolidated `FormData` (with images, AI, eBay data). Invalidate queries (`/api/products` and `/api/watchlist`) as needed.
+
+---
+
+### **Overall Flow With “All Analysis”**
+
+1. **Basic Info**: User enters name, description, etc.  
+2. **AI & Ebay Analysis** (Merged into one step if “All Analysis” is on):  
+   - Automatically run AI → eBay → Price Refinement in sequence.  
+   - Show combined results in a single card or step.  
+3. **Optional Details**: SKU, weight, dimensions.  
+4. **Images**: Drag-and-drop, optionally run image-based AI if relevant.  
+5. **Review & Submit**: Final summary, user submits data.
+
+By implementing these changes, you’ll have a **clean, step-by-step** approach that **optionally runs AI and eBay analyses in one go**, improving the user experience while maintaining clarity and flexibility.

@@ -1,0 +1,22 @@
+Bug 2: Inconsistent Reusability and Styling Conflicts
+Root Cause & System Connection
+
+Explanation: The codebase contains a large set of custom UI components—often wrapping Radix UI primitives—with duplicated style definitions and inline customizations. This leads to an inconsistent look and feel, difficulty in maintenance, and potential conflicts with the intended design system (as defined in Tailwind’s config and theme.json).
+Connection: Since nearly every page (e.g. dashboard, inventory, orders) and interactive element (buttons, dialogs, accordions) depends on these components, inconsistencies ripple across the entire frontend experience.
+Likely Issue & Proposed Solution
+
+Issue: Duplication of styling logic and ad hoc inline styles can break UI consistency and cause maintenance challenges when the design system evolves.
+Solution: Refactor common UI patterns into a centralized, reusable design system. Leverage shared utility functions (such as the cn() helper and class-variance-authority presets) to standardize component variants and styles. Remove redundant inline style overrides that conflict with the UI library defaults.
+Integration Plan
+
+Implementation:
+Component Audit: Identify duplicate or near-duplicate components (e.g. buttons, dialogs, alerts) and consolidate styling into a single source (or clearly defined variants).
+Centralize Styling: Update the Tailwind config to include reusable CSS variables and extend the design tokens in theme.json, then adjust component libraries to reference these tokens consistently.
+Code Cleanup: Remove inline styles that override library defaults unless absolutely necessary.
+Testing:
+Create Storybook stories for all shared components to visually confirm consistency.
+Run visual regression tests (using tools such as Percy or Chromatic) to catch unintended changes after refactoring.
+Deployment:
+Release the refactored UI components in a feature branch.
+Engage in manual cross-browser testing in staging and gather feedback from internal users.
+Once confirmed, merge to production ensuring that the update notes clearly mention breaking style changes.

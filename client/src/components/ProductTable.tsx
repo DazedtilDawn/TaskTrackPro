@@ -16,9 +16,11 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { cn } from "@/lib/utils"
 import { SlidersHorizontal, ImageIcon } from "lucide-react"
 import { format } from "date-fns"
+import ProductCard from "./product-card"
 
 interface Product {
   id: number
@@ -59,6 +61,10 @@ export function ProductTable({ products }: ProductTableProps) {
       createdAt: true,
     }
   )
+
+  // Dialog state
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null)
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   const getImageUrl = (url: string | null | undefined): string | undefined => {
     if (!url) return undefined;
@@ -185,6 +191,11 @@ export function ProductTable({ products }: ProductTableProps) {
     getSortedRowModel: getSortedRowModel(),
   })
 
+  const handleRowClick = (product: Product) => {
+    setSelectedProduct(product)
+    setIsDialogOpen(true)
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -248,7 +259,8 @@ export function ProductTable({ products }: ProductTableProps) {
               {table.getRowModel().rows.map((row) => (
                 <tr
                   key={row.id}
-                  className="border-b transition-colors hover:bg-muted/50"
+                  className="border-b transition-colors hover:bg-muted/50 cursor-pointer"
+                  onClick={() => handleRowClick(row.original)}
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-3">
@@ -261,6 +273,18 @@ export function ProductTable({ products }: ProductTableProps) {
           </table>
         </div>
       </div>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-4xl">
+          {selectedProduct && (
+            <ProductCard
+              product={selectedProduct}
+              onEdit={() => {}} // We'll handle edit through the parent component
+              view="grid"
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

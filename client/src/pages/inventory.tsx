@@ -86,7 +86,10 @@ export default function Inventory() {
           </div>
 
           {view === "table" ? (
-            <ProductTable products={filteredProducts} />
+            <ProductTable 
+              products={filteredProducts} 
+              onEdit={handleEdit}
+            />
           ) : (
             <div className={cn(
               view === "grid"

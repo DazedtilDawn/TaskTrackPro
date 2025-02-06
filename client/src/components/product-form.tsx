@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select } from "@/components/ui/select";
+import { Select as SelectPrimitive } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { type SelectProduct } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -38,22 +38,17 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SmartListingModal from "@/components/smart-listing-modal";
 
-// Custom Select components
-const SelectTrigger = React.forwardRef<
-  HTMLButtonElement,
-  React.ComponentPropsWithoutRef<"button">
->((props, ref) => (
-  <Select.Trigger ref={ref} className={cn("w-full", props.className)} {...props} />
-));
-SelectTrigger.displayName = "SelectTrigger";
+// Custom Select components using SelectPrimitive
+const Select = ({ children, onValueChange, defaultValue }: any) => (
+  <SelectPrimitive.Root onValueChange={onValueChange} defaultValue={defaultValue}>
+    {children}
+  </SelectPrimitive.Root>
+);
 
-const SelectValue = React.forwardRef<
-  HTMLSpanElement,
-  React.ComponentPropsWithoutRef<"span">
->((props, ref) => (
-  <Select.Value ref={ref} {...props} />
-));
-SelectValue.displayName = "SelectValue";
+Select.Trigger = SelectPrimitive.Trigger;
+Select.Value = SelectPrimitive.Value;
+Select.Content = SelectPrimitive.Content;
+Select.Item = SelectPrimitive.Item;
 
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
@@ -772,9 +767,9 @@ export default function ProductForm({
                   <FormItem>
                     <FormLabel>Condition</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select condition" />
-                      </SelectTrigger>
+                      <Select.Trigger className="w-full">
+                        <Select.Value placeholder="Select condition" />
+                      </Select.Trigger>
                       <Select.Content>
                         {conditionOptions.map((option) => (
                           <Select.Item key={option.value} value={option.value}>

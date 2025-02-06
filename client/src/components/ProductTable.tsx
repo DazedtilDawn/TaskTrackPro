@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { SlidersHorizontal, ImageIcon } from "lucide-react"
+import { format } from "date-fns"
 
 interface Product {
   id: number
@@ -25,12 +26,14 @@ interface Product {
   description: string | null
   sku: string | null
   price: string | null
+  ebayPrice: string | null
   quantity: number
   condition: string
   brand: string | null
   category: string | null
   imageUrl: string | null
   sold: boolean
+  createdAt: string
 }
 
 interface ProductTableProps {
@@ -47,11 +50,13 @@ export function ProductTable({ products }: ProductTableProps) {
       name: true,
       sku: true,
       price: true,
+      ebayPrice: true,
       quantity: true,
       condition: true,
       brand: true,
       category: true,
       sold: true,
+      createdAt: true,
     }
   )
 
@@ -114,6 +119,15 @@ export function ProductTable({ products }: ProductTableProps) {
       },
     },
     {
+      accessorKey: "ebayPrice",
+      header: "eBay Price",
+      cell: ({ row }) => {
+        const price = row.getValue<string | null>("ebayPrice")
+        const numPrice = price ? parseFloat(price) : null
+        return numPrice ? `$${numPrice.toFixed(2)}` : "-"
+      },
+    },
+    {
       accessorKey: "quantity",
       header: "Quantity",
     },
@@ -147,6 +161,14 @@ export function ProductTable({ products }: ProductTableProps) {
           {row.getValue("sold") ? "Sold" : "Available"}
         </div>
       ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Date Added",
+      cell: ({ row }) => {
+        const date = row.getValue<string>("createdAt")
+        return date ? format(new Date(date), "MMM d, yyyy") : "-"
+      },
     },
   ]
 

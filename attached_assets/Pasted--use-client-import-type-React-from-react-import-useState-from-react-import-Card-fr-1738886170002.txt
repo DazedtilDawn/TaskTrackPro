@@ -1,0 +1,347 @@
+"use client"
+
+import type React from "react"
+import { useState } from "react"
+import { Card } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useToast } from "@/hooks/use-toast"
+import { useLocation } from "wouter"
+import { apiRequest, queryClient } from "@/lib/queryClient"
+import { Heart, Edit, Trash2, Sparkles, CheckCircle2, ArrowUpRight, Share2, ImageIcon } from "lucide-react"
+
+interface ProductCardProps {
+  product: {
+    id: number
+    name: string
+    description: string
+    price: number
+    imageUrl?: string
+    condition?: string
+    sku?: string
+    brand?: string
+    category?: string
+    quantity: number
+    createdAt: string
+    weight?: number
+    dimensions?: string
+    ebayPrice?: number
+    ebayListingUrl?: string
+    aiAnalysis?: string
+  }
+  onEdit: (product: any) => void
+  inWatchlist?: boolean
+  view?: "grid" | "list" | "table"
+  watchlistId?: number
+}
+
+const DEFAULT_AI_ANALYSIS = {
+  category: "Uncategorized",
+  marketAnalysis: {
+    demandScore: 0,
+    competitionLevel: "Unknown",
+    priceSuggestion: { min: 0, max: 0 },
+  },
+  suggestions: ["No analysis available"],
+  seoKeywords: [],
+  ebayData: undefined,
+}
+
+function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watchlistId }: ProductCardProps) {
+  const { toast } = useToast()
+  const [, setLocation] = useLocation()
+  const [showConvertDialog, setShowConvertDialog] = useState(false)
+  const [isGeneratingListing, setIsGeneratingListing] = useState(false)
+  const [imageError, setImageError] = useState(false)
+  const [activeTab, setActiveTab] = useState("details")
+
+  const parseAIAnalysis = (data: unknown) => {
+    try {
+      if (typeof data === "string") {
+        return JSON.parse(data)
+      } else if (data && typeof data === "object") {
+        return data
+      }
+      return DEFAULT_AI_ANALYSIS
+    } catch (e) {
+      console.error("Failed to parse aiAnalysis:", e)
+      return DEFAULT_AI_ANALYSIS
+    }
+  }
+
+  const aiAnalysis = parseAIAnalysis(product.aiAnalysis)
+  const hasAnalysis = aiAnalysis !== DEFAULT_AI_ANALYSIS
+  const currentPrice = Number(product.price) || 0
+  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis.marketAnalysis.priceSuggestion.min ?? 0)
+  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis.marketAnalysis.priceSuggestion.max ?? 0)
+  const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced
+
+  const getImageUrl = (url?: string) => {
+    if (!url) return undefined
+    if (url.startsWith("http://") || url.startsWith("https://")) return url
+    if (url.startsWith("/uploads/")) return url
+    return `/uploads/${url.replace(/^\/+/, "")}`
+  }
+
+  const handleAction = async (action: string, e?: React.MouseEvent) => {
+    e?.stopPropagation()
+    try {
+      let response, result
+      switch (action) {
+        case "markAsSold":
+          response = await apiRequest("POST", "/api/orders", { productId: product.id })
+          result = await response.json()
+          if (result.error) throw new Error(result.error)
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+            queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+            queryClient.invalidateQueries({ queryKey: ["/api/orders"] }),
+          ])
+          toast({ title: "Product marked as sold", description: product.name })
+          setLocation("/orders")
+          break
+        case "toggleWatchlist":
+          if (inWatchlist && location.includes("/watchlist")) return
+          if (inWatchlist) {
+            response = await apiRequest("DELETE", `/api/watchlist/${watchlistId || product.id}`)
+          } else {
+            response = await apiRequest("POST", "/api/watchlist", { productId: product.id })
+          }
+          result = await response.json()
+          if (result.error) throw new Error(result.error)
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+            queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+          ])
+          toast({
+            title: inWatchlist ? "Removed from watchlist" : "Added to watchlist",
+            description: product.name,
+          })
+          break
+        case "deleteProduct":
+          response = await apiRequest("DELETE", `/api/products/${product.id}`)
+          result = await response.json()
+          if (result.error) throw new Error(result.error)
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+            queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+          ])
+          toast({ title: "Product deleted", description: product.name })
+          break
+        case "generateEbayListing":
+          setIsGeneratingListing(true)
+          response = await apiRequest("POST", `/api/products/${product.id}/generate-ebay-listing`)
+          result = await response.json()
+          if (result.error) {
+            if (response.status === 403 && result.error === "eBay authentication required") {
+              toast({
+                title: "eBay Authentication Required",
+                description: "You need to connect your eBay account first.",
+                variant: "default",
+                action: (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      window.location.href = "/settings/ebay-auth"
+                    }}
+                  >
+                    Connect eBay
+                  </Button>
+                ),
+              })
+              return
+            }
+            throw new Error(result.error)
+          }
+          await queryClient.invalidateQueries({ queryKey: ["/api/products"] })
+          toast({
+            title: "eBay listing generated",
+            description: "Your product has been listed on eBay",
+          })
+          if (result.ebayListingUrl) {
+            window.open(result.ebayListingUrl, "_blank")
+          }
+          break
+      }
+    } catch (error) {
+      console.error(`Error during ${action}:`, error)
+      toast({
+        title: "Error",
+        description: `Failed to ${action.replace(/([A-Z])/g, " $1").toLowerCase()}`,
+        variant: "destructive",
+      })
+    } finally {
+      if (action === "generateEbayListing") setIsGeneratingListing(false)
+    }
+  }
+
+  const renderCardContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="relative aspect-[16/9] bg-secondary/20">
+        {product.imageUrl && !imageError ? (
+          <img
+            src={getImageUrl(product.imageUrl) || "/placeholder.svg"}
+            alt={`Image of ${product.name}`}
+            className="w-full h-full object-cover"
+            onError={() => setImageError(true)}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <ImageIcon className="w-16 h-16 text-muted-foreground" />
+          </div>
+        )}
+        <div className="absolute top-4 right-4 flex gap-2">
+          <Button
+            size="icon"
+            variant="secondary"
+            className="h-9 w-9 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+            onClick={(e) => handleAction("toggleWatchlist", e)}
+          >
+            <Heart className="h-5 w-5" fill={inWatchlist ? "currentColor" : "none"} />
+          </Button>
+          {hasAnalysis && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="h-9 w-9 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                >
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-96 p-0" side="left">
+                <ScrollArea className="h-[500px]">
+                  <div className="p-4 space-y-4">
+                    {/* AI Analysis content */}
+                    {/* ... (Include the AI analysis content here) ... */}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 flex flex-col min-h-0 pt-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
+          <div className="flex-none px-6">
+            <TabsList className="grid w-full grid-cols-3 p-1">
+              <TabsTrigger value="details" className="py-2">
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="pricing" className="py-2">
+                Pricing
+              </TabsTrigger>
+              <TabsTrigger value="metrics" className="py-2">
+                Metrics
+              </TabsTrigger>
+            </TabsList>
+          </div>
+
+          <div className="flex-1 min-h-0 mt-6">
+            <ScrollArea className="h-full">
+              <TabsContent value="details" className="px-6 pb-6 m-0">
+                {/* Details content */}
+                {/* ... (Include the details content here) ... */}
+              </TabsContent>
+
+              <TabsContent value="pricing" className="px-6 pb-6 m-0">
+                {/* Pricing content */}
+                {/* ... (Include the pricing content here) ... */}
+              </TabsContent>
+
+              <TabsContent value="metrics" className="px-6 pb-6 m-0">
+                {/* Metrics content */}
+                {/* ... (Include the metrics content here) ... */}
+              </TabsContent>
+            </ScrollArea>
+          </div>
+        </Tabs>
+      </div>
+
+      <div className="flex-none p-6 border-t bg-muted/5">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex gap-2">
+            <Button size="default" variant="ghost" onClick={() => onEdit(product)} className="h-10">
+              <Edit className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+            <Button size="default" variant="ghost" onClick={(e) => handleAction("deleteProduct", e)} className="h-10">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </Button>
+            {!inWatchlist && (
+              <>
+                <Button
+                  size="default"
+                  variant="ghost"
+                  onClick={(e) => handleAction("markAsSold", e)}
+                  className="h-10 text-green-600 hover:text-green-700"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Mark Sold
+                </Button>
+                {!product.ebayListingUrl ? (
+                  <Button
+                    size="default"
+                    variant="ghost"
+                    onClick={(e) => handleAction("generateEbayListing", e)}
+                    disabled={isGeneratingListing}
+                    className="h-10 text-blue-600 hover:text-blue-700"
+                  >
+                    <Share2 className="h-4 w-4 mr-2" />
+                    List on eBay
+                  </Button>
+                ) : (
+                  <Button
+                    size="default"
+                    variant="ghost"
+                    onClick={() => window.open(product.ebayListingUrl, "_blank")}
+                    className="h-10 text-green-600 hover:text-green-700"
+                  >
+                    <ArrowUpRight className="h-4 w-4 mr-2" />
+                    View on eBay
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+          {inWatchlist && (
+            <Button
+              size="lg"
+              variant="default"
+              onClick={() => setShowConvertDialog(true)}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <ArrowUpRight className="h-5 w-5 mr-2" />
+              Add to Inventory
+            </Button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  if (view === "table") {
+    return (
+      <div
+        className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative"
+        role="article"
+        aria-label={`Product: ${product.name}`}
+        tabIndex={0}
+      >
+        {/* Table view content */}
+        {/* ... (Include the table view content here) ... */}
+      </div>
+    )
+  }
+
+  return <Card className="overflow-hidden h-[700px]">{renderCardContent()}</Card>
+}
+
+export default ProductCard
+

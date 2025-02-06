@@ -1,0 +1,69 @@
+Database Schema and Migrations:
+
+You've run migrations, that's good. However, to make things even more robust, there are 2 things you can do to make debugging easier.
+
+Add Logging to db-migrate.ts:
+
+Add console logs to see what is happening:
+
+// scripts/db-migrate.ts
+#!/usr/bin/env tsx
+import { spawn, type SpawnOptionsWithStdioTuple } from "child_process";
+// Spawn the drizzle migration push command with verbose output
+const migrate = spawn("drizzle-kit", ["push", "--verbose"], {
+stdio: ["pipe", "inherit", "inherit"]
+} as SpawnOptionsWithStdioTuple<"pipe", "inherit", "inherit">);
+// Set up error handling
+migrate.on('error', (err) => {
+console.error('Failed to start migration process:', err);
+process.exit(1);
+});
+let promptCount = 0;
+const maxPrompts = 10; // Maximum number of prompts we'll handle
+let responseInterval: NodeJS.Timeout;
+// Function to handle sending confirmations
+const sendConfirmation = () => {
+if (promptCount < maxPrompts) {
+    console.log("Sending confirmation 'y' to migration prompt"); // Add this line for logging
+migrate.stdin.write("y\n");
+promptCount++;
+} else {
+// If we've hit our max prompts, clean up
+clearInterval(responseInterval);
+migrate.stdin.end();
+}
+};
+// Start sending confirmations periodically
+responseInterval = setInterval(sendConfirmation, 500);
+// Also send an immediate confirmation
+sendConfirmation();
+migrate.on("exit", (code: number | null) => {
+clearInterval(responseInterval);
+if (code === 0) {
+console.log('Migration completed successfully.');
+} else {
+console.error(`Migration failed with code ${code}`);
+}
+process.exit(code ?? 1);
+});
+Use code with caution.
+Ts
+Create a local development DB - For testing on your local machine, I recommend creating a docker database so that you do not have to deploy to test migrations.
+
+Prioritized Action Plan (Step-by-Step):
+
+Verify server/routes.ts: Ensure the app.use("/uploads", ...) line is correct and before any catch-all routes. Add the console.log("__dirname in routes.ts:", __dirname); line to check the path resolution.
+
+Verify File Uploads: Use Replit's file browser to confirm that images are actually being saved to the uploads directory when you add a product.
+
+Inspect Image URLs: Use your browser's developer tools (Network tab) to see the exact URL the <img> tag is requesting in the ProductCard. Is it a relative path? Does it match the expected file location? Is it returning a 400 or 500 error?
+
+Check ProductCard.tsx: Make sure you're using product.imageUrl correctly in the <img> tag's src attribute. Add a temporary console.log("Image URL:", product.imageUrl) right before the <img> tag to see the value.
+
+Add temporary logging to product-form.tsx: Add logging to the onSubmit function just before you send the request.
+
+Run npm run db:generate and report the output. This is crucial to understand what Drizzle Kit thinks needs to be changed in the database. Copy and paste the full output.
+
+Run npm run db:push: And take note of any errors in the console.
+
+Provide the results of these steps. The combination of file path verification, network request inspection, and the db:generate output will give us the information we ne

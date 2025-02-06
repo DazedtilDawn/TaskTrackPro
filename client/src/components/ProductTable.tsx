@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
-import { SlidersHorizontal } from "lucide-react"
+import { SlidersHorizontal, ImageIcon } from "lucide-react"
 
 interface Product {
   id: number
@@ -29,7 +29,7 @@ interface Product {
   condition: string
   brand: string | null
   category: string | null
-  image_url: string | null
+  imageUrl: string | null
   sold: boolean
 }
 
@@ -43,6 +43,7 @@ export function ProductTable({ products }: ProductTableProps) {
   const [columnVisibility, setColumnVisibility] = useLocalStorage<VisibilityState>(
     "product-table-columns",
     {
+      image: true,
       name: true,
       sku: true,
       price: true,
@@ -54,8 +55,45 @@ export function ProductTable({ products }: ProductTableProps) {
     }
   )
 
+  const getImageUrl = (url: string | null | undefined): string | undefined => {
+    if (!url) return undefined;
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    if (url.startsWith('/uploads/')) {
+      return url;
+    }
+    return `/uploads/${url.replace(/^\/+/, '')}`;
+  };
+
   // Define columns
   const columns: ColumnDef<Product>[] = [
+    {
+      accessorKey: "imageUrl",
+      header: "Image",
+      cell: ({ row }) => {
+        const imageUrl = getImageUrl(row.getValue("imageUrl"));
+        return (
+          <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0 bg-secondary/20">
+            {imageUrl ? (
+              <img
+                src={imageUrl}
+                alt={`Image of ${row.getValue("name")}`}
+                className="w-full h-full object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).style.display = 'none';
+                  (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                }}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+        );
+      },
+    },
     {
       accessorKey: "name",
       header: "Name",

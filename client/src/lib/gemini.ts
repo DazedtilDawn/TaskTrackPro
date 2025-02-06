@@ -57,7 +57,12 @@ async function initializeGemini() {
       if (!apiKey) {
         console.log('Fetching API key from backend...');
         try {
-          const response = await fetch('/api/config/gemini-key');
+          const response = await fetch('/api/config/gemini-key', {
+            credentials: 'include',  // Include cookies for auth
+            headers: {
+              'Accept': 'application/json'
+            }
+          });
 
           if (!response.ok) {
             throw new Error(`Failed to fetch API key: ${response.status} ${response.statusText}`);
@@ -78,11 +83,9 @@ async function initializeGemini() {
           console.log('Backend API key received successfully');
         } catch (error) {
           console.error('API key fetch error:', error);
-          throw new Error(
-            error instanceof Error 
-              ? `Failed to fetch API key: ${error.message}`
-              : "Failed to fetch API key from server"
-          );
+          throw error instanceof Error 
+            ? error 
+            : new Error("Failed to fetch API key from server");
         }
       }
 

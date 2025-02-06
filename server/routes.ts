@@ -58,6 +58,22 @@ export function registerRoutes(app: Express): Express {
     res.json({ status: "ok" });
   });
 
+  // Add this endpoint near the top of registerRoutes function, after the health check
+  app.get("/api/config/gemini-key", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return res.status(500).json({ 
+        error: "Gemini API key not configured on server" 
+      });
+    }
+
+    res.json({ apiKey });
+  });
+
 
   // Add this near the top of the routes registration, before the eBay-specific endpoints
   app.get("/callback", (req, res) => {

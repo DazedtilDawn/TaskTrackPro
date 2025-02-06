@@ -6,16 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import type { InsertUser } from "@db/schema";
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [, setLocation] = useLocation();
 
-  // Redirect if already logged in
+  // Handle redirection in useEffect
+  useEffect(() => {
+    if (user) {
+      setLocation("/");
+    }
+  }, [user, setLocation]);
+
+  // Show loading state while redirecting
   if (user) {
-    setLocation("/");
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2 text-muted-foreground">Redirecting...</span>
+      </div>
+    );
   }
 
   return (
@@ -31,11 +44,11 @@ export default function AuthPage() {
                 <TabsTrigger value="login">Login</TabsTrigger>
                 <TabsTrigger value="register">Register</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="login">
                 <LoginForm onSubmit={(data) => loginMutation.mutate(data)} />
               </TabsContent>
-              
+
               <TabsContent value="register">
                 <RegisterForm onSubmit={(data) => registerMutation.mutate(data)} />
               </TabsContent>

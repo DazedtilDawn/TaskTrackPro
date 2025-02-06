@@ -111,6 +111,7 @@ export default function Watchlist() {
                     onEdit={handleEdit}
                     inWatchlist={true}
                     view={view}
+                    watchlistId={item.id}
                   />
                 ))}
               </div>

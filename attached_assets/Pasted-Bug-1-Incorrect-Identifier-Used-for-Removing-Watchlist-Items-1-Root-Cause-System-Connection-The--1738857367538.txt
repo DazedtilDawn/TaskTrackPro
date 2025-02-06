@@ -1,0 +1,22 @@
+Bug 1: Incorrect Identifier Used for Removing Watchlist Items
+1) Root Cause & System Connection
+The ProductCard component’s “toggleWatchlist” callback issues a DELETE request using the product’s ID (i.e. /api/watchlist/${product.id}) even when the product is already in the watchlist. However, the backend DELETE endpoint expects the unique watchlist entry ID—not the product’s ID. This mismatch between the UI’s data (which only exposes the product’s ID) and the backend’s schema (which requires the watchlist entry’s primary key) breaks the removal flow and can lead to orphaned or duplicate entries in the user’s watchlist.
+
+2) Likely Issue & Proposed Solution
+Issue: The API call for removal is targeting the wrong identifier, so the watchlist deletion always fails (or returns a 404), leaving stale data in the UI.
+Solution:
+
+Ensure that when a product is added to the watchlist, the returned watchlist entry (with its unique “id”) is stored on the client side (for example, as product.watchlistId).
+Modify the DELETE request to use this watchlist ID (e.g. /api/watchlist/${product.watchlistId}) rather than the product’s ID.
+3) Detailed Integration Plan
+
+Implementation:
+Update the backend’s POST endpoint (at /api/watchlist) to return the full watchlist record, including its unique ID.
+Adjust the client’s product query (or transformation) so that when a product is fetched as part of the watchlist, the watchlist entry ID is attached (e.g. as watchlistId).
+Change the toggleWatchlist function in ProductCard to check for and use product.watchlistId when issuing a DELETE call.
+Testing:
+Write end-to-end tests simulating the add–then–remove flow to verify that the correct watchlist ID is used and that the deletion API responds with success.
+Verify that the UI updates correctly (with the watchlist list and product listings revalidated) when an item is removed.
+Deployment:
+Deploy the changes first to a staging environment with logging enabled to monitor API calls and responses.
+Once confirmed, release to production with proper monitoring and rollback strategies in place.

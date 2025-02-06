@@ -24,9 +24,16 @@ interface ProductCardProps {
   onEdit: (product: SelectProduct) => void;
   inWatchlist?: boolean;
   view?: "grid" | "list" | "table";
+  watchlistId?: number;  // Add watchlistId prop
 }
 
-export default function ProductCard({ product, onEdit, inWatchlist, view = "grid" }: ProductCardProps) {
+export default function ProductCard({ 
+  product, 
+  onEdit, 
+  inWatchlist, 
+  view = "grid",
+  watchlistId  // Add to destructuring
+}: ProductCardProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
@@ -104,7 +111,9 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
 
     try {
       if (inWatchlist) {
-        const response = await apiRequest("DELETE", `/api/watchlist/${product.id}`);
+        // Use watchlistId for deletion if available, fallback to product.id for backward compatibility
+        const id = watchlistId || product.id;
+        const response = await apiRequest("DELETE", `/api/watchlist/${id}`);
         const result = await response.json();
 
         if (result.error) {
@@ -143,7 +152,7 @@ export default function ProductCard({ product, onEdit, inWatchlist, view = "grid
         variant: "destructive",
       });
     }
-  }, [product.id, product.name, inWatchlist, toast, location]);
+  }, [product.id, product.name, inWatchlist, toast, location, watchlistId]);  // Add watchlistId to dependencies
 
   const deleteProduct = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();

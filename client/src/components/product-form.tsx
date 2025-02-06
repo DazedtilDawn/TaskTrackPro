@@ -400,6 +400,109 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     });
   };
 
+  // Form submission handler within ProductForm component
+  const onSubmit = form.handleSubmit(async (data) => {
+    console.log("[Product Form] Starting form submission with data:", {
+      name: data.name,
+      price: data.price,
+      condition: data.condition,
+      imageFiles: imageFiles.length
+    });
+
+    try {
+      // Create FormData and add core fields
+      const formData = new FormData();
+      formData.append('name', data.name.trim());
+
+      // Handle optional text fields
+      const optionalFields = ['description', 'sku', 'brand', 'category', 'dimensions'];
+      optionalFields.forEach(field => {
+        if (data[field]) {
+          formData.append(field, data[field].trim());
+        }
+      });
+
+      // Handle numerical fields with NaN protection
+      const numericalFields = ['price', 'quantity', 'weight', 'ebayPrice'];
+      numericalFields.forEach(field => {
+        const value = data[field];
+        if (value !== null && value !== undefined && !Number.isNaN(Number(value))) {
+          formData.append(field, value.toString());
+        }
+      });
+
+      // Always append condition
+      formData.append('condition', data.condition || 'used_good');
+
+      // Handle AI analysis data
+      if (data.aiAnalysis) {
+        formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
+      }
+
+      // Handle image files
+      imageFiles.forEach((file) => {
+        formData.append('image', file);
+      });
+
+      console.log("[Product Form] FormData prepared, sending request...");
+
+      // Determine endpoint and method
+      const endpoint = product ? `/api/products/${product.id}` : "/api/products";
+      const method = product ? "PATCH" : "POST";
+
+      // Send request
+      const response = await apiRequest(method, endpoint, formData);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("[Product Form] Server responded with error:", errorData);
+        throw new Error(errorData.message || `Server error: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("[Product Form] Server response success:", result);
+
+      // If this is a watchlist item, add it to the watchlist
+      if (isWatchlistItem) {
+        const watchlistResponse = await apiRequest("POST", "/api/watchlist", { 
+          productId: result.id 
+        });
+
+        if (!watchlistResponse.ok) {
+          const watchlistError = await watchlistResponse.json();
+          throw new Error(watchlistError.error || "Failed to add to watchlist");
+        }
+
+        // Invalidate both products and watchlist queries
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+          queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
+        ]);
+
+        toast({
+          title: "Product Added to Watchlist",
+          description: data.name.trim(),
+        });
+      } else {
+        // Just invalidate products query for regular product creation/update
+        queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+        toast({
+          title: product ? "Product updated" : "Product created",
+          description: data.name.trim(),
+        });
+      }
+
+      onComplete();
+    } catch (error) {
+      console.error('[Product Form] Submission error:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to save product",
+        variant: "destructive",
+      });
+    }
+  });
+
   return (
     <>
       <DialogContent className="max-w-2xl overflow-hidden">
@@ -428,83 +531,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
             />
 
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(async (data) => {
-                console.log("[Product Form] Starting form submission with data:", {
-                  name: data.name,
-                  price: data.price,
-                  condition: data.condition,
-                  imageFiles: imageFiles.length
-                });
-
-                try {
-                  // Create FormData and add core fields
-                  const formData = new FormData();
-                  formData.append('name', data.name.trim());
-
-                  // Handle optional text fields
-                  const optionalFields = ['description', 'sku', 'brand', 'category', 'dimensions'];
-                  optionalFields.forEach(field => {
-                    if (data[field]) {
-                      formData.append(field, data[field].trim());
-                    }
-                  });
-
-                  // Handle numerical fields with NaN protection
-                  const numericalFields = ['price', 'quantity', 'weight', 'ebayPrice'];
-                  numericalFields.forEach(field => {
-                    const value = data[field];
-                    if (value !== null && value !== undefined && !Number.isNaN(Number(value))) {
-                      formData.append(field, value.toString());
-                    }
-                  });
-
-                  // Always append condition
-                  formData.append('condition', data.condition || 'used_good');
-
-                  // Handle AI analysis data
-                  if (data.aiAnalysis) {
-                    formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
-                  }
-
-                  // Handle image files
-                  imageFiles.forEach((file) => {
-                    formData.append('image', file);
-                  });
-
-                  console.log("[Product Form] FormData prepared, sending request...");
-
-                  // Determine endpoint and method
-                  const endpoint = product ? `/api/products/${product.id}` : "/api/products";
-                  const method = product ? "PATCH" : "POST";
-
-                  // Send request
-                  const response = await apiRequest(method, endpoint, formData);
-
-                  if (!response.ok) {
-                    const errorData = await response.json();
-                    console.error("[Product Form] Server responded with error:", errorData);
-                    throw new Error(errorData.message || `Server error: ${response.status}`);
-                  }
-
-                  const result = await response.json();
-                  console.log("[Product Form] Server response success:", result);
-
-                  // Update cache and UI
-                  queryClient.invalidateQueries({ queryKey: ["/api/products"] });
-                  toast({
-                    title: product ? "Product updated" : "Product created",
-                    description: data.name.trim(),
-                  });
-                  onComplete();
-                } catch (error) {
-                  console.error('[Product Form] Submission error:', error);
-                  toast({
-                    title: "Error",
-                    description: error instanceof Error ? error.message : "Failed to save product",
-                    variant: "destructive",
-                  });
-                }
-              })} className="space-y-8">
+              <form onSubmit={onSubmit} className="space-y-8">
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div>

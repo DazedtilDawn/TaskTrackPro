@@ -1,0 +1,66 @@
+3. Detailed Integration Plan
+A. Code Changes
+Modify the Watchlist Page
+File: client/src/pages/watchlist.tsx
+Action:
+Replace the existing “Add Product” button (which opens a basic dialog) so that it instead opens the ProductForm with the prop isWatchlistItem set to true.
+Example change in the Watchlist page:
+tsx
+Copy
+// Instead of opening a simple AddToWatchlistDialog,
+// update the button to open the ProductForm.
+<Button onClick={() => setIsDialogOpen(true)}>
+  <Plus className="h-4 w-4 mr-2" />
+  Add Product
+</Button>
+// Then render the ProductForm dialog with isWatchlistItem true:
+<Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+  <DialogContent className="max-w-2xl">
+    <DialogHeader>
+      <DialogTitle>{selectedProduct ? "Edit Product" : "Add New Product"}</DialogTitle>
+    </DialogHeader>
+    <ProductForm
+      product={selectedProduct}
+      onComplete={handleDialogClose}
+      isWatchlistItem={true}
+    />
+  </DialogContent>
+</Dialog>
+Update ProductForm Submission Logic
+File: client/src/components/product-form.tsx
+Action:
+Within the form’s onSubmit handler, detect if isWatchlistItem is true.
+After successfully creating (or updating) the product via the /api/products endpoint, perform an extra step:
+Call apiRequest("POST", "/api/watchlist", { productId: newProduct.id }) to add the product to the watchlist.
+Invalidate both /api/products and /api/watchlist queries.
+Example snippet to insert after product creation:
+ts
+Copy
+const response = await apiRequest(method, endpoint, formData);
+if (!response.ok) { /* error handling */ }
+const result = await response.json();
+// If the form is used for watchlist creation, add the new product to watchlist:
+if (isWatchlistItem) {
+  await apiRequest("POST", "/api/watchlist", { productId: result.id });
+  await Promise.all([
+    queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
+    queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] }),
+  ]);
+  toast({
+    title: "Product Added to Watchlist",
+    description: result.name,
+  });
+} else {
+  // normal inventory product creation
+  await queryClient.invalidateQueries({ queryKey: ["/api/products"] });
+  toast({
+    title: product ? "Product updated" : "Product created",
+    description: result.name,
+  });
+}
+onComplete();
+Review Backend Endpoints
+File: server/routes.ts
+Action:
+Confirm the /api/watchlist POST endpoint already exists and properly handles duplicate prevention via the unique constraint.
+Ensure that the endpoint returns a 409 status code if the product is already in the watchlist.

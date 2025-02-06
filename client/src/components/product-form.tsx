@@ -99,7 +99,7 @@ interface ProductFormProps {
   product?: SelectProduct;
   onComplete: () => void;
   isWatchlistItem?: boolean;
-  open?: boolean; // Added open prop
+  open?: boolean; 
 }
 
 const conditionOptions = [
@@ -151,7 +151,7 @@ export default function ProductForm({
   product,
   onComplete,
   isWatchlistItem = false,
-  open = false, // Add open prop with default value
+  open = false, 
 }: ProductFormProps) {
   const [currentStep, setCurrentStep] = useState<FormStep>("basic");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -867,7 +867,8 @@ export default function ProductForm({
               />
               <FormField
                 control={form.control}
-                name="dimensions"                render={({ field }) => (
+                name="dimensions"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Dimensions</FormLabel>
                     <FormControl>
@@ -877,7 +878,8 @@ export default function ProductForm({
                         className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-200"
                       />
                     </FormControl>
-                  </FormItem>                )}
+                  </FormItem>
+                )}
               />
             </div>
           </div>
@@ -965,52 +967,493 @@ export default function ProductForm({
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
                 <StepIndicator currentStep={currentStep} steps={steps} />
 
-                {renderStepContent()}
+                {currentStep === "basic" && (
+                  <div className="space-y-8">
+                    <div>
+                      <FormLabel>Product Images</FormLabel>
+                      <FormDescription className="flex items-center gap-2">
+                        <Camera className="h-4 w-4" />
+                        Upload clear, high-quality images for better AI analysis
+                      </FormDescription>
+                      <div className="mt-4">
+                        <ImageUpload onImagesUploaded={handleImagesUploaded} />
+                        {imageFiles.length > 0 && (
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                            {imageFiles.map((file, idx) => {
+                              const previewUrl = URL.createObjectURL(file);
+                              return (
+                                <div key={idx} className="relative group aspect-square">
+                                  <img
+                                    src={previewUrl}
+                                    alt={`Preview ${idx + 1}`}
+                                    className="object-cover w-full h-full rounded-lg border"
+                                    onLoad={() => URL.revokeObjectURL(previewUrl)}
+                                  />
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
+                                    <span className="text-white text-sm">Image {idx + 1}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
 
-                <div className="flex justify-between pt-6">
+                    <Alert className="bg-muted/50">
+                      <AlertDescription className="flex items-center gap-4">
+                        <div className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            checked={runAllAnalysis}
+                            onChange={(e) => handleRunAllAnalysisToggle(e.target.checked)}
+                            className="h-4 w-4 rounded border-muted-foreground"
+                            id="runAllAnalysis"
+                          />
+                          <label htmlFor="runAllAnalysis" className="text-sm font-medium cursor-pointer">
+                            Auto-run AI and eBay analysis
+                          </label>
+                        </div>
+                        <span className="text-xs text-muted-foreground">
+                          (Recommended)
+                        </span>
+                      </AlertDescription>
+                    </Alert>
+
+                    <div className="space-y-6">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Product Name <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Enter a clear, descriptive name" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="description"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Description <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Textarea
+                                {...field}
+                                placeholder="Describe features, condition, and any notable details"
+                                className="min-h-[120px]"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === "analysis" && (
+                  <div className="space-y-8 px-4">
+                    <div className="mb-4 flex flex-wrap gap-4">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={analyzeProductAI}
+                        disabled={isAnalyzing || !form.getValues("name") || !form.getValues("description")}
+                        className="flex items-center gap-2"
+                      >
+                        {isAnalyzing ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-4 w-4" />
+                        )}
+                        Analyze Product
+                      </Button>
+                      {hasEbayAuth && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={refineWithEbay}
+                          disabled={isLoadingEbay || !form.getValues("aiAnalysis")}
+                          className="flex items-center gap-2"
+                        >
+                          {isLoadingEbay ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <BarChart2 className="h-4 w-4" />
+                          )}
+                          Refine with eBay
+                        </Button>
+                      )}
+                      {form.getValues("aiAnalysis")?.ebayData && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={refinePricingWithAI}
+                          disabled={isRefiningPrice}
+                          className="flex items-center gap-2"
+                        >
+                          {isRefiningPrice ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <TrendingUp className="h-4 w-4" />
+                          )}
+                          Refine Pricing
+                        </Button>
+                      )}
+                    </div>
+                    {hasAnalysis && (
+                      <Card className="p-6 border border-indigo-200 shadow-sm">
+                        <div className="space-y-6">
+                          <div className="flex items-center gap-2">
+                            <Sparkles className="h-5 w-5 text-indigo-600" />
+                            <h3 className="font-semibold text-lg">AI Analysis Results</h3>
+                          </div>
+                          <div className="grid grid-cols-2 gap-6">
+                            <div>
+                              <h4 className="font-medium mb-2">Market Analysis</h4>
+                              <div className="space-y-2">
+                                <div>
+                                  <span className="text-sm text-gray-500">Demand Score</span>
+                                  <div className="text-2xl font-semibold">
+                                    {form.getValues("aiAnalysis")?.marketAnalysis?.demandScore ?? 0}/10
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-sm text-gray-500">Competition Level</span>
+                                  <div className="text-lg font-medium">
+                                    {form.getValues("aiAnalysis")?.marketAnalysis?.competitionLevel ?? "Unknown"}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-sm text-gray-500">Suggested Price Range</span>
+                                  <div className="text-lg font-medium">
+                                    ${form.getValues("aiAnalysis")?.marketAnalysis?.priceSuggestion?.min?.toFixed(2) ?? "0.00"} -
+                                    ${form.getValues("aiAnalysis")?.marketAnalysis?.priceSuggestion?.max?.toFixed(2) ?? "0.00"}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div>
+                              <h4 className="font-medium mb-2">SEO Keywords</h4>
+                              <div className="flex flex-wrap gap-2">
+                                {(form.getValues("aiAnalysis")?.seoKeywords || []).map((keyword: string, idx: number) => (
+                                  <span key={idx} className="px-2 py-1 bg-indigo-100 rounded-md text-sm">
+                                    {keyword}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+                    {hasAnalysis && aiAnalysis?.ebayData && (
+                      <Card className="p-6 border border-indigo-200 shadow-sm">
+                        <div className="space-y-6">
+                          <div className="flex items-center justify-between border-b pb-4">
+                            <div className="flex items-center gap-2">
+                              <BarChart2 className="h-5 w-5 text-indigo-600" />
+                              <h3 className="font-semibold text-lg">eBay Market Data</h3>
+                            </div>
+                            <div className="text-sm text-gray-500">
+                              Last updated: {form.getValues("aiAnalysis")?.ebayData?.lastUpdated
+                                ? new Date(form.getValues("aiAnalysis")?.ebayData?.lastUpdated).toLocaleString()
+                                : "No update time available"}
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-4">
+                              <div>
+                                <span className="text-sm text-gray-500">Current Price</span>
+                                <div className="text-2xl font-semibold">
+                                  ${(form.getValues("aiAnalysis")?.ebayData?.currentPrice ?? 0).toFixed(2)}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500">Average Price</span>
+                                <div className="text-2xl font-semibold">
+                                  ${(form.getValues("aiAnalysis")?.ebayData?.averagePrice ?? 0).toFixed(2)}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500">Price Range</span>
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-xl font-semibold">
+                                    ${(form.getValues("aiAnalysis")?.ebayData?.lowestPrice ?? 0).toFixed(2)}
+                                  </span>
+                                  <span className="text-gray-500">-</span>
+                                  <span className="text-xl font-semibold">
+                                    ${(form.getValues("aiAnalysis")?.ebayData?.highestPrice ?? 0).toFixed(2)}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-4">
+                              <div>
+                                <span className="text-sm text-gray-500">Items Sold</span>
+                                <div className="text-2xl font-semibold">
+                                  {(form.getValues("aiAnalysis")?.ebayData?.soldCount ?? 0).toLocaleString()}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500">Active Listings</span>
+                                <div className="text-2xl font-semibold">
+                                  {(form.getValues("aiAnalysis")?.ebayData?.activeListing ?? 0).toLocaleString()}
+                                </div>
+                              </div>
+                              <div>
+                                <span className="text-sm text-gray-500">Recommended Price</span>
+                                <div className="text-2xl font-semibold text-indigo-600">
+                                  ${(form.getValues("aiAnalysis")?.ebayData?.recommendedPrice ?? 0).toFixed(2)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    )}
+                  </div>
+                )}
+
+                {currentStep === "details" && (
+                  <div className="space-y-8 px-4">
+                    <div className="grid grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="condition"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Condition</FormLabel>
+                            <Select
+                              onValueChange={field.onChange}
+                              defaultValue={field.value}
+                            >
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select condition" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {conditionOptions.map((option) => (
+                                  <SelectItem key={option.value} value={option.value}>
+                                    <div className="flex items-center gap-2">
+                                      <PackageOpen className="h-4 w-4" />
+                                      {option.label}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="price"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>
+                              Price <span className="text-destructive">*</span>
+                            </FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value ? Number(e.target.value) : undefined;
+                                  field.onChange(val);
+                                }}
+                                placeholder="0.00"
+                                className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-200"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="sku"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>SKU</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Enter SKU" className="border-gray-300" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="brand"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Brand</FormLabel>
+                            <FormControl>
+                              <Input {...field} placeholder="Enter brand name" className="border-gray-300" />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-6">
+                      <FormField
+                        control={form.control}
+                        name="weight"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Weight (lbs)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="number"
+                                step="0.1"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value ? Number(e.target.value) : undefined;
+                                  field.onChange(val);
+                                }}
+                                className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-200"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="dimensions"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Dimensions</FormLabel>
+                            <FormControl>
+                              <Input
+                                {...field}
+                                placeholder="L x W x H (inches)"
+                                className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-200"
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {currentStep === "review" && (
+                  <ScrollArea className="h-[500px] pr-6">
+                    <div className="space-y-8 px4">
+                      <h3 className="text-xl font-semibold">Review Your Product</h3>
+                      <div className="space-y-6">
+                        <div>
+                          <p className="text-sm text-gray-500">Name</p>
+                          <p className="text-lg font-medium">{form.getValues("name")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Description</p>
+                          <p className="text-lg font-medium">{form.getValues("description")}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Price</p>
+                          <p className="text-lg font-medium">${form.getValues("price")?.toFixed(2)}</p>
+                        </div>
+                        {form.getValues("aiAnalysis") && (
+                          <div>
+                            <p className="text-sm text-gray-500">AI Analysis</p>
+                            <div className="text-lg font-medium">
+                              <p>Category: {form.getValues("aiAnalysis.category")}</p>
+                              <p>Demand Score: {form.getValues("aiAnalysis.marketAnalysis.demandScore")}/10</p>
+                              <p>Competition: {form.getValues("aiAnalysis.marketAnalysis.competitionLevel")}</p>
+                            </div>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-500">Images</p>
+                          <p className="text-lg font-medium">{imageFiles.length} images selected</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col space-y-2 pt-4 border-t">
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep("basic")}
+                          className="text-blue-600 hover:underline flex items-center gap-2"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Edit Basic Info
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep("analysis")}
+                          className="text-blue-600 hover:underline flex items-center gap-2"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Edit Analysis
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep("details")}
+                          className="text-blue-600 hover:underline flex items-center gap-2"
+                        >
+                          <ChevronLeft className="w-4 h-4" />
+                          Edit Details
+                        </button>
+                      </div>
+                    </div>
+                  </ScrollArea>
+                )}
+
+                <div className="flex justify-between pt-6 border-t">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleBack}
-                    disabled={currentStep === "basic" || isAnalyzing}
+                    disabled={currentStep === "basic"}
+                    className="flex items-center gap-2"
                   >
-                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    <ChevronLeft className="h-4 w-4" />
                     Back
                   </Button>
-
-                  {currentStep !== "review" ? (
+                  <div className="flex gap-2">
                     <Button
                       type="button"
-                      onClick={handleNext}
-                      disabled={!canAdvance() || isAnalyzing}
+                      variant="outline"
+                      onClick={() => onComplete()}
                     >
-                      {isAnalyzing ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Analyzing...
-                        </>
-                      ) : (
-                        <>
-                          Next
-                          <ChevronRight className="h-4 w-4 ml-2" />
-                        </>
-                      )}
+                      Cancel
                     </Button>
-                  ) : (
-                    <Button 
-                      type="submit"
-                      disabled={isSubmitting || !canAdvance()}
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        'Save Product'
-                      )}
-                    </Button>
-                  )}
+                    {currentStep === "review" ? (
+                      <Button 
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex items-center gap-2"
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          'Save Product'
+                        )}
+                      </Button>
+                    ) : (
+                      <Button
+                        type="button"
+                        onClick={handleNext}
+                        disabled={!canAdvance()}
+                        className="flex items-center gap-2"
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <SmartListingModal

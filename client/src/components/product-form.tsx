@@ -14,7 +14,13 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Select as SelectPrimitive } from "@/components/ui/select";
+import { 
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
 import { type SelectProduct } from "@db/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -37,18 +43,6 @@ import ImageUpload from "@/components/ui/image-upload";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SmartListingModal from "@/components/smart-listing-modal";
-
-// Custom Select components using SelectPrimitive
-const Select = ({ children, onValueChange, defaultValue }: any) => (
-  <SelectPrimitive.Root onValueChange={onValueChange} defaultValue={defaultValue}>
-    {children}
-  </SelectPrimitive.Root>
-);
-
-Select.Trigger = SelectPrimitive.Trigger;
-Select.Value = SelectPrimitive.Value;
-Select.Content = SelectPrimitive.Content;
-Select.Item = SelectPrimitive.Item;
 
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
@@ -152,7 +146,6 @@ const StepIndicator = ({ currentStep, steps }: StepIndicatorProps) => (
   </div>
 );
 
-
 export default function ProductForm({
   product,
   onComplete,
@@ -166,7 +159,7 @@ export default function ProductForm({
   const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [showSmartListing, setShowSmartListing] = useState(false);
   const [runAllAnalysis, setRunAllAnalysis] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false); // Added state for submit button
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
   const steps = [
@@ -411,7 +404,7 @@ export default function ProductForm({
   };
 
   const onSubmit = form.handleSubmit(async (data) => {
-    setIsSubmitting(true); // Set submitting state to true
+    setIsSubmitting(true); 
     try {
       const formData = new FormData();
       formData.append("name", data.name.trim());
@@ -471,7 +464,7 @@ export default function ProductForm({
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false); // Set submitting state to false
+      setIsSubmitting(false); 
     }
   });
 
@@ -774,20 +767,23 @@ export default function ProductForm({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Condition</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <Select.Trigger className="w-full">
-                        <Select.Value placeholder="Select condition" />
-                      </Select.Trigger>
-                      <Select.Content>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select condition" />
+                      </SelectTrigger>
+                      <SelectContent>
                         {conditionOptions.map((option) => (
-                          <Select.Item key={option.value} value={option.value}>
+                          <SelectItem key={option.value} value={option.value}>
                             <div className="flex items-center gap-2">
                               <PackageOpen className="h-4 w-4" />
                               {option.label}
                             </div>
-                          </Select.Item>
+                          </SelectItem>
                         ))}
-                      </Select.Content>
+                      </SelectContent>
                     </Select>
                   </FormItem>
                 )}
@@ -953,13 +949,13 @@ export default function ProductForm({
 
   return (
     <Dialog open={true} onOpenChange={onComplete}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>
             {product ? "Edit Product" : "Add New Product"}
           </DialogTitle>
           <DialogDescription>
-            Fill in the details below. Images and AI analysis will help optimize your listing.
+            Fill in the product details below to {product ? "update" : "create"} your listing
           </DialogDescription>
         </DialogHeader>
 

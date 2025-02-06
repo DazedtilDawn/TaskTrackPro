@@ -429,70 +429,67 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(async (data) => {
-                console.log("Submitting form with name:", data.name);
+                console.log("[Product Form] Starting form submission with data:", {
+                  name: data.name,
+                  price: data.price,
+                  condition: data.condition,
+                  imageFiles: imageFiles.length
+                });
 
                 try {
-                  // Create a FormData object to handle image uploads
+                  // Create FormData and add core fields
                   const formData = new FormData();
-
-                  // Append text fields to FormData
                   formData.append('name', data.name.trim());
-                  if (data.description) {
-                    formData.append('description', data.description.trim());
-                  }
-                  if (data.sku) {
-                    formData.append('sku', data.sku.trim());
-                  }
-                  if (data.brand) {
-                    formData.append('brand', data.brand.trim());
-                  }
-                  if (data.category) {
-                    formData.append('category', data.category.trim());
-                  }
-                  formData.append('quantity', data.quantity.toString());
 
-                  // Handle price (ensure it's a number or null)
-                  if (data.price !== undefined && data.price !== null) {
-                    formData.append('price', data.price.toString());
-                  }
+                  // Handle optional text fields
+                  const optionalFields = ['description', 'sku', 'brand', 'category', 'dimensions'];
+                  optionalFields.forEach(field => {
+                    if (data[field]) {
+                      formData.append(field, data[field].trim());
+                    }
+                  });
 
-                  // Ensure condition is appended
-                  if (data.condition) {
-                    formData.append('condition', data.condition);
-                  }
+                  // Handle numerical fields with NaN protection
+                  const numericalFields = ['price', 'quantity', 'weight', 'ebayPrice'];
+                  numericalFields.forEach(field => {
+                    const value = data[field];
+                    if (value !== null && value !== undefined && !Number.isNaN(Number(value))) {
+                      formData.append(field, value.toString());
+                    }
+                  });
 
-                  // Stringify and append the AI analysis data
+                  // Always append condition
+                  formData.append('condition', data.condition || 'used_good');
+
+                  // Handle AI analysis data
                   if (data.aiAnalysis) {
                     formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
                   }
 
-                  if (data.ebayPrice !== null && data.ebayPrice !== undefined) {
-                    formData.append("ebayPrice", data.ebayPrice.toString());
-                  }
-                  if (data.weight !== null && data.weight !== undefined) {
-                    formData.append("weight", data.weight.toString());
-                  }
-                  if (data.dimensions) {
-                    formData.append('dimensions', data.dimensions.trim());
-                  }
-
-                  // Append image files
+                  // Handle image files
                   imageFiles.forEach((file) => {
                     formData.append('image', file);
                   });
 
-                  // Determine endpoint and method based on whether we're editing or creating
+                  console.log("[Product Form] FormData prepared, sending request...");
+
+                  // Determine endpoint and method
                   const endpoint = product ? `/api/products/${product.id}` : "/api/products";
                   const method = product ? "PATCH" : "POST";
 
-                  // Send the request using FormData
+                  // Send request
                   const response = await apiRequest(method, endpoint, formData);
 
                   if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(`${response.status}: ${JSON.stringify(errorData)}`);
+                    console.error("[Product Form] Server responded with error:", errorData);
+                    throw new Error(errorData.message || `Server error: ${response.status}`);
                   }
 
+                  const result = await response.json();
+                  console.log("[Product Form] Server response success:", result);
+
+                  // Update cache and UI
                   queryClient.invalidateQueries({ queryKey: ["/api/products"] });
                   toast({
                     title: product ? "Product updated" : "Product created",
@@ -500,7 +497,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   });
                   onComplete();
                 } catch (error) {
-                  console.error('Form submission error:', error);
+                  console.error('[Product Form] Submission error:', error);
                   toast({
                     title: "Error",
                     description: error instanceof Error ? error.message : "Failed to save product",

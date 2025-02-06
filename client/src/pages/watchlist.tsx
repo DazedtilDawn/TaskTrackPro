@@ -5,7 +5,6 @@ import ProductCard from "@/components/product-card";
 import ViewToggle from "@/components/view-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
@@ -46,6 +45,11 @@ export default function Watchlist() {
     setIsDialogOpen(false);
   };
 
+  const handleAddProduct = () => {
+    setSelectedProduct(null);
+    setIsDialogOpen(true);
+  };
+
   const handleEdit = (product: SelectProduct) => {
     setSelectedProduct(product);
     setIsDialogOpen(true);
@@ -73,7 +77,7 @@ export default function Watchlist() {
                 onViewChange={setView}
               />
             </div>
-            <Button onClick={() => setIsDialogOpen(true)}>
+            <Button onClick={handleAddProduct}>
               <Plus className="h-4 w-4 mr-2" />
               Add Product
             </Button>

@@ -28,7 +28,7 @@ export default function AddToWatchlistDialog({
 
   const handleSubmit = async () => {
     if (!product) return;
-    
+
     setIsSubmitting(true);
     try {
       const response = await apiRequest("POST", "/api/watchlist", {
@@ -37,16 +37,16 @@ export default function AddToWatchlistDialog({
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.message || "Failed to add to watchlist");
+        throw new Error(error.error || "Failed to add to watchlist");
       }
 
       await queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] });
-      
+
       toast({
         title: "Added to watchlist",
         description: `${product.name} has been added to your watchlist.`
       });
-      
+
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to add to watchlist:", error);

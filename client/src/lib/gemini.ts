@@ -18,6 +18,7 @@ interface SmartListingAnalysis {
 }
 
 interface ProductAnalysis {
+  id: number;  // Add id field for unique identification
   name: string;
   description: string;
   price?: number;
@@ -274,7 +275,7 @@ async function fileToBase64(file: File): Promise<string> {
   });
 }
 
-export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<string, AIAnalysisResult>> {
+export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise<Map<number, AIAnalysisResult>> {
   const genAI = await initializeGemini();
   const model = genAI.getGenerativeModel({
     model: "gemini-2.0-flash-exp",
@@ -286,7 +287,8 @@ export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise
     }
   });
 
-  const results = new Map<string, AIAnalysisResult>();
+  // Change Map key type from string to number
+  const results = new Map<number, AIAnalysisResult>();
   const batchSize = 3; // Reduced batch size due to rate limits
 
   for (let i = 0; i < products.length; i += batchSize) {
@@ -316,10 +318,11 @@ Format the response in JSON.`;
         const response = await result.response;
         const text = await response.text();
         const analysis = JSON.parse(text);
-        results.set(product.name, analysis);
+        // Use product.id instead of product.name as the key
+        results.set(product.id, analysis);
       } catch (error) {
-        console.error(`Error analyzing product ${product.name}:`, error);
-        results.set(product.name, {
+        console.error(`Error analyzing product ${product.id} (${product.name}):`, error);
+        results.set(product.id, {
           suggestions: ["Error during analysis"],
           marketAnalysis: {
             demandScore: 0,

@@ -49,6 +49,7 @@ export default function BatchAnalysisDialog({
       const productsToAnalyze = products.filter(p => selectedProducts.has(p.id));
       const results = await analyzeBatchProducts(
         productsToAnalyze.map(p => ({
+          id: p.id,  // Include id in the analysis request
           name: p.name,
           description: p.description || "",
           price: Number(p.price),
@@ -56,9 +57,9 @@ export default function BatchAnalysisDialog({
         }))
       );
 
-      // Update each product with its analysis
+      // Update each product with its analysis using product.id as the key
       for (const product of productsToAnalyze) {
-        const analysis = results.get(product.name);
+        const analysis = results.get(product.id);
         if (analysis) {
           await apiRequest("PATCH", `/api/products/${product.id}`, {
             aiAnalysis: analysis,

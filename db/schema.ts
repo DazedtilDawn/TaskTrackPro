@@ -207,3 +207,29 @@ export const loginCredentialsSchema = z.object({
 });
 
 export type LoginCredentials = z.infer<typeof loginCredentialsSchema>;
+
+// Additional validation schemas for API endpoints
+export const productCreateSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
+  description: z.string().optional(),
+  sku: z.string().optional(),
+  price: z.number().positive("Price must be greater than 0").optional(),
+  quantity: z.number().int().min(0, "Quantity cannot be negative"),
+  condition: z.enum(['New', 'Open Box', 'Used - Like New', 'Used - Good', 'Used - Fair'])
+    .default('Used - Good'),
+  brand: z.string().optional(),
+  category: z.string().optional(),
+  weight: z.number().positive().optional(),
+  dimensions: z.string().optional(),
+});
+
+export const productUpdateSchema = productCreateSchema.partial();
+
+export const orderCreateSchema = z.object({
+  productIds: z.array(z.number()).min(1, "At least one product is required"),
+  quantities: z.array(z.number().int().positive()),
+});
+
+export const watchlistCreateSchema = z.object({
+  productId: z.number().int().positive("Invalid product ID"),
+});

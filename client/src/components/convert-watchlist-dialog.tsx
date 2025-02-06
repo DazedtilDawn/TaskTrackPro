@@ -85,27 +85,29 @@ export default function ConvertWatchlistDialog({
   const onSubmit = async (data: ConvertWatchlistFormData) => {
     try {
       // 1. Update the product with new price and quantity
-      await apiRequest("PATCH", `/api/products/${product.id}`, {
+      const updateResponse = await apiRequest("PATCH", `/api/products/${product.id}`, {
         price: data.recommendedSalePrice,
         quantity: 1,
         sold: false,
       });
 
-      // 2. Find and remove from watchlist using the correct watchlist item ID
+      if (!updateResponse.ok) {
+        const error = await updateResponse.json();
+        throw new Error(error.error || "Failed to update product");
+      }
+
+      // 2. Find and remove from watchlist
       const watchlistResponse = await apiRequest("GET", "/api/watchlist");
       const watchlistItems = await watchlistResponse.json();
-
       const itemToDelete = watchlistItems.find((item: any) => item.productId === product.id);
 
       if (itemToDelete) {
-        await apiRequest("DELETE", `/api/watchlist/${itemToDelete.id}`);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to find item in the watchlist",
-          variant: "destructive",
-        });
-        return;
+        const deleteResponse = await apiRequest("DELETE", `/api/watchlist/${itemToDelete.id}`);
+        // Handle 404 gracefully - item is already removed
+        if (!deleteResponse.ok && deleteResponse.status !== 404) {
+          const error = await deleteResponse.json();
+          throw new Error(error.error || "Failed to remove from watchlist");
+        }
       }
 
       // 3. Invalidate queries to refresh the UI

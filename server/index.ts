@@ -54,7 +54,6 @@ async function initializeServer() {
     const server: Server = await new Promise((resolve, reject) => {
       const httpServer = app.listen(port, '0.0.0.0', () => {
         console.log(`Server successfully started on port ${port}`);
-        // Update URL construction for Replit
         const replitUrl = process.env.REPL_SLUG && process.env.REPL_ID ?
           `https://${process.env.REPL_ID}-00-1vlomg3cflyir.spock.replit.dev` :
           `http://localhost:${port}`;

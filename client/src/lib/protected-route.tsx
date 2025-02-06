@@ -27,7 +27,7 @@ export function ProtectedRoute({
         }
 
         if (!user) {
-          return <Redirect to={ROUTES.auth} />;
+          return <Redirect to={ROUTES.auth.path} />;
         }
 
         return <Component />;

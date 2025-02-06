@@ -57,20 +57,22 @@ export function getRouteTitle(path: string): string {
   const normalizedPath = path.endsWith('/') ? path.slice(0, -1) : path;
 
   // Helper function to search nested routes
-  const findRoute = (routes: NestedRoutes): string | undefined => {
+  const findRouteTitle = (routes: NestedRoutes): string | undefined => {
     for (const key in routes) {
       const route = routes[key];
-      if ('path' in route && route.path === normalizedPath) {
-        return route.title;
-      } else if (typeof route === 'object') {
-        const nestedResult = findRoute(route as NestedRoutes);
-        if (nestedResult) return nestedResult;
+      if (typeof route === 'object') {
+        if ('path' in route && route.path === normalizedPath) {
+          return route.title;
+        } else {
+          const nestedResult = findRouteTitle(route as NestedRoutes);
+          if (nestedResult) return nestedResult;
+        }
       }
     }
     return undefined;
   };
 
-  const title = findRoute(ROUTES);
+  const title = findRouteTitle(ROUTES);
   if (title) return title;
 
   // Fallback: Format the last segment of the path

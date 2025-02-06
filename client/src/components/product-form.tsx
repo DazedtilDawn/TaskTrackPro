@@ -37,14 +37,14 @@ interface EbayData {
 // Product form schema
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
-  description: z.string().min(10, "Description must be at least 10 characters").optional().nullable(),
-  sku: z.string().optional().nullable(),
+  description: z.string().min(10, "Description must be at least 10 characters").optional(),
+  sku: z.string().optional(),
   condition: z.enum(["new", "open_box", "used_like_new", "used_good", "used_fair"]).default("used_good"),
-  brand: z.string().optional().nullable(),
-  category: z.string().optional().nullable(),
-  price: z.coerce.number().min(0, "Price must be greater than 0").optional().nullable(),
+  brand: z.string().optional(),
+  category: z.string().optional(),
+  price: z.coerce.number().min(0, "Price must be greater than 0").optional(),
   quantity: z.coerce.number().min(0, "Quantity must be 0 or greater").default(0),
-  imageUrl: z.string().optional().nullable(),
+  imageUrl: z.string().optional(),
   aiAnalysis: z.object({
     title: z.string().optional(),
     description: z.string().optional(),
@@ -69,10 +69,10 @@ const productFormSchema = z.object({
       recommendedPrice: z.number(),
       lastUpdated: z.string().optional()
     }).optional()
-  }).optional().nullable(),
-  ebayPrice: z.coerce.number().optional().nullable(),
-  weight: z.coerce.number().optional().nullable(),
-  dimensions: z.string().optional().nullable(),
+  }).optional(),
+  ebayPrice: z.coerce.number().optional(),
+  weight: z.coerce.number().optional(),
+  dimensions: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
@@ -160,12 +160,12 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       condition: (product?.condition as any) ?? "used_good",
       brand: product?.brand ?? "",
       category: product?.category ?? "",
-      price: product?.price ? Number(product.price) : null,
+      price: product?.price ? Number(product.price) : undefined,
       quantity: isWatchlistItem ? 0 : (product?.quantity ?? 0),
       imageUrl: product?.imageUrl ?? "",
-      aiAnalysis: product?.aiAnalysis ?? null,
-      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : null,
-      weight: product?.weight ? Number(product.weight) : null,
+      aiAnalysis: product?.aiAnalysis ?? undefined,
+      ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : undefined,
+      weight: product?.weight ? Number(product.weight) : undefined,
       dimensions: product?.dimensions ?? "",
     },
   });
@@ -769,6 +769,11 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                               type="number"
                               step="0.01"
                               {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => {
+                                const value = e.target.value ? Number(e.target.value) : undefined;
+                                field.onChange(value);
+                              }}
                               placeholder="0.00"
                             />
                           </FormControl>
@@ -783,7 +788,15 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                         <FormItem>
                           <FormLabel>Quantity</FormLabel>
                           <FormControl>
-                            <Input type="number" {...field} />
+                            <Input
+                              type="number"
+                              {...field}
+                              value={field.value ?? ""}
+                              onChange={(e) => {
+                                const value = e.target.value ? Number(e.target.value) : undefined;
+                                field.onChange(value);
+                              }}
+                            />
                           </FormControl>
                         </FormItem>
                       )}

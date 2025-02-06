@@ -24,24 +24,8 @@ interface ProductCardProps {
   onEdit: (product: SelectProduct) => void;
   inWatchlist?: boolean;
   view?: "grid" | "list" | "table";
-  watchlistId?: number;  // Add watchlistId prop
+  watchlistId?: number;
 }
-
-// Create default analysis object for fallback
-const DEFAULT_AI_ANALYSIS: AIAnalysis = {
-  category: 'Uncategorized',
-  marketAnalysis: {
-    demandScore: 0,
-    competitionLevel: 'Unknown',
-    priceSuggestion: {
-      min: 0,
-      max: 0
-    }
-  },
-  suggestions: ['No analysis available'],
-  seoKeywords: [],
-  ebayData: undefined
-};
 
 export default function ProductCard({
   product,
@@ -56,20 +40,18 @@ export default function ProductCard({
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
   const [imageError, setImageError] = useState(false);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [focusVisible, setFocusVisible] = useState(false);
 
-  // Safer parsing with validation and error handling
   const parseAIAnalysis = (data: unknown): AIAnalysis => {
     try {
       if (typeof data === 'string') {
         const parsed = JSON.parse(data);
-        // Validate required fields
         if (!parsed?.marketAnalysis?.priceSuggestion) {
           console.warn('Invalid AI analysis structure:', parsed);
           return DEFAULT_AI_ANALYSIS;
         }
         return parsed;
       } else if (data && typeof data === 'object') {
-        // Already parsed but validate structure
         const typed = data as AIAnalysis;
         if (!typed?.marketAnalysis?.priceSuggestion) {
           console.warn('Invalid AI analysis structure:', typed);
@@ -84,6 +66,13 @@ export default function ProductCard({
       return DEFAULT_AI_ANALYSIS;
     }
   };
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onEdit(product);
+    }
+  }, [onEdit, product]);
 
   const aiAnalysis = parseAIAnalysis(product.aiAnalysis);
 
@@ -147,7 +136,6 @@ export default function ProductCard({
 
     try {
       if (inWatchlist) {
-        // Use watchlistId for deletion if available, fallback to product.id for backward compatibility
         const id = watchlistId || product.id;
         const response = await apiRequest("DELETE", `/api/watchlist/${id}`);
         const result = await response.json();
@@ -188,7 +176,7 @@ export default function ProductCard({
         variant: "destructive",
       });
     }
-  }, [product.id, product.name, inWatchlist, toast, location, watchlistId]);  // Add watchlistId to dependencies
+  }, [product.id, product.name, inWatchlist, toast, location, watchlistId]);
 
   const deleteProduct = useCallback(async (e?: React.MouseEvent) => {
     e?.stopPropagation();
@@ -285,15 +273,37 @@ export default function ProductCard({
     }
   }, [product.id, toast]);
 
+  const DEFAULT_AI_ANALYSIS: AIAnalysis = {
+    category: 'Uncategorized',
+    marketAnalysis: {
+      demandScore: 0,
+      competitionLevel: 'Unknown',
+      priceSuggestion: {
+        min: 0,
+        max: 0
+      }
+    },
+    suggestions: ['No analysis available'],
+    seoKeywords: [],
+    ebayData: undefined
+  };
+
+
   if (view === "table") {
     return (
       <>
-        <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
+        <div
+          className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative"
+          role="article"
+          aria-label={`Product: ${product.name}`}
+          tabIndex={0}
+          onKeyDown={handleKeyDown}
+        >
           <div className="w-12 h-12 rounded-md overflow-hidden flex-shrink-0">
             {product.imageUrl && !imageError ? (
               <img
                 src={getImageUrl(product.imageUrl)}
-                alt={product.name}
+                alt={`Image of ${product.name}`}
                 className="w-full h-full object-cover"
                 onError={() => {
                   console.error(`Failed to load image: ${product.imageUrl}`);
@@ -301,7 +311,7 @@ export default function ProductCard({
                 }}
               />
             ) : (
-              <div className="w-full h-full bg-secondary/20 flex items-center justify-center">
+              <div className="w-full h-full bg-secondary/20 flex items-center justify-center" aria-label="No image available">
                 <ImageIcon className="w-6 h-6 text-muted-foreground" />
               </div>
             )}
@@ -309,7 +319,7 @@ export default function ProductCard({
 
           <div className="flex-1 min-w-0">
             <h3 className="font-medium truncate">{product.name}</h3>
-            <p className="text-sm text-muted-foreground truncate">
+            <p className="text-sm text-muted-foreground truncate" aria-label="Product description">
               {product.description}
             </p>
           </div>
@@ -366,12 +376,13 @@ export default function ProductCard({
           )}
 
           <div className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity duration-100 absolute right-4 bg-background/95 rounded-lg shadow-sm z-50">
-            <div className="flex items-center gap-1 p-1">
+            <div className="flex items-center gap-1 p-1" role="toolbar" aria-label="Product actions">
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={handleEdit}
                 className="h-8 w-8 hover:scale-105 transition-transform"
+                aria-label="Edit product"
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -380,6 +391,7 @@ export default function ProductCard({
                 variant="ghost"
                 onClick={deleteProduct}
                 className="h-8 w-8 hover:scale-105 transition-transform"
+                aria-label="Delete product"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -389,6 +401,7 @@ export default function ProductCard({
                   variant="ghost"
                   onClick={markAsSold}
                   className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                  aria-label="Mark as sold"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                 </Button>
@@ -400,6 +413,7 @@ export default function ProductCard({
                   onClick={handleConvertDialog}
                   className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                   title="Convert to Inventory"
+                  aria-label="Convert to Inventory"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                 </Button>
@@ -410,6 +424,7 @@ export default function ProductCard({
                   variant={inWatchlist ? "secondary" : "ghost"}
                   onClick={toggleWatchlist}
                   className="h-8 w-8 hover:scale-105 transition-transform"
+                  aria-label={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
                 >
                   <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
                 </Button>
@@ -424,6 +439,7 @@ export default function ProductCard({
                       disabled={isGeneratingListing}
                       className="h-8 w-8 hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                       title="Generate eBay Listing"
+                      aria-label="Generate eBay Listing"
                     >
                       <Share2 className="h-4 w-4" />
                     </Button>
@@ -435,6 +451,7 @@ export default function ProductCard({
                       onClick={() => window.open(product.ebayListingUrl, '_blank')}
                       className="h-8 w-8 hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
+                      aria-label="View on eBay"
                     >
                       <ArrowUpRight className="h-4 w-4" />
                     </Button>
@@ -455,13 +472,19 @@ export default function ProductCard({
 
   return (
     <>
-      <Card className={cn(
-        "overflow-hidden transition-all duration-200 hover:shadow-lg",
-        isUnderpriced && "border-yellow-500/50",
-        isOverpriced && "border-red-500/50",
-        isPricedRight && "border-green-500/50",
-        view === "list" && "flex"
-      )}>
+      <Card
+        className={cn(
+          "overflow-hidden transition-all duration-200 hover:shadow-lg",
+          isUnderpriced && "border-yellow-500/50",
+          isOverpriced && "border-red-500/50",
+          isPricedRight && "border-green-500/50",
+          view === "list" && "flex"
+        )}
+        role="article"
+        aria-label={`Product: ${product.name}`}
+        tabIndex={0}
+        onKeyDown={handleKeyDown}
+      >
         {product.imageUrl && !imageError ? (
           <div className={cn(
             "relative",
@@ -469,7 +492,7 @@ export default function ProductCard({
           )}>
             <img
               src={getImageUrl(product.imageUrl)}
-              alt={product.name}
+              alt={`Image of ${product.name}`}
               className={cn(
                 "object-cover",
                 view === "grid" ? "w-full h-48" : "w-48 h-full"
@@ -496,7 +519,7 @@ export default function ProductCard({
           <div className={cn(
             "bg-secondary/20 flex items-center justify-center",
             view === "grid" ? "w-full h-48" : "w-48 h-full"
-          )}>
+          )} aria-label="No image available">
             <ImageIcon className="w-8 h-8 text-muted-foreground" />
           </div>
         )}
@@ -521,11 +544,12 @@ export default function ProductCard({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 transition-transform hover:scale-110 shrink-0"
+                      aria-label="View market analysis"
                     >
                       <Sparkles className="h-4 w-4 text-primary" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0">
+                  <PopoverContent className="w-80 p-0" role="dialog" aria-label="Market Analysis Details">
                     <ScrollArea className="h-[400px]">
                       <div className="p-4 space-y-4">
                         <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
@@ -690,12 +714,13 @@ export default function ProductCard({
             "p-4 pt-0 flex justify-between",
             view === "list" && "border-t"
           )}>
-            <div className="flex gap-2">
+            <div className="flex gap-2" role="toolbar" aria-label="Product actions">
               <Button
                 size="icon"
                 variant="ghost"
                 onClick={handleEdit}
                 className="hover:scale-105 transition-transform"
+                aria-label="Edit product"
               >
                 <Edit className="h-4 w-4" />
               </Button>
@@ -704,6 +729,7 @@ export default function ProductCard({
                 variant="ghost"
                 onClick={deleteProduct}
                 className="hover:scale-105 transition-transform"
+                aria-label="Delete product"
               >
                 <Trash2 className="h-4 w-4" />
               </Button>
@@ -713,6 +739,7 @@ export default function ProductCard({
                   variant="ghost"
                   onClick={markAsSold}
                   className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
+                  aria-label="Mark as sold"
                 >
                   <CheckCircle2 className="h-4 w-4" />
                 </Button>
@@ -724,6 +751,7 @@ export default function ProductCard({
                   onClick={handleConvertDialog}
                   className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                   title="Convert to Inventory"
+                  aria-label="Convert to Inventory"
                 >
                   <ArrowUpRight className="h-4 w-4" />
                 </Button>
@@ -739,6 +767,7 @@ export default function ProductCard({
                       disabled={isGeneratingListing}
                       className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
                       title="Generate eBay Listing"
+                      aria-label="Generate eBay Listing"
                     >
                       <Share2 className="h-4 w-4" />
                     </Button>
@@ -750,6 +779,7 @@ export default function ProductCard({
                       onClick={() => window.open(product.ebayListingUrl, '_blank')}
                       className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
                       title="View on eBay"
+                      aria-label="View on eBay"
                     >
                       <ArrowUpRight className="h-4 w-4" />
                     </Button>
@@ -762,6 +792,7 @@ export default function ProductCard({
               variant={inWatchlist ? "secondary" : "ghost"}
               onClick={toggleWatchlist}
               className="hover:scale-105 transition-transform"
+              aria-label={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
             >
               <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
             </Button>

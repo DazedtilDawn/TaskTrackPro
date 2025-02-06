@@ -3,6 +3,63 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 import { z } from "zod";
 
+// Zod schemas for JSONB validation
+export const marketAnalysisSchema = z.object({
+  demandScore: z.number().min(0).max(10),
+  competitionLevel: z.enum(['Low', 'Medium', 'High']),
+  priceSuggestion: z.object({
+    min: z.number().positive(),
+    max: z.number().positive(),
+  }),
+});
+
+export const aiAnalysisSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  marketAnalysis: marketAnalysisSchema,
+  seoKeywords: z.array(z.string()),
+  suggestions: z.array(z.string()),
+  ebayData: z.object({
+    currentPrice: z.number().positive(),
+    averagePrice: z.number().positive(),
+    lowestPrice: z.number().positive(),
+    highestPrice: z.number().positive(),
+    soldCount: z.number().min(0),
+    activeListing: z.number().min(0),
+    recommendedPrice: z.number().positive(),
+    lastUpdated: z.string().datetime().optional(),
+  }).optional(),
+});
+
+export const ebayListingDataSchema = z.object({
+  listingId: z.string(),
+  title: z.string(),
+  description: z.string(),
+  startPrice: z.number().positive(),
+  buyItNowPrice: z.number().positive().optional(),
+  quantity: z.number().min(0),
+  condition: z.enum(['New', 'Open Box', 'Used - Like New', 'Used - Good', 'Used - Fair']),
+  primaryCategory: z.object({
+    categoryId: z.string(),
+    categoryName: z.string(),
+  }),
+  listingDuration: z.string(),
+  returnPolicy: z.object({
+    returnsAccepted: z.boolean(),
+    returnPeriod: z.string().optional(),
+    returnShippingCostPaidBy: z.string().optional(),
+  }),
+  shippingDetails: z.object({
+    shippingType: z.string(),
+    shippingService: z.string(),
+    shippingCost: z.number().min(0),
+  }),
+  status: z.enum(['Active', 'Ended', 'Completed', 'Cancelled']),
+  lastUpdated: z.string().datetime(),
+});
+
+// Existing table definitions
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -125,8 +182,14 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
 // Export schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
-export const insertProductSchema = createInsertSchema(products);
-export const selectProductSchema = createSelectSchema(products);
+export const insertProductSchema = createInsertSchema(products, {
+  aiAnalysis: aiAnalysisSchema,
+  ebayListingData: ebayListingDataSchema,
+});
+export const selectProductSchema = createSelectSchema(products, {
+  aiAnalysis: aiAnalysisSchema,
+  ebayListingData: ebayListingDataSchema,
+});
 export const insertWatchlistSchema = createInsertSchema(watchlist);
 export const selectWatchlistSchema = createSelectSchema(watchlist);
 export const insertOrderSchema = createInsertSchema(orders);

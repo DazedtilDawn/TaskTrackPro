@@ -5,7 +5,7 @@ import ProductCard from "@/components/product-card";
 import ViewToggle from "@/components/view-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
@@ -134,16 +134,12 @@ export default function Watchlist() {
           )}
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedProduct ? "Edit Watchlist Product" : "Add Product to Watchlist"}
-                </DialogTitle>
-              </DialogHeader>
+            <DialogContent className="max-w-4xl">
               <ProductForm
                 product={selectedProduct}
                 onComplete={handleDialogClose}
                 isWatchlistItem={true}
+                open={isDialogOpen}
               />
             </DialogContent>
           </Dialog>

@@ -525,23 +525,26 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
 
     try {
-      // Extract form data
+      console.log('req.body', req.body);
+      console.log('req.file', req.file);
+
+      // Parse the product data, handling both regular fields and JSON fields
       const productData = {
         name: req.body.name,
         description: req.body.description || null,
         sku: req.body.sku || null,
-        price: req.body.price || null,
+        price: req.body.price ? parseFloat(req.body.price) : null,
         quantity: parseInt(req.body.quantity) || 0,
         condition: req.body.condition || 'used_good',
         brand: req.body.brand || null,
         category: req.body.category || null,
         imageUrl: req.file ? `/uploads/${req.file.filename}` : null,
         aiAnalysis: req.body.aiAnalysis ? JSON.parse(req.body.aiAnalysis) : null,
-        ebayPrice: req.body.ebayPrice || null,
+        ebayPrice: req.body.ebayPrice ? parseFloat(req.body.ebayPrice) : null,
         userId: req.user!.id,
         createdAt: new Date(),
         updatedAt: new Date(),
-        sold: false // Added sold status
+        sold: false
       };
 
       const [product] = await db.insert(products)
@@ -585,7 +588,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       }
 
       // Parse the update data, handling both JSON and form fields
-      let updateData: any = {};
+      const updateData: any = {};
 
       // Handle regular form fields
       Object.keys(req.body).forEach(key => {
@@ -593,6 +596,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
           // Try to parse JSON fields
           if (key === 'aiAnalysis' || key === 'ebayListingData') {
             updateData[key] = JSON.parse(req.body[key]);
+          } else if (key === 'price' || key === 'ebayPrice') {
+            updateData[key] = parseFloat(req.body[key]) || null;
+          } else if (key === 'quantity') {
+            updateData[key] = parseInt(req.body[key]) || 0;
           } else {
             updateData[key] = req.body[key];
           }

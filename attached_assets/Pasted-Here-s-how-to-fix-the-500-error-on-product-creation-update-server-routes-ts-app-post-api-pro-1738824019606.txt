@@ -1,0 +1,154 @@
+Here's how to fix the 500 error on product creation/update:
+
+server/routes.ts - app.post("/api/products", ...): You need to access your data differently because you're now dealing with multipart/form-data.
+
+Change the parsing logic. You need to pull data from req.body and req.file:
+
+app.post("/api/products", upload.single("image"), async (req, res) => {
+       if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+
+       try {
+       console.log('req.body', req.body);
+           console.log('req.file', req.file);
+
+          const productData = {
+               name: req.body.name,
+               description: req.body.description || null,
+               sku: req.body.sku || null,
+               price: req.body.price || null,  //parse these values as numbers later.
+               quantity: req.body.quantity || 0,  //parseInt later
+               condition: req.body.condition || 'used_good',
+               brand: req.body.brand || null,
+               category: req.body.category || null,
+               imageUrl: req.file ? `/uploads/${req.file.filename}` : null, // Get filename from req.file
+              aiAnalysis: req.body.aiAnalysis ? JSON.parse(req.body.aiAnalysis) : null,
+              ebayPrice: req.body.ebayPrice || null,
+              userId: req.user!.id,
+               createdAt: new Date(),
+               updatedAt: new Date(),
+               sold: false // Added sold status
+             };
+          const [product] = await db.insert(products)
+            .values(productData)
+            .returning();
+
+           res.status(201).json(product);
+       } catch (error) {
+           console.error('Error creating product:', error);
+           res.status(500).json({ error: "Failed to create product", details: (error instanceof Error) ? error.message : "Unknown error" });
+       }
+   });
+Use code with caution.
+TypeScript
+The key changes are:
+
+Accessing text fields via req.body.fieldname directly. Multer puts them there when you use upload.single().
+
+Accessing the uploaded file information (if any) via req.file. The filename is in req.file.filename.
+
+Constructing the imageUrl using the filename: /uploads/${req.file.filename}. This matches how you're serving static files.
+
+Ensure that all fields necessary are passed in the productData object.
+
+server/routes.ts - app.patch("/api/products/:id", ...): You need to do the same thing for your PATCH endpoint (product update):
+
+app.patch("/api/products/:id", upload.single("image"), async (req, res) => {
+    if (!req.isAuthenticated()) {
+        return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+        const productId = parseInt(req.params.id);
+        if (isNaN(productId)) {
+            return res.status(400).json({ error: "Invalid product ID" });
+        }
+
+        // Verify the product exists and belongs to the user
+        const [existingProduct] = await db.select()
+            .from(products)
+            .where(
+                and(
+                    eq(products.id, productId),
+                    eq(products.userId, req.user!.id)
+                )
+            )
+            .limit(1);
+
+        if (!existingProduct) {
+            return res.status(404).json({ error: "Product not found" });
+        }
+
+        // Parse the update data, similar to the POST endpoint
+         const updateData: any = {};
+
+          // Handle regular form fields
+          Object.keys(req.body).forEach(key => {
+            try {
+              // Try to parse JSON fields
+              if (key === 'aiAnalysis' || key === 'ebayListingData') {
+                updateData[key] = JSON.parse(req.body[key]);
+              } else {
+                updateData[key] = req.body[key];
+              }
+            } catch (e) {
+              // If parsing fails, use the raw value
+              updateData[key] = req.body[key];
+            }
+            });
+
+
+        // If an image file is provided, update the imageUrl field
+        if (req.file) {
+            updateData.imageUrl = `/uploads/${req.file.filename}`;
+        }
+
+        // Add update timestamp
+        updateData.updatedAt = new Date();
+        // Remove undefined values
+         Object.keys(updateData).forEach(key =>
+          updateData[key] === undefined && delete updateData[key]
+         );
+
+
+        // Update the product in the database
+        const [updatedProduct] = await db.update(products)
+          .set(updateData)
+            .where(
+                and(
+                    eq(products.id, productId),
+                    eq(products.userId, req.user!.id)
+                )
+            )
+            .returning();
+
+        res.json(updatedProduct);
+    } catch (error) {
+        console.error("Error updating product:", error);
+        res.status(500).json({
+            error: "Failed to update product",
+            details: error instanceof Error ? error.message : "Unknown error"
+        });
+    }
+});
+Use code with caution.
+TypeScript
+The key changes are:
+* upload.single('image') is used for both POST and PATCH
+* Parsing is used for both end points
+* image files are saved in the same format for both POST and PATCH requests.
+
+Action Plan:
+
+Apply the changes to server/routes.ts for BOTH the POST /api/products and PATCH /api/products/:id routes. This is the most critical fix.
+
+Run npm run dev and test product creation with and without an image. This will confirm that both cases are handled correctly.
+
+Run npm run db:push
+
+Once you've done this, report back with:
+
+Confirmation that you've made the changes to server/routes.ts.
+
+The results of testing product creation (with and without images).
+
+Any console output (from Replit or the browser).

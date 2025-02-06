@@ -1,0 +1,38 @@
+1000Unchecked runtime.lastError: Could not establish connection. Receiving end does not exist.
+background.js:2  Uncaught (in promise) Error: Frame with ID 3124 was removed.
+background.js:2  Uncaught (in promise) Error: Frame with ID 3123 was removed.
+background.js:2  Uncaught (in promise) Error: Frame with ID 3117 was removed.
+background.js:2  Uncaught (in promise) Error: Frame with ID 0 was removed.
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: No tab with id: 2090335530.
+write @ background.js:2
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: No tab with id: 2090335601.
+write @ background.js:2
+2background.js:1  Uncaught (in promise) Error: No tab with id: 2090335601.
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: Frame with ID 6735 was removed.
+write @ background.js:2
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: No tab with id: 2090335533.
+write @ background.js:2
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: No frame with id 6738 in tab with id 2090335768
+write @ background.js:2
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: Frame with ID 7075 was removed.
+write @ background.js:2
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: Frame with ID 7073 was removed.
+write @ background.js:2
+background.js:2  Error while processing message in RuntimeBackground 'triggerAutofillScriptInjection'. Error: Frame with ID 7074 was removed.
+write @ background.js:2
+api/user:1 
+            
+            
+            Failed to load resource: the server responded with a status of 401 (Unauthorized)
+api/login:1 
+            
+            
+            Failed to load resource: the server responded with a status of 401 (Unauthorized)
+api/login:1 
+            
+            
+            Failed to load resource: the server responded with a status of 401 (Unauthorized)
+api/login:1 
+            
+            
+            Failed to load resource: the server responded with a status of 401 (Unauthorized)

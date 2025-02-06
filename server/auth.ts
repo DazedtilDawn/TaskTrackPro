@@ -1,6 +1,6 @@
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Express, Request } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
@@ -16,9 +16,6 @@ import { AuthenticationError, ValidationError, DatabaseError } from "./lib/error
 declare global {
   namespace Express {
     interface User extends SelectUser {}
-    interface NextFunction {
-      (err?: any): void;
-    }
   }
 }
 
@@ -51,7 +48,8 @@ async function comparePasswords(supplied: string, stored: string) {
 
 async function getUserByUsername(username: string) {
   try {
-    return await db.select().from(users).where(eq(users.username, username)).limit(1);
+    const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    return user;
   } catch (error) {
     throw new DatabaseError("Error fetching user", error);
   }
@@ -102,22 +100,10 @@ export function setupAuth(app: Express) {
     res.json({ csrfToken: req.csrfToken() });
   });
 
-  const validateLoginCredentials = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
-    try {
-      const result = loginCredentialsSchema.safeParse(req.body);
-      if (!result.success) {
-        throw new ValidationError("Invalid credentials format", fromZodError(result.error).toString());
-      }
-      next();
-    } catch (error) {
-      next(error);
-    }
-  };
-
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
-        const [user] = await getUserByUsername(username);
+        const user = await getUserByUsername(username);
         if (!user || !(await comparePasswords(password, user.password))) {
           return done(null, false);
         }
@@ -125,7 +111,7 @@ export function setupAuth(app: Express) {
       } catch (error) {
         return done(error);
       }
-    }),
+    })
   );
 
   passport.serializeUser((user, done) => done(null, user.id));
@@ -145,14 +131,14 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/register", csrfProtection, async (req, res, next) => {
+  app.post("/api/register", csrfProtection, async (req: Request, res, next) => {
     try {
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
         throw new ValidationError("Invalid registration data", fromZodError(result.error).toString());
       }
 
-      const [existingUser] = await getUserByUsername(result.data.username);
+      const existingUser = await getUserByUsername(result.data.username);
       if (existingUser) {
         throw new ValidationError("Username already exists");
       }
@@ -174,21 +160,30 @@ export function setupAuth(app: Express) {
     }
   });
 
-  app.post("/api/login", csrfProtection, validateLoginCredentials, (req, res, next) => {
-    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
-      if (err) {
-        return next(err);
+  app.post("/api/login", csrfProtection, async (req: Request, res, next) => {
+    try {
+      const result = loginCredentialsSchema.safeParse(req.body);
+      if (!result.success) {
+        throw new ValidationError("Invalid credentials format", fromZodError(result.error).toString());
       }
-      if (!user) {
-        return next(new AuthenticationError("Invalid credentials"));
-      }
-      req.logIn(user, (err) => {
+
+      passport.authenticate("local", (err: any, user: Express.User | false) => {
         if (err) {
           return next(err);
         }
-        return res.status(200).json(user);
-      });
-    })(req, res, next);
+        if (!user) {
+          return next(new AuthenticationError("Invalid credentials"));
+        }
+        req.logIn(user, (err) => {
+          if (err) {
+            return next(err);
+          }
+          return res.json(user);
+        });
+      })(req, res, next);
+    } catch (error) {
+      next(error);
+    }
   });
 
   app.post("/api/logout", csrfProtection, (req, res, next) => {

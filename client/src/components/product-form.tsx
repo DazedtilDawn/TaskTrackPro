@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import {
   Form,
@@ -38,9 +38,23 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import SmartListingModal from "@/components/smart-listing-modal";
 
-/* =============================================================================
-   Zod Schema & Types
-   ============================================================================= */
+// Custom Select components
+const SelectTrigger = React.forwardRef<
+  HTMLButtonElement,
+  React.ComponentPropsWithoutRef<"button">
+>((props, ref) => (
+  <Select.Trigger ref={ref} className={cn("w-full", props.className)} {...props} />
+));
+SelectTrigger.displayName = "SelectTrigger";
+
+const SelectValue = React.forwardRef<
+  HTMLSpanElement,
+  React.ComponentPropsWithoutRef<"span">
+>((props, ref) => (
+  <Select.Value ref={ref} {...props} />
+));
+SelectValue.displayName = "SelectValue";
+
 const productFormSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   description: z
@@ -98,9 +112,6 @@ interface ProductFormProps {
   isWatchlistItem?: boolean;
 }
 
-/* =============================================================================
-   UI Constants & Helper Components
-   ============================================================================= */
 const conditionOptions = [
   { value: "new", label: "New" },
   { value: "open_box", label: "Open Box", discount: 0.85 },
@@ -146,9 +157,7 @@ const StepIndicator = ({ currentStep, steps }: StepIndicatorProps) => (
   </div>
 );
 
-/* =============================================================================
-   Main ProductForm Component
-   ============================================================================= */
+
 export default function ProductForm({
   product,
   onComplete,
@@ -209,9 +218,6 @@ export default function ProductForm({
     localStorage.setItem("runAllAnalysis", JSON.stringify(checked));
   };
 
-  /* --------------------------------------------------------------------------
-     Analysis Functions
-     -------------------------------------------------------------------------- */
   const analyzeProductAI = async () => {
     const name = form.getValues("name");
     const description = form.getValues("description");
@@ -360,9 +366,6 @@ export default function ProductForm({
     }
   };
 
-  /* --------------------------------------------------------------------------
-     Image Upload & Smart Listing Functions
-     -------------------------------------------------------------------------- */
   const handleImagesUploaded = (files: File[]) => {
     setImageFiles(files);
     if (files.length > 0) {
@@ -389,9 +392,6 @@ export default function ProductForm({
     });
   };
 
-  /* --------------------------------------------------------------------------
-     Form Submission
-     -------------------------------------------------------------------------- */
   const onSubmit = form.handleSubmit(async (data) => {
     try {
       const formData = new FormData();
@@ -492,7 +492,6 @@ export default function ProductForm({
       case "basic":
         return (
           <div className="space-y-8">
-            {/* Image Upload Section */}
             <div>
               <FormLabel>Product Images</FormLabel>
               <FormDescription className="flex items-center gap-2">
@@ -524,14 +523,13 @@ export default function ProductForm({
               </div>
             </div>
 
-            {/* Auto Analysis Toggle */}
             <Alert className="bg-muted/50">
               <AlertDescription className="flex items-center gap-4">
                 <div className="flex items-center space-x-2">
                   <input
                     type="checkbox"
                     checked={runAllAnalysis}
-                    onChange={(e) => setRunAllAnalysis(e.target.checked)}
+                    onChange={(e) => handleRunAllAnalysisToggle(e.target.checked)}
                     className="h-4 w-4 rounded border-muted-foreground"
                     id="runAllAnalysis"
                   />
@@ -545,7 +543,6 @@ export default function ProductForm({
               </AlertDescription>
             </Alert>
 
-            {/* Basic Fields */}
             <div className="space-y-6">
               <FormField
                 control={form.control}
@@ -647,19 +644,20 @@ export default function ProductForm({
                         <div>
                           <span className="text-sm text-gray-500">Demand Score</span>
                           <div className="text-2xl font-semibold">
-                            {aiAnalysis.marketAnalysis.demandScore}/10
+                            {form.getValues("aiAnalysis")?.marketAnalysis?.demandScore ?? 0}/10
                           </div>
                         </div>
                         <div>
                           <span className="text-sm text-gray-500">Competition Level</span>
                           <div className="text-lg font-medium">
-                            {aiAnalysis.marketAnalysis.competitionLevel}
+                            {form.getValues("aiAnalysis")?.marketAnalysis?.competitionLevel ?? "Unknown"}
                           </div>
                         </div>
                         <div>
                           <span className="text-sm text-gray-500">Suggested Price Range</span>
                           <div className="text-lg font-medium">
-                            ${aiAnalysis.marketAnalysis.priceSuggestion.min.toFixed(2)} - ${aiAnalysis.marketAnalysis.priceSuggestion.max.toFixed(2)}
+                            ${form.getValues("aiAnalysis")?.marketAnalysis?.priceSuggestion?.min?.toFixed(2) ?? "0.00"} -
+                            ${form.getValues("aiAnalysis")?.marketAnalysis?.priceSuggestion?.max?.toFixed(2) ?? "0.00"}
                           </div>
                         </div>
                       </div>
@@ -667,21 +665,12 @@ export default function ProductForm({
                     <div>
                       <h4 className="font-medium mb-2">SEO Keywords</h4>
                       <div className="flex flex-wrap gap-2">
-                        {aiAnalysis.seoKeywords.map((keyword: string, idx: number) => (
+                        {(form.getValues("aiAnalysis")?.seoKeywords || []).map((keyword: string, idx: number) => (
                           <span key={idx} className="px-2 py-1 bg-indigo-100 rounded-md text-sm">
                             {keyword}
                           </span>
                         ))}
                       </div>
-                      <h4 className="font-medium mt-4 mb-2">Suggestions</h4>
-                      <ul className="space-y-1 text-sm">
-                        {aiAnalysis.suggestions.map((suggestion: string, idx: number) => (
-                          <li key={idx} className="flex items-center gap-2">
-                            <Info className="h-4 w-4 text-indigo-600" />
-                            {suggestion}
-                          </li>
-                        ))}
-                      </ul>
                     </div>
                   </div>
                 </div>
@@ -696,7 +685,9 @@ export default function ProductForm({
                       <h3 className="font-semibold text-lg">eBay Market Data</h3>
                     </div>
                     <div className="text-sm text-gray-500">
-                      Last updated: {new Date(aiAnalysis.ebayData.lastUpdated).toLocaleString()}
+                      Last updated: {form.getValues("aiAnalysis")?.ebayData?.lastUpdated
+                        ? new Date(form.getValues("aiAnalysis")?.ebayData?.lastUpdated).toLocaleString()
+                        : "No update time available"}
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-6">
@@ -704,24 +695,24 @@ export default function ProductForm({
                       <div>
                         <span className="text-sm text-gray-500">Current Price</span>
                         <div className="text-2xl font-semibold">
-                          ${aiAnalysis.ebayData.currentPrice.toFixed(2)}
+                          ${(form.getValues("aiAnalysis")?.ebayData?.currentPrice ?? 0).toFixed(2)}
                         </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-500">Average Price</span>
                         <div className="text-2xl font-semibold">
-                          ${aiAnalysis.ebayData.averagePrice.toFixed(2)}
+                          ${(form.getValues("aiAnalysis")?.ebayData?.averagePrice ?? 0).toFixed(2)}
                         </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-500">Price Range</span>
                         <div className="flex items-baseline gap-2">
                           <span className="text-xl font-semibold">
-                            ${aiAnalysis.ebayData.lowestPrice.toFixed(2)}
+                            ${(form.getValues("aiAnalysis")?.ebayData?.lowestPrice ?? 0).toFixed(2)}
                           </span>
                           <span className="text-gray-500">-</span>
                           <span className="text-xl font-semibold">
-                            ${aiAnalysis.ebayData.highestPrice.toFixed(2)}
+                            ${(form.getValues("aiAnalysis")?.ebayData?.highestPrice ?? 0).toFixed(2)}
                           </span>
                         </div>
                       </div>
@@ -730,19 +721,19 @@ export default function ProductForm({
                       <div>
                         <span className="text-sm text-gray-500">Items Sold</span>
                         <div className="text-2xl font-semibold">
-                          {aiAnalysis.ebayData.soldCount.toLocaleString()}
+                          {(form.getValues("aiAnalysis")?.ebayData?.soldCount ?? 0).toLocaleString()}
                         </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-500">Active Listings</span>
                         <div className="text-2xl font-semibold">
-                          {aiAnalysis.ebayData.activeListing.toLocaleString()}
+                          {(form.getValues("aiAnalysis")?.ebayData?.activeListing ?? 0).toLocaleString()}
                         </div>
                       </div>
                       <div>
                         <span className="text-sm text-gray-500">Recommended Price</span>
                         <div className="text-2xl font-semibold text-indigo-600">
-                          ${aiAnalysis.ebayData.recommendedPrice.toFixed(2)}
+                          ${(form.getValues("aiAnalysis")?.ebayData?.recommendedPrice ?? 0).toFixed(2)}
                         </div>
                       </div>
                     </div>
@@ -763,11 +754,9 @@ export default function ProductForm({
                   <FormItem>
                     <FormLabel>Condition</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <Select.Trigger>
-                          <Select.Value placeholder="Select condition" />
-                        </Select.Trigger>
-                      </FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select condition" />
+                      </SelectTrigger>
                       <Select.Content>
                         {conditionOptions.map((option) => (
                           <Select.Item key={option.value} value={option.value}>
@@ -942,7 +931,7 @@ export default function ProductForm({
   };
 
   return (
-    <Dialog open={true}>
+    <Dialog open={true} onOpenChange={onComplete}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>
@@ -962,7 +951,7 @@ export default function ProductForm({
                 {renderStepContent()}
 
                 <div className="flex items-center justify-between pt-6 border-t">
-                  {currentStep === 'basic' ? (
+                  {currentStep === "basic" ? (
                     <Button
                       type="button"
                       variant="ghost"
@@ -981,7 +970,7 @@ export default function ProductForm({
                     </Button>
                   )}
 
-                  {currentStep === 'review' ? (
+                  {currentStep === "review" ? (
                     <Button
                       type="submit"
                       disabled={form.formState.isSubmitting}

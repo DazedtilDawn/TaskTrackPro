@@ -21,9 +21,9 @@ interface ProductAnalysis {
   id: number;  // Add id field for unique identification
   name: string;
   description: string;
+  condition?: string;
   price?: number;
   sku?: string;
-  condition?: string;
 }
 
 interface AIAnalysisResult {
@@ -287,7 +287,6 @@ export async function analyzeBatchProducts(products: ProductAnalysis[]): Promise
     }
   });
 
-  // Change Map key type from string to number
   const results = new Map<number, AIAnalysisResult>();
   const batchSize = 3; // Reduced batch size due to rate limits
 
@@ -318,7 +317,6 @@ Format the response in JSON.`;
         const response = await result.response;
         const text = await response.text();
         const analysis = JSON.parse(text);
-        // Use product.id instead of product.name as the key
         results.set(product.id, analysis);
       } catch (error) {
         console.error(`Error analyzing product ${product.id} (${product.name}):`, error);
@@ -337,7 +335,6 @@ Format the response in JSON.`;
     });
 
     await Promise.all(promises);
-    // Add a longer delay between batches to respect rate limits (10 RPM)
     if (i + batchSize < products.length) {
       await new Promise(resolve => setTimeout(resolve, 6000));
     }
@@ -346,47 +343,9 @@ Format the response in JSON.`;
   return results;
 }
 
-export async function analyzeProduct({ name, description, condition = "used_good" }: ProductAnalysis): Promise<AIAnalysisResult> {
-  const prompt = `Analyze this product for an e-commerce inventory system, considering it is in ${condition.replace('_', ' ')} condition:
-
-Name: ${name}
-Description: ${description}
-Condition: ${condition}
-
-Please provide a detailed analysis including:
-1. Product category and subcategory
-2. SEO keywords (5-7 keywords)
-3. 3-5 specific suggestions to improve the listing, considering its condition
-4. Market analysis with:
-   - Demand score (0-100)
-   - Competition level (low/medium/high)
-   - Price range suggestion for NEW condition
-   Note: Final prices will be automatically adjusted based on condition.
-5. Areas for improvement
-
-Important: Assume this is a used/open box product. Consider:
-- Typical depreciation for this type of item
-- Market expectations for used items
-- Condition-specific selling points to highlight
-
-Format the response in JSON with the following structure:
-{
-  "category": "string",
-  "seoKeywords": ["string"],
-  "suggestions": ["string"],
-  "marketAnalysis": {
-    "demandScore": number,
-    "competitionLevel": "string",
-    "priceSuggestion": {
-      "min": number,
-      "max": number
-    }
-  },
-  "improvementAreas": ["string"]
-}`;
-
-  const results = await analyzeBatchProducts([{ name, description, condition }]);
-  return results.get(name) || {
+export async function analyzeProduct(product: ProductAnalysis): Promise<AIAnalysisResult> {
+  const results = await analyzeBatchProducts([product]);
+  return results.get(product.id) || {
     suggestions: ["Analysis failed"],
     marketAnalysis: {
       demandScore: 0,

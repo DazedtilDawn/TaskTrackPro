@@ -5,10 +5,11 @@ import ProductCard from "@/components/product-card";
 import ViewToggle from "@/components/view-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useState } from "react";
 import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
-import AddToWatchlistDialog from "@/components/add-watchlist-dialog";
+import ProductForm from "@/components/product-form";
 import { cn } from "@/lib/utils";
 import { useViewPreference } from "@/hooks/use-view-preference";
 
@@ -23,7 +24,7 @@ interface WatchlistItem {
 export default function Watchlist() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<SelectProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
   const [view, setView] = useViewPreference();
 
   const { data: watchlist = [], isLoading } = useQuery<WatchlistItem[]>({
@@ -41,12 +42,12 @@ export default function Watchlist() {
     });
 
   const handleDialogClose = () => {
-    setSelectedProduct(null);
+    setSelectedProduct(undefined);
     setIsDialogOpen(false);
   };
 
   const handleAddProduct = () => {
-    setSelectedProduct(null);
+    setSelectedProduct(undefined);
     setIsDialogOpen(true);
   };
 
@@ -132,11 +133,20 @@ export default function Watchlist() {
             </>
           )}
 
-          <AddToWatchlistDialog
-            product={selectedProduct}
-            open={isDialogOpen}
-            onOpenChange={setIsDialogOpen}
-          />
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedProduct ? "Edit Watchlist Product" : "Add Product to Watchlist"}
+                </DialogTitle>
+              </DialogHeader>
+              <ProductForm
+                product={selectedProduct}
+                onComplete={handleDialogClose}
+                isWatchlistItem={true}
+              />
+            </DialogContent>
+          </Dialog>
         </main>
       </div>
     </div>

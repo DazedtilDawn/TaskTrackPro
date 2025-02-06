@@ -124,6 +124,7 @@ export default function Inventory() {
               <ProductForm
                 product={selectedProduct}
                 onComplete={handleDialogClose}
+                open={isDialogOpen}
               />
             </DialogContent>
           </Dialog>

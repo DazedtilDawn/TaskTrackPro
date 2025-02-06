@@ -99,6 +99,7 @@ interface ProductFormProps {
   product?: SelectProduct;
   onComplete: () => void;
   isWatchlistItem?: boolean;
+  open?: boolean; // Added open prop
 }
 
 const conditionOptions = [
@@ -150,6 +151,7 @@ export default function ProductForm({
   product,
   onComplete,
   isWatchlistItem = false,
+  open = false, // Add open prop with default value
 }: ProductFormProps) {
   const [currentStep, setCurrentStep] = useState<FormStep>("basic");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -865,8 +867,7 @@ export default function ProductForm({
               />
               <FormField
                 control={form.control}
-                name="dimensions"
-                render={({ field }) => (
+                name="dimensions"                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Dimensions</FormLabel>
                     <FormControl>
@@ -947,11 +948,11 @@ export default function ProductForm({
   };
 
   return (
-    <Dialog open={false} onOpenChange={onComplete}>
+    <Dialog open={open} onOpenChange={onComplete}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>
-            {product ? "Edit Product" : "Add New Product"}
+            {product ? "Edit Product" : isWatchlistItem ? "Add to Watchlist" : "Add Product"}
           </DialogTitle>
           <DialogDescription>
             Fill in the product details below to {product ? "update" : "create"} your listing

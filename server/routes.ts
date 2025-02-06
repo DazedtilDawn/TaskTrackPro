@@ -526,9 +526,8 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
     try {
       console.log('req.body', req.body);
-      console.log('req.file', req.file);
+      console.log('req.file', req.file); 
 
-      // Parse the product data, handling both regular fields and JSON fields
       const productData = {
         name: req.body.name,
         description: req.body.description || null,
@@ -546,6 +545,8 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         updatedAt: new Date(),
         sold: false
       };
+
+      console.log('Processed productData:', productData);
 
       const [product] = await db.insert(products)
         .values(productData)
@@ -567,6 +568,9 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
 
     try {
+      console.log('PATCH req.body:', req.body);
+      console.log('PATCH req.file:', req.file);
+
       const productId = parseInt(req.params.id);
       if (isNaN(productId)) {
         return res.status(400).json({ error: "Invalid product ID" });
@@ -587,7 +591,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(404).json({ error: "Product not found" });
       }
 
-      // Parse the update data, handling both JSON and form fields
       const updateData: any = {};
 
       // Handle regular form fields
@@ -617,10 +620,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       // Add update timestamp
       updateData.updatedAt = new Date();
 
-      // Remove undefined values
-      Object.keys(updateData).forEach(key =>
-        updateData[key] === undefined && delete updateData[key]
-      );
+      console.log('Processed updateData:', updateData);
 
       // Update the product
       const [updatedProduct] = await db.update(products)
@@ -890,7 +890,7 @@ Format your answer strictly as valid JSON in the following format:
 {
   "recommendedSalePrice": number
 }
-Do not include any additional text.`;
+Do not include any additional text;.`;
 
       // Log the prompt for debugging
       console.log("Sale price prompt:", prompt);

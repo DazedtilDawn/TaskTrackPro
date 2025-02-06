@@ -142,7 +142,7 @@ const AnalysisToolbar = ({
 );
 
 // Define step types
-type FormStep = 'basic' | 'analysis' | 'details' | 'images' | 'review';
+type FormStep = 'basic' | 'analysis' | 'details' | 'review';
 
 interface StepIndicatorProps {
   currentStep: FormStep;
@@ -187,7 +187,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
     { id: 'basic' as FormStep, label: 'Basic Info' },
     { id: 'analysis' as FormStep, label: 'AI/eBay Analysis' },
     { id: 'details' as FormStep, label: 'Optional Details' },
-    { id: 'images' as FormStep, label: 'Images' },
     { id: 'review' as FormStep, label: 'Review & Submit' }
   ];
 
@@ -551,8 +550,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
         return true; // Analysis is optional
       case 'details':
         return form.getValues('price') !== undefined;
-      case 'images':
-        return true; // Images are optional
       case 'review':
         return true;
       default:
@@ -587,6 +584,14 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
       case 'basic':
         return (
           <div className="space-y-6">
+            <div>
+              <FormLabel>Product Images</FormLabel>
+              <FormDescription>
+                Upload clear, high-quality images of your product
+              </FormDescription>
+              <ImageUpload onImagesUploaded={handleImagesUploaded} />
+            </div>
+
             <div className="flex items-center gap-4 mb-6">
               <FormField
                 control={form.control}
@@ -898,19 +903,6 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   </FormItem>
                 )}
               />
-            </div>
-          </div>
-        );
-
-      case 'images':
-        return (
-          <div className="space-y-6">
-            <div>
-              <FormLabel>Product Images</FormLabel>
-              <FormDescription>
-                Upload clear, high-quality images of your product
-              </FormDescription>
-              <ImageUpload onImagesUploaded={handleImagesUploaded} />
             </div>
           </div>
         );

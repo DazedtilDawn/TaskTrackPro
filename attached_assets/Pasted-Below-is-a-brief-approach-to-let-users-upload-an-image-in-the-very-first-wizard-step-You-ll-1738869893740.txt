@@ -1,0 +1,108 @@
+Below is a **brief approach** to let users **upload an image** in the very first wizard step. You’ll basically **move** (or duplicate) the image upload field from its own step into the “basic” step so that **image-based AI analysis** can occur immediately if desired.
+
+---
+
+## **1. Move Image Upload to First Step**
+
+In your current code, the `images` step is defined under `case 'images':`. Instead, you can **add the `ImageUpload`** component to the `basic` step so the user can upload an image right away. For example:
+
+```tsx
+case 'basic':
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4 mb-6">
+        {/* "Run All Analysis" checkbox */}
+        <FormField
+          control={form.control}
+          name="runAllAnalysis"
+          render={({ field }) => (
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                checked={runAllAnalysis}
+                onChange={(e) => setRunAllAnalysis(e.target.checked)}
+                className="h-4 w-4"
+              />
+              <label className="text-sm font-medium">
+                Run AI and eBay analysis automatically
+              </label>
+            </div>
+          )}
+        />
+      </div>
+
+      {/* Basic fields: Name, Description, etc. */}
+      <FormField
+        control={form.control}
+        name="name"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              Product Name <span className="text-destructive">*</span>
+            </FormLabel>
+            <FormControl>
+              <Input {...field} placeholder="Enter product name" />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="description"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>
+              Description <span className="text-destructive">*</span>
+            </FormLabel>
+            <FormControl>
+              <Textarea
+                {...field}
+                placeholder="Describe the product..."
+              />
+            </FormControl>
+          </FormItem>
+        )}
+      />
+
+      {/* **Image Upload in first step** */}
+      <div>
+        <FormLabel>Product Images</FormLabel>
+        <FormDescription>
+          Upload clear, high-quality images of your product
+        </FormDescription>
+        <ImageUpload onImagesUploaded={handleImagesUploaded} />
+      </div>
+    </div>
+  );
+```
+
+- **Tip**: If you **still** want a dedicated “images” step, you can **either remove it** or keep it for uploading additional pictures. A typical approach is to remove the separate images step if you want all image uploads at the beginning.
+
+---
+
+## **2. Auto-Trigger AI Analysis After Upload**
+
+If your `SmartListingModal` automatically runs image-based AI, you don’t need to do anything extra besides calling:
+
+```tsx
+const handleImagesUploaded = (files: File[]) => {
+  setImageFiles(files);
+  if (files.length > 0) {
+    setShowSmartListing(true); // opens the modal
+  }
+};
+```
+
+- Once `SmartListingModal` completes its image-based AI, it calls `onAnalysisComplete`, which merges AI results into the form.
+
+---
+
+## **3. Continue With Run-All-Analysis Logic**
+
+If the user also has `runAllAnalysis` enabled, you can:
+
+1. **Immediately** run text-based AI (`analyzeProductAI()`) once they fill out name/description.  
+2. **Refine with eBay** if connected.  
+3. **Auto open** the image-based analysis, if they uploaded pictures.
+
+Whichever approach you choose, the key is to show the **`<ImageUpload>`** earlier so the user can upload images in the first step. This ensures your image-based AI triggers right away, rather than waiting until a later step.

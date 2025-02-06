@@ -8,7 +8,7 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table"
-import { useLocalStorage } from "@/hooks/use-local-storage"
+import { useLocalStorage } from "../hooks/use-local-storage"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -64,6 +64,7 @@ export function ProductTable({ products }: ProductTableProps) {
     {
       accessorKey: "sku",
       header: "SKU",
+      cell: ({ row }) => row.getValue("sku") || "-",
     },
     {
       accessorKey: "price",
@@ -90,10 +91,12 @@ export function ProductTable({ products }: ProductTableProps) {
     {
       accessorKey: "brand",
       header: "Brand",
+      cell: ({ row }) => row.getValue("brand") || "-",
     },
     {
       accessorKey: "category",
       header: "Category",
+      cell: ({ row }) => row.getValue("category") || "-",
     },
     {
       accessorKey: "sold",

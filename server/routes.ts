@@ -897,7 +897,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
-  });
+    });
 
   // generate-sale-price endpoint
   app.post("/api/generate-sale-price", async (req, res) => {    if (!req.isAuthenticated()) returnres.status(401).json({ error: "Unauthorized" });
@@ -987,41 +987,41 @@ Do not include any additional text.`;
         return res.status(400).json({ error: "Product ID is required" });
       }
 
-      // Attempt to insert directly - let the unique constraint handle duplicates
-      const [watchlistItem] = await db.insert(watchlist)
-        .values({
-          userId: req.user!.id,
-          productId: productId,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        })
-        .onConflictDoNothing({
-          target: [watchlist.userId, watchlist.productId],
-        })
-        .returning();
+      // First verify the product exists and belongs to the authenticated user
+      const [product] = await db.select()
+        .from(products)
+        .where(eq(products.id, productId))
+        .limit(1);
 
-      // If no item was inserted (due to conflict), return 409
-      if (!watchlistItem) {
-        return res.status(409).json({
-          error: "Product already in watchlist",
-          details: "This product is already in your watchlist"
-        });
+      if (!product) {
+        return res.status(404).json({ error: "Product not found" });
       }
 
-      res.status(201).json(watchlistItem);
+      // Try to insert the watchlist item
+      try {
+        const [watchlistItem] = await db.insert(watchlist)
+          .values({
+            userId: req.user!.id,
+            productId: productId,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+
+        res.status(201).json(watchlistItem);
+      } catch (insertError) {
+        // Check if it's a duplicate entry error
+        if (insertError.code === '23505') { // PostgreSQL unique violation code
+          return res.status(409).json({
+            error: "Product is already in your watchlist"
+          });
+        }
+        throw insertError;
+      }
     } catch (error) {
-      console.error("[Watchlist] Error adding to watchlist:", error);
-
-      // Check if it's a unique constraint violation (fallback in case onConflictDoNothing fails)
-      if (error instanceof Error && error.message.includes('duplicate key value')) {
-        return res.status(409).json({
-          error: "Product already in watchlist",
-          details: "This product is already in your watchlist"
-        });
-      }
-
+      console.error("Error adding to watchlist:", error);
       res.status(500).json({
-        error: "Failed to add product to watchlist",
+        error: "Failed to add to watchlist",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
@@ -1039,10 +1039,10 @@ Do not include any additional text.`;
         createdAt: watchlist.createdAt,
         product: products
       })
-      .from(watchlist)
-      .leftJoin(products, eq(watchlist.productId, products.id))
-      .where(eq(watchlist.userId, req.user!.id))
-      .orderBy(desc(watchlist.createdAt));
+        .from(watchlist)
+        .leftJoin(products, eq(watchlist.productId, products.id))
+        .where(eq(watchlist.userId, req.user!.id))
+        .orderBy(desc(watchlist.createdAt));
 
       res.json(watchlistItems);
     } catch (error) {

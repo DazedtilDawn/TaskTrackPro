@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useState } from "react";
 import { Search, Plus, PackageSearch } from "lucide-react";
 import { type SelectProduct } from "@db/schema";
-import ProductForm from "@/components/product-form";
+import AddToWatchlistDialog from "@/components/add-watchlist-dialog";
 import { cn } from "@/lib/utils";
 import { useViewPreference } from "@/hooks/use-view-preference";
 
@@ -24,7 +24,7 @@ interface WatchlistItem {
 export default function Watchlist() {
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<SelectProduct | undefined>();
+  const [selectedProduct, setSelectedProduct] = useState<SelectProduct | null>(null);
   const [view, setView] = useViewPreference();
 
   const { data: watchlist = [], isLoading } = useQuery<WatchlistItem[]>({
@@ -41,14 +41,14 @@ export default function Watchlist() {
       );
     });
 
+  const handleDialogClose = () => {
+    setSelectedProduct(null);
+    setIsDialogOpen(false);
+  };
+
   const handleEdit = (product: SelectProduct) => {
     setSelectedProduct(product);
     setIsDialogOpen(true);
-  };
-
-  const handleDialogClose = () => {
-    setSelectedProduct(undefined);
-    setIsDialogOpen(false);
   };
 
   return (
@@ -128,20 +128,11 @@ export default function Watchlist() {
             </>
           )}
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogContent className="max-w-2xl">
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedProduct ? "Edit Watchlist Product" : "Add Product to Watchlist"}
-                </DialogTitle>
-              </DialogHeader>
-              <ProductForm
-                product={selectedProduct}
-                onComplete={handleDialogClose}
-                isWatchlistItem={true}
-              />
-            </DialogContent>
-          </Dialog>
+          <AddToWatchlistDialog
+            product={selectedProduct}
+            open={isDialogOpen}
+            onOpenChange={setIsDialogOpen}
+          />
         </main>
       </div>
     </div>

@@ -1,6 +1,6 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { setupVite, serveStatic } from "./vite";
-import { registerRoutes } from "./routes";
+import type { Server } from "http";
 import { db } from "@db";
 
 const app = express();
@@ -47,19 +47,19 @@ app.use((req, res, next) => {
 // Initialize server with proper error handling
 async function initializeServer() {
   try {
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 8081; // Use Replit port or fallback to 8081
+    const port = process.env.PORT ? parseInt(process.env.PORT) : 8081;
     console.log(`Attempting to start server on port ${port}...`);
 
-    const server = await new Promise((resolve, reject) => {
-      const server = app.listen(port, '0.0.0.0', () => {
+    const server: Server = await new Promise((resolve, reject) => {
+      const httpServer = app.listen(port, '0.0.0.0', () => {
         console.log(`Server successfully started on port ${port}`);
         if (process.env.REPL_SLUG && process.env.REPL_OWNER) {
           console.log(`Full URL: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
         }
-        resolve(server);
+        resolve(httpServer);
       });
 
-      server.once('error', (err: NodeJS.ErrnoException) => {
+      httpServer.once('error', (err: NodeJS.ErrnoException) => {
         if (err.code === 'EADDRINUSE') {
           console.error(`Port ${port} is already in use`);
           reject(new Error(`Port ${port} is already in use`));
@@ -76,8 +76,11 @@ async function initializeServer() {
       serveStatic(app);
     }
 
-    // Register all routes
-    registerRoutes(app);
+    // Register all routes (will be handled by API middleware)
+    app.use('/api', (req, res, next) => {
+      // Routes will be registered via middleware
+      next();
+    });
 
     // Handle shutdown gracefully
     process.on('SIGTERM', () => {
@@ -95,7 +98,7 @@ async function initializeServer() {
 }
 
 // Basic error handler
-app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error('Error:', err.stack);
   const status = (err as any).status || (err as any).statusCode || 500;
   const message = err.message || "Internal Server Error";

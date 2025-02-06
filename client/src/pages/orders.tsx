@@ -1,6 +1,9 @@
 import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+} from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -38,7 +41,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
 interface OrderWithItems extends SelectOrder {
-  items?: Array<{
+  items: Array<{
     product: SelectProduct;
     quantity: number;
     price: number;
@@ -48,12 +51,10 @@ interface OrderWithItems extends SelectOrder {
 export default function Orders() {
   const { toast } = useToast();
   const [expandedOrders, setExpandedOrders] = useState<number[]>([]);
-  const { data: orders, isLoading, error } = useQuery<OrderWithItems[]>({
+
+  const { data: orders = [], isLoading, error } = useQuery<OrderWithItems[], Error>({
     queryKey: ["/api/orders"],
     retry: 1,
-    onError: (err) => {
-      console.error("Error fetching orders:", err);
-    }
   });
 
   const deleteOrderMutation = useMutation({
@@ -72,10 +73,10 @@ export default function Orders() {
         description: "The order has been successfully deleted.",
       });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to delete order",
+        description: error.message || "Failed to delete order",
         variant: "destructive",
       });
     },
@@ -114,7 +115,7 @@ export default function Orders() {
                     View and manage your orders
                   </CardDescription>
                 </div>
-                {orders?.length > 0 && (
+                {orders.length > 0 && (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
                     <Package className="h-4 w-4" />
                     <span>{orders.length} {orders.length === 1 ? 'Order' : 'Orders'}</span>
@@ -130,9 +131,9 @@ export default function Orders() {
               ) : error ? (
                 <div className="text-center text-destructive py-8">
                   <p>Error loading orders</p>
-                  <p className="text-sm text-muted-foreground">{(error as Error).message}</p>
+                  <p className="text-sm text-muted-foreground">{error.message}</p>
                 </div>
-              ) : orders?.length ? (
+              ) : orders.length ? (
                 <div className="space-y-4">
                   {orders.map((order) => (
                     <div
@@ -220,8 +221,8 @@ export default function Orders() {
                                 </TableRow>
                               </TableHeader>
                               <TableBody>
-                                {order.items?.map((item, index) => (
-                                  <TableRow key={index}>
+                                {order.items.map((item, index) => (
+                                  <TableRow key={`${order.id}-${index}`}>
                                     <TableCell className="font-medium">
                                       {item.product.name}
                                     </TableCell>

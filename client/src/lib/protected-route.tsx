@@ -10,28 +10,37 @@ export function ProtectedRoute({
   path: string;
   component: () => React.JSX.Element;
 }) {
-  const { user, isLoading } = useAuth();
+  const { user, isLoading, error } = useAuth();
 
+  // Handle loading state before route matching
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="text-sm text-muted-foreground">Loading your account...</p>
+      </div>
+    );
+  }
+
+  // Handle authentication errors
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background">
+        <p className="text-sm text-destructive">Authentication error. Please try again.</p>
+        <Redirect to={ROUTES.auth.path} />
+      </div>
+    );
+  }
+
+  // If not authenticated, redirect immediately
+  if (!user) {
+    return <Redirect to={ROUTES.auth.path} />;
+  }
+
+  // Only render the route if authenticated
   return (
     <Route path={path}>
-      {() => {
-        if (isLoading) {
-          return (
-            <div className="flex items-center justify-center min-h-screen">
-              <div className="text-center">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground">Loading...</p>
-              </div>
-            </div>
-          );
-        }
-
-        if (!user) {
-          return <Redirect to={ROUTES.auth.path} />;
-        }
-
-        return <Component />;
-      }}
+      {() => <Component />}
     </Route>
   );
 }

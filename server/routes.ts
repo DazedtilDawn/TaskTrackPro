@@ -701,6 +701,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
+      console.log("[Order Creation] Starting order creation for product:", req.body.productId);
       const { productId } = req.body;
       if (!productId) {
         return res.status(400).json({ error: "Product ID is required" });
@@ -709,12 +710,20 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       // Retrieve the product details
       const [product] = await db.select()
         .from(products)
-        .where(eq(products.id, productId))
+        .where(
+          and(
+            eq(products.id, productId),
+            eq(products.sold, false)  // Ensure product isn't already sold
+          )
+        )
         .limit(1);
 
       if (!product) {
-        return res.status(404).json({ error: "Product not found" });
+        console.log("[Order Creation] Product not found or already sold:", productId);
+        return res.status(404).json({ error: "Product not found or already sold" });
       }
+
+      console.log("[Order Creation] Creating order for product:", product);
 
       // Create an order record
       const [order] = await db.insert(orders)
@@ -727,8 +736,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         } as const)
         .returning();
 
+      console.log("[Order Creation] Created order:", order);
+
       // Create order item
-      await db.insert(orderItems)
+      const [orderItem] = await db.insert(orderItems)
         .values({
           orderId: order.id,
           productId: product.id,
@@ -739,24 +750,35 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         } as const)
         .returning();
 
-      // Mark product as sold instead of deleting
-      await db.update(products)
+      console.log("[Order Creation] Created order item:", orderItem);
+
+      // Mark product as sold and set soldAt timestamp
+      const now = new Date();
+      const [updatedProduct] = await db.update(products)
         .set({
           sold: true,
-          updatedAt: new Date()
+          soldAt: now,
+          updatedAt: now
         })
-        .where(eq(products.id, productId));
+        .where(eq(products.id, productId))
+        .returning();
+
+      console.log("[Order Creation] Updated product as sold:", updatedProduct);
 
       // Remove from any watchlists
       await db.delete(watchlist)
         .where(eq(watchlist.productId, productId));
 
+      console.log("[Order Creation] Removed product from watchlists");
+
       res.status(201).json({
         message: "Product marked as sold",
         order,
+        orderItem,
+        product: updatedProduct
       });
     } catch (error) {
-      console.error('Error marking product as sold:', error);
+      console.error('[Order Creation] Error marking product as sold:', error);
       res.status(500).json({
         error: "Failed to mark product as sold",
         details: error instanceof Error ? error.message : "Unknown error",
@@ -872,7 +894,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
   // generate-sale-price endpoint
-  app.post("/api/generate-sale-price", async (req, res) => {
+app.post("/api/generate-sale-price", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
       // Validate and parse input data

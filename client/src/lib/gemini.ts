@@ -18,7 +18,7 @@ interface SmartListingAnalysis {
 }
 
 interface ProductAnalysis {
-  id: number;  // Add id field for unique identification
+  id: number;
   name: string;
   description: string;
   condition?: string;
@@ -42,14 +42,34 @@ interface AIAnalysisResult {
 }
 
 let genAI: GoogleGenerativeAI | null = null;
+let apiKey: string | null = null;
 
 async function initializeGemini() {
   if (!genAI) {
-    const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+    // Try to get API key from environment
+    apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+
+    // If not found, try to fetch from backend
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY environment variable is not set. Please make sure it's properly configured.");
+      try {
+        const response = await apiRequest('GET', '/api/config/gemini-key');
+        const data = await response.json();
+        apiKey = data.apiKey;
+      } catch (error) {
+        console.error('Failed to fetch Gemini API key:', error);
+      }
     }
-    genAI = new GoogleGenerativeAI(apiKey);
+
+    if (!apiKey) {
+      throw new Error("Gemini API key not found. Please check your configuration.");
+    }
+
+    try {
+      genAI = new GoogleGenerativeAI(apiKey);
+    } catch (error) {
+      console.error('Failed to initialize Gemini:', error);
+      throw new Error("Failed to initialize Gemini AI. Please try again.");
+    }
   }
   return genAI;
 }

@@ -231,9 +231,18 @@ export default function ProductForm({
     }
     setIsAnalyzing(true);
     try {
-      const aiResult = await analyzeProduct({ name, description });
+      // Generate a temporary ID for analysis
+      const tempId = Date.now();
+      const aiResult = await analyzeProduct({ 
+        id: tempId, 
+        name, 
+        description,
+        condition: form.getValues("condition") 
+      });
+
       console.log("[Product Analysis] AI analysis:", aiResult);
       form.setValue("aiAnalysis", aiResult);
+
       if (aiResult.marketAnalysis?.priceSuggestion?.min) {
         const conditionVal = form.getValues("condition");
         const conditionData = conditionOptions.find((opt) => opt.value === conditionVal);
@@ -241,20 +250,26 @@ export default function ProductForm({
         const adjustedPrice = Math.floor(aiResult.marketAnalysis.priceSuggestion.min * discount);
         form.setValue("price", adjustedPrice);
       }
+
       toast({
         title: "Analysis Complete",
-        description: "AI and eBay data have been fetched automatically.",
+        description: "AI analysis has been completed successfully.",
       });
     } catch (error) {
       console.error("Analysis error:", error);
       toast({
         title: "Analysis Failed",
-        description: "Could not analyze product details",
+        description: error instanceof Error ? error.message : "Could not analyze product details. Please try again.",
         variant: "destructive",
       });
+
+      // Reset analysis state
+      setIsAnalyzing(false);
+      return false;
     } finally {
       setIsAnalyzing(false);
     }
+    return true;
   };
 
   const refineWithEbay = async () => {
@@ -473,7 +488,10 @@ export default function ProductForm({
     const currentIndex = steps.findIndex((s) => s.id === currentStep);
     if (currentIndex < steps.length - 1) {
       if (currentStep === "basic" && runAllAnalysis) {
-        await analyzeProductAI();
+        const analysisSuccess = await analyzeProductAI();
+        if (!analysisSuccess) {
+          return; // Don't proceed if analysis failed
+        }
         if (hasEbayAuth) {
           await refineWithEbay();
         }

@@ -13,9 +13,10 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
-// Essential middleware
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
+// Configure payload limits
+app.use(express.json({ limit: '10mb' }));  
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
 
 // Configure CORS
 const allowedOrigins = [

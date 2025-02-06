@@ -429,17 +429,68 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
 
             <Form {...form}>
               <form onSubmit={form.handleSubmit(async (data) => {
-                try {
-                  // Submit the form data
-                  const endpoint = product
-                    ? `/api/products/${product.id}`
-                    : "/api/products";
+                console.log("Submitting form with name:", data.name);
 
+                try {
+                  // Create a FormData object to handle image uploads
+                  const formData = new FormData();
+
+                  // Append text fields to FormData
+                  formData.append('name', data.name.trim());
+                  if (data.description) {
+                    formData.append('description', data.description.trim());
+                  }
+                  if (data.sku) {
+                    formData.append('sku', data.sku.trim());
+                  }
+                  if (data.brand) {
+                    formData.append('brand', data.brand.trim());
+                  }
+                  if (data.category) {
+                    formData.append('category', data.category.trim());
+                  }
+                  formData.append('quantity', data.quantity.toString());
+
+                  // Handle price (ensure it's a number or null)
+                  if (data.price !== undefined && data.price !== null) {
+                    formData.append('price', data.price.toString());
+                  }
+
+                  // Ensure condition is appended
+                  if (data.condition) {
+                    formData.append('condition', data.condition);
+                  }
+
+                  // Stringify and append the AI analysis data
+                  if (data.aiAnalysis) {
+                    formData.append('aiAnalysis', JSON.stringify(data.aiAnalysis));
+                  }
+
+                  if (data.ebayPrice !== null && data.ebayPrice !== undefined) {
+                    formData.append("ebayPrice", data.ebayPrice.toString());
+                  }
+                  if (data.weight !== null && data.weight !== undefined) {
+                    formData.append("weight", data.weight.toString());
+                  }
+                  if (data.dimensions) {
+                    formData.append('dimensions', data.dimensions.trim());
+                  }
+
+                  // Append image files
+                  imageFiles.forEach((file) => {
+                    formData.append('image', file);
+                  });
+
+                  // Determine endpoint and method based on whether we're editing or creating
+                  const endpoint = product ? `/api/products/${product.id}` : "/api/products";
                   const method = product ? "PATCH" : "POST";
 
-                  const response = await apiRequest(method, endpoint, data);
+                  // Send the request using FormData
+                  const response = await apiRequest(method, endpoint, formData);
+
                   if (!response.ok) {
-                    throw new Error("Failed to save product");
+                    const errorData = await response.json();
+                    throw new Error(`${response.status}: ${JSON.stringify(errorData)}`);
                   }
 
                   queryClient.invalidateQueries({ queryKey: ["/api/products"] });
@@ -452,7 +503,7 @@ export default function ProductForm({ product, onComplete, isWatchlistItem = fal
                   console.error('Form submission error:', error);
                   toast({
                     title: "Error",
-                    description: "Failed to save product",
+                    description: error instanceof Error ? error.message : "Failed to save product",
                     variant: "destructive",
                   });
                 }

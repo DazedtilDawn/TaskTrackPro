@@ -1,0 +1,33 @@
+Bug 3: Unreliable Page Title Derivation in the Header Component
+1) Root Cause & System Impact
+The Header component uses the current location (obtained from wouter’s useLocation) and a switch-case statement to determine the page title. For known paths (like /, /inventory, etc.) this works, but for any unexpected, dynamic, or nested route the function falls back to splitting the path and capitalizing the last segment. This approach is brittle and may produce confusing titles (for example, when query parameters or dynamic route segments are present) that affect user experience and navigation clarity.
+
+2) Likely Issue & Proposed Solution
+Issue: The header’s logic for deriving a page title does not account for dynamic segments, nested routes, or query parameters.
+Solution:
+
+Implement a more robust mechanism by associating meta data (including a title) with each route in the centralized route configuration (see Bug 1).
+Alternatively, have each page component export its own title and have the Header component read from a shared context or use a hook that derives the title based on the current route.
+3) Integration Plan
+
+Implementation:
+Extend the centralized route configuration (from Bug 1) to include metadata, for example:
+ts
+Copy
+export const ROUTES = {
+  dashboard: { path: "/", title: "Dashboard" },
+  inventory: { path: "/inventory", title: "Products & Inventory" },
+  watchlist: { path: "/watchlist", title: "Price Watchlist" },
+  orders: { path: "/orders", title: "Order Management" },
+  analytics: { path: "/analytics", title: "Analytics & Insights" },
+  ebayAuth: { path: "/settings/ebay-auth", title: "eBay Settings" },
+  auth: { path: "/auth", title: "Authentication" },
+};
+Update App.tsx and the Header’s getPageTitle to reference these metadata properties.
+For dynamic routes, consider having each page component set its title (using a custom hook like useDocumentTitle) upon mount.
+Testing:
+Write unit tests to ensure that each route returns the correct title from the configuration.
+Verify manually that navigating to each page displays the expected title in the header.
+Deployment:
+Roll out the changes first in a staging environment and test across different devices and routes.
+Once verified, deploy to production with a plan to monitor user feedback regarding navigation and page titles.

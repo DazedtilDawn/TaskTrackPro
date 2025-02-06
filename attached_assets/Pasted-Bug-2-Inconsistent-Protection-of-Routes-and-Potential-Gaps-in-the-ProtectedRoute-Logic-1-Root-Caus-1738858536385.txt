@@ -1,0 +1,21 @@
+Bug 2: Inconsistent Protection of Routes and Potential Gaps in the ProtectedRoute Logic
+1) Root Cause & System Impact
+The routing configuration in App.tsx uses a custom ProtectedRoute component to guard most of the application’s pages (Dashboard, Inventory, Watchlist, Orders, Analytics, and EbayAuthSettings) while leaving /auth open. If the implementation of ProtectedRoute is not rigorous—for example, if it does not correctly check the authentication context provided by AuthProvider—unauthorized access or unexpected behavior might occur. Any misconfiguration here affects the entire user session and security.
+
+2) Likely Issue & Proposed Solution
+Issue: If the ProtectedRoute implementation (or its surrounding context in AuthProvider) is incomplete or inconsistent, some protected pages might be accessible to unauthenticated users or the redirection logic may fail.
+Solution:
+
+Audit the implementation of ProtectedRoute to ensure it properly checks authentication state (via context from AuthProvider) and that it handles redirection (or rendering an alternative such as a spinner) when the authentication state is being determined.
+Make sure that every sensitive route is wrapped with ProtectedRoute and that the public /auth route remains unprotected.
+3) Integration Plan
+
+Implementation:
+Review and, if necessary, refactor ProtectedRoute so that it subscribes to the authentication context and either renders the component or redirects (for example, to /auth) if the user is not authenticated.
+Optionally add a “loading” state for cases when the authentication status is still being determined.
+Testing:
+Create automated tests (both unit and integration) to simulate authenticated and unauthenticated states.
+Verify that protected routes redirect to /auth when no user is present and that authenticated users can access all pages.
+Deployment:
+Deploy changes in a staging environment with detailed logging enabled.
+Monitor authentication and routing behavior (e.g., via manual QA and automated end-to-end tests) before rolling out to production.

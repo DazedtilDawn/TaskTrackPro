@@ -382,6 +382,7 @@ Format the response as JSON with:
     }
   });
 
+
   // Image Analysis Endpoint
   app.post("/api/analyze-images", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -697,6 +698,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
 
+
   // Mark product as sold endpoint
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -894,7 +896,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
   });
 
   // generate-sale-price endpoint
-app.post("/api/generate-sale-price", async (req, res) => {
+  app.post("/api/generate-sale-price", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
     try {
       // Validate and parse input data

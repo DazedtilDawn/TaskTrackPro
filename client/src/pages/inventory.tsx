@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import ProductCard from "@/components/product-card";
+import { ProductTable } from "@/components/ProductTable";
 import ProductForm from "@/components/product-form";
 import BatchAnalysisDialog from "@/components/batch-analysis-dialog";
 import { Plus, Search, Sparkles } from "lucide-react";
@@ -84,35 +85,27 @@ export default function Inventory() {
             </div>
           </div>
 
-          {view === "table" && (
-            <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
-              <div className="w-12">Image</div>
-              <div className="flex-1">Product Details</div>
-              <div className="w-32">List Price</div>
-              <div className="w-32">eBay Price</div>
-              <div className="w-24">Condition</div>
-              <div className="w-32">Market Status</div>
-              <div className="w-40">Actions</div>
+          {view === "table" ? (
+            <ProductTable products={filteredProducts} />
+          ) : (
+            <div className={cn(
+              view === "grid"
+                ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                : view === "list"
+                  ? "space-y-4"
+                  : "divide-y"
+            )}>
+              {filteredProducts.map((product) => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onEdit={handleEdit}
+                  inWatchlist={watchlistIds.has(product.id)}
+                  view={view}
+                />
+              ))}
             </div>
           )}
-
-          <div className={cn(
-            view === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : view === "list"
-                ? "space-y-4"
-                : "divide-y"
-          )}>
-            {filteredProducts.map((product) => (
-              <ProductCard
-                key={product.id}
-                product={product}
-                onEdit={handleEdit}
-                inWatchlist={watchlistIds.has(product.id)}
-                view={view}
-              />
-            ))}
-          </div>
 
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogContent className="max-w-2xl">

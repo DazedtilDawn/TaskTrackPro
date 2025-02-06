@@ -2,6 +2,7 @@ import Header from "@/components/header";
 import Sidebar from "@/components/sidebar";
 import { useQuery } from "@tanstack/react-query";
 import ProductCard from "@/components/product-card";
+import { ProductTable } from "@/components/ProductTable";
 import ViewToggle from "@/components/view-toggle";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -92,43 +93,39 @@ export default function Watchlist() {
             </div>
           ) : (
             <>
-              {view === "table" && (
-                <div className="mb-2 px-4 flex items-center gap-4 text-sm font-medium text-muted-foreground">
-                  <div className="w-12">Image</div>
-                  <div className="flex-1">Product Details</div>
-                  <div className="w-32">Price</div>
-                  <div className="w-24">Condition</div>
-                  <div className="w-32">Market Status</div>
-                  <div className="w-40">Actions</div>
-                </div>
-              )}
-              <div className={cn(
-                view === "grid" 
-                  ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                  : view === "list"
-                    ? "space-y-4"
-                    : "divide-y"
-              )}>
-                {filteredWatchlist.map((item) => (
-                  <ProductCard
-                    key={item.id}
-                    product={item.product}
-                    onEdit={handleEdit}
-                    inWatchlist={true}
-                    view={view}
-                    watchlistId={item.id}
-                  />
-                ))}
-              </div>
+              {view === "table" ? (
+                <ProductTable products={filteredWatchlist.map(item => item.product)} />
+              ) : (
+                <>
+                  <div className={cn(
+                    view === "grid" 
+                      ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+                      : view === "list"
+                        ? "space-y-4"
+                        : "divide-y"
+                  )}>
+                    {filteredWatchlist.map((item) => (
+                      <ProductCard
+                        key={item.id}
+                        product={item.product}
+                        onEdit={handleEdit}
+                        inWatchlist={true}
+                        view={view}
+                        watchlistId={item.id}
+                      />
+                    ))}
+                  </div>
 
-              {filteredWatchlist.length === 0 && (
-                <div className="text-center text-muted-foreground mt-12">
-                  <PackageSearch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                  <p className="text-lg font-medium">No products in your watchlist</p>
-                  <p className="text-sm mt-2">
-                    Add products to your watchlist to monitor them
-                  </p>
-                </div>
+                  {filteredWatchlist.length === 0 && (
+                    <div className="text-center text-muted-foreground mt-12">
+                      <PackageSearch className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <p className="text-lg font-medium">No products in your watchlist</p>
+                      <p className="text-sm mt-2">
+                        Add products to your watchlist to monitor them
+                      </p>
+                    </div>
+                  )}
+                </>
               )}
             </>
           )}

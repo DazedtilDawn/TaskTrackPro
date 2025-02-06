@@ -40,14 +40,31 @@ async function getUserByUsername(username: string) {
 
 export function setupAuth(app: Express) {
   const store = new PostgresSessionStore({ pool, createTableIfMissing: true });
+  const isProduction = app.get("env") === "production";
+
+  // Ensure we have a proper session secret
+  const sessionSecret = process.env.SESSION_SECRET || process.env.REPL_ID;
+  if (!sessionSecret) {
+    throw new Error("SESSION_SECRET or REPL_ID environment variable must be set");
+  }
+
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.REPL_ID!,
+    secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
     store,
+    name: 'sid', // Use a generic name instead of 'connect.sid'
+    cookie: {
+      httpOnly: true, // Prevent client-side access to the cookie
+      secure: isProduction, // Require HTTPS in production
+      sameSite: 'lax', // Protect against CSRF
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    },
+    // Additional production settings
+    proxy: isProduction // Trust the reverse proxy in production
   };
 
-  if (app.get("env") === "production") {
+  if (isProduction) {
     app.set("trust proxy", 1);
   }
 
@@ -61,7 +78,7 @@ export function setupAuth(app: Express) {
   const csrfProtection = csurf({
     cookie: {
       sameSite: 'strict',
-      secure: process.env.NODE_ENV === 'production'
+      secure: isProduction
     }
   });
 

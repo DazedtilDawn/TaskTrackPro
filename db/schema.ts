@@ -204,7 +204,7 @@ export const loginCredentialsSchema = z.object({
     .max(50, "Username must not exceed 50 characters")
     .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and hyphens"),
   password: z.string()
-    .min(8, "Password must be at least 8 characters")
+    .min(4, "Password must be at least 4 characters")
     .max(100, "Password must not exceed 100 characters")
 });
 

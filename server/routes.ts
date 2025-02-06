@@ -163,9 +163,16 @@ export function registerRoutes(app: Express): Express {
     }
   });
 
-  // Add the new eBay price endpoint after the existing eBay auth endpoints
+  // Add near the top of the registerRoutes function, before other eBay routes
   app.get("/api/ebay-price", checkEbayAuth, async (req, res) => {
-    console.log("[eBay Price API] Received price request");
+    console.log("[eBay Price API] Request received:", {
+      isAuthenticated: req.isAuthenticated(),
+      queryParams: req.query,
+      userAuth: req.user ? {
+        hasToken: !!req.user.ebayAuthToken,
+        tokenExpiry: req.user.ebayTokenExpiry
+      } : null
+    });
 
     if (!req.isAuthenticated()) {
       console.log("[eBay Price API] Unauthorized request");
@@ -894,7 +901,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         error: "Failed to delete order",
         details: error instanceof Error ? error.message : "Unknown error"
       });
-    }
+        }
   });
 
   // generate-sale-price endpoint
@@ -1109,10 +1116,10 @@ Do not include any additional text.`;
           aiAnalysis: products.aiAnalysis
         }
       })
-      .from(watchlist)
-      .leftJoin(products, eq(watchlist.productId, products.id))
-      .where(eq(watchlist.userId, req.user!.id))
-      .orderBy(desc(watchlist.createdAt));
+        .from(watchlist)
+        .leftJoin(products, eq(watchlist.productId, products.id))
+        .where(eq(watchlist.userId, req.user!.id))
+        .orderBy(desc(watchlist.createdAt));
 
       console.log("[Watchlist API] Successfully retrieved watchlist items:", watchlistItems.length);
       res.json(watchlistItems);

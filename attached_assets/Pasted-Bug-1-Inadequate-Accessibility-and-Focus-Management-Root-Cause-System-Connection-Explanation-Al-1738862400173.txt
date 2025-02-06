@@ -1,0 +1,21 @@
+Bug 1: Inadequate Accessibility and Focus Management
+Root Cause & System Connection
+
+Explanation: Although many components use accessible primitives (e.g. Radix UI), many custom compositions (such as product cards, modals, view toggles, and dialogs) either lack proper ARIA attributes, fail to manage focus order, or do not expose clear semantic roles. This fragmentation in accessibility practices undermines keyboard navigation, screen reader support, and overall usability for users with disabilities.
+Connection: Since almost every page (dashboard, inventory, orders, etc.) composes these custom components, any accessibility shortfall affects the entire user experience.
+Likely Issue & Proposed Solution
+
+Issue: The absence or inconsistent application of ARIA roles and focus management (especially in components that combine custom logic with Radix primitives) makes the UI less accessible.
+Solution: Audit all custom UI components for compliance with WCAG standards. Ensure each interactive element includes appropriate roles, labels, and keyboard focus management. Where possible, delegate to Radix UI defaults and then only extend or override as needed.
+Integration Plan
+
+Implementation:
+Audit: Run automated accessibility tests (using axe-core or Lighthouse) and perform manual testing with screen readers (NVDA/VoiceOver) across key components (dialogs, modals, buttons, etc.).
+Enhancement: Update custom components (e.g. product-card, view-toggle, smart-listing-modal) to include missing ARIA attributes, proper focus trap management in modals, and clear role definitions.
+Documentation: Establish an “accessibility checklist” to be used in future component development.
+Testing:
+Write unit tests (or Storybook stories) with accessibility add-ons (e.g., @storybook/addon-a11y) to capture regressions.
+Conduct manual walkthroughs and user testing sessions focused on keyboard navigation and screen reader output.
+Deployment:
+Roll out the fixes in a staging environment with comprehensive accessibility logging enabled.
+Once verified, deploy to production while monitoring support channels for any usability feedback.

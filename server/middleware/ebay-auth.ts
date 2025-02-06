@@ -3,6 +3,7 @@ import { Request, Response, NextFunction } from "express";
 export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
   console.log(`[eBay Auth] Checking auth for path: ${req.path}`);
   console.log(`[eBay Auth] User authenticated:`, req.isAuthenticated());
+  console.log(`[eBay Auth] Query params:`, req.query);
 
   // Skip check if user is not authenticated
   if (!req.isAuthenticated()) {
@@ -13,6 +14,20 @@ export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
   // If this is the auth URL endpoint, skip the token check
   if (req.path === "/api/ebay/auth-url") {
     console.log("[eBay Auth] Skipping token check for auth URL endpoint");
+    return next();
+  }
+
+  // Add explicit path check for ebay-price endpoint
+  if (req.path === "/api/ebay-price") {
+    console.log("[eBay Auth] eBay price endpoint detected");
+    if (!req.user?.ebayAuthToken) {
+      console.log("[eBay Auth] No eBay token found for price endpoint");
+      return res.status(403).json({
+        error: "eBay authentication required",
+        details: "Please authenticate with eBay first",
+        redirectTo: "/settings/ebay-auth"
+      });
+    }
     return next();
   }
 
@@ -37,8 +52,6 @@ export function checkEbayAuth(req: Request, res: Response, next: NextFunction) {
       });
     }
     console.log(`[eBay Auth] Valid eBay token found, proceeding`);
-  } else {
-    console.log(`[eBay Auth] Non-eBay endpoint, skipping check`);
   }
 
   next();

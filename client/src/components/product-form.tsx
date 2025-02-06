@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -403,8 +403,8 @@ export default function ProductForm({
     });
   };
 
-  const onSubmit = form.handleSubmit(async (data) => {
-    setIsSubmitting(true); 
+  const onSubmit = async (data: ProductFormData) => {
+    setIsSubmitting(true);
     try {
       const formData = new FormData();
       formData.append("name", data.name.trim());
@@ -464,9 +464,9 @@ export default function ProductForm({
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false); 
+      setIsSubmitting(false);
     }
-  });
+  };
 
   const canAdvance = () => {
     switch (currentStep) {
@@ -876,8 +876,7 @@ export default function ProductForm({
                         className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-200"
                       />
                     </FormControl>
-                  </FormItem>
-                )}
+                  </FormItem>                )}
               />
             </div>
           </div>
@@ -948,7 +947,7 @@ export default function ProductForm({
   };
 
   return (
-    <Dialog open={true} onOpenChange={onComplete}>
+    <Dialog open={false} onOpenChange={onComplete}>
       <DialogContent className="max-w-4xl">
         <DialogHeader>
           <DialogTitle>

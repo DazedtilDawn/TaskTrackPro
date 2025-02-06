@@ -45,30 +45,38 @@ let genAI: GoogleGenerativeAI | null = null;
 let apiKey: string | null = null;
 
 async function initializeGemini() {
-  if (!genAI) {
-    // Try to get API key from environment
-    apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  console.log('Initializing Gemini...');
 
-    // If not found, try to fetch from backend
-    if (!apiKey) {
-      try {
+  if (!genAI) {
+    try {
+      // Try to get API key from environment
+      apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      console.log('Environment API key present:', !!apiKey);
+
+      // If not found, try to fetch from backend
+      if (!apiKey) {
+        console.log('Fetching API key from backend...');
         const response = await apiRequest('GET', '/api/config/gemini-key');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch API key: ${response.statusText}`);
+        }
         const data = await response.json();
         apiKey = data.apiKey;
-      } catch (error) {
-        console.error('Failed to fetch Gemini API key:', error);
+        console.log('Backend API key present:', !!apiKey);
       }
-    }
 
-    if (!apiKey) {
-      throw new Error("Gemini API key not found. Please check your configuration.");
-    }
+      if (!apiKey) {
+        throw new Error("Gemini API key not found in environment or backend configuration");
+      }
 
-    try {
       genAI = new GoogleGenerativeAI(apiKey);
+      console.log('Gemini initialized successfully');
+
     } catch (error) {
-      console.error('Failed to initialize Gemini:', error);
-      throw new Error("Failed to initialize Gemini AI. Please try again.");
+      console.error('Gemini initialization error:', error);
+      throw error instanceof Error 
+        ? error 
+        : new Error("Failed to initialize Gemini AI. Please check your configuration.");
     }
   }
   return genAI;
@@ -83,7 +91,6 @@ async function fileToGenerativePart(file: File): Promise<{ inlineData: { data: s
         console.error('Failed to read file');
         return reject(new Error("Failed to read file"));
       }
-      // Extract the mime type from the file and keep only the base64 data
       const resultStr = reader.result as string;
       const parts = resultStr.split(",");
       if (parts.length < 2) {
@@ -194,8 +201,8 @@ export async function generateSmartListing(
     throw new Error('Maximum retry attempts reached');
   } catch (error) {
     console.error("generateSmartListing: Fatal error:", error);
-    throw error instanceof Error
-      ? error
+    throw error instanceof Error 
+      ? error 
       : new Error("Failed to generate smart listing");
   }
 }
@@ -336,6 +343,7 @@ Format the response in JSON.`;
         const result = await model.generateContent(prompt);
         const response = await result.response;
         const text = await response.text();
+        console.log(`Analysis result for product ${product.id}:`, text);
         const analysis = JSON.parse(text);
         results.set(product.id, analysis);
       } catch (error) {

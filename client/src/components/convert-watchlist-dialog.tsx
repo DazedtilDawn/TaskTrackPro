@@ -176,6 +176,10 @@ export default function ConvertWatchlistDialog({
                 min: 0,
                 valueAsNumber: true
               })}
+              onChange={(e) => {
+                const value = e.target.value ? parseFloat(e.target.value) : 0;
+                setValue("buyPrice", value);
+              }}
               className="text-lg font-medium"
               placeholder="0.00"
             />
@@ -212,6 +216,10 @@ export default function ConvertWatchlistDialog({
                 min: 0,
                 valueAsNumber: true
               })}
+              onChange={(e) => {
+                const value = e.target.value ? parseFloat(e.target.value) : 0;
+                setValue("recommendedSalePrice", value);
+              }}
               className="text-lg font-medium"
               placeholder="0.00"
             />

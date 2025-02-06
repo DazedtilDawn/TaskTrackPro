@@ -38,6 +38,9 @@ export const products = pgTable("products", {
   ebayListingData: jsonb("ebay_listing_data"),
   ebayLastSync: timestamp("ebay_last_sync"),
   ebayCategoryId: text("ebay_category_id"),
+  // Add the existing columns to preserve data
+  listedAt: timestamp("listed_at"),
+  soldAt: timestamp("sold_at"),
 });
 
 export const watchlist = pgTable("watchlist", {

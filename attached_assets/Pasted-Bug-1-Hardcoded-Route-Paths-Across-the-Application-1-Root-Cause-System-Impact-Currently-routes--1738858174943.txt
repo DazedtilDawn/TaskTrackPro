@@ -1,0 +1,31 @@
+Bug 1: Hardcoded Route Paths Across the Application
+1) Root Cause & System Impact
+Currently, routes such as /, /inventory, /watchlist, /orders, /analytics, /settings/ebay-auth, and /auth are written as literal strings in both the routing (in App.tsx) and other areas (for example, the header’s title logic). This duplication makes the application brittle: if a route ever changes, you must update it in multiple places, which increases the risk of inconsistency and maintenance errors. It also limits flexibility in scenarios such as locale-specific paths or environment-based configuration.
+
+2) Likely Issue & Proposed Solution
+Issue: Hardcoded paths may lead to mismatches between what the router expects and what other components (e.g. the header’s page-title logic) display.
+Solution: Centralize all route definitions into a configuration or constants file. This single source of truth should be imported wherever a route is needed—both in the routing configuration and in components that depend on route names (such as header title generation).
+
+3) Integration Plan
+
+Implementation:
+Create a new file (e.g., client/src/routes/config.ts) that exports an object mapping route names to their paths:
+ts
+Copy
+export const ROUTES = {
+  dashboard: "/",
+  inventory: "/inventory",
+  watchlist: "/watchlist",
+  orders: "/orders",
+  analytics: "/analytics",
+  ebayAuth: "/settings/ebay-auth",
+  auth: "/auth",
+};
+Refactor App.tsx to import these constants and use them in the <ProtectedRoute> and <Route> components.
+Update any other component that hardcodes route strings (for example, the Header component’s switch-case in getPageTitle) to use the same constants.
+Testing:
+Write unit tests to verify that each constant in ROUTES maps to the expected component.
+Manually verify that navigation works as expected and that the page title displays correctly across different routes.
+Deployment:
+Deploy the changes first in a staging environment. Monitor for routing or navigation inconsistencies.
+Once confirmed, release to production with proper version control and rollback strategies.

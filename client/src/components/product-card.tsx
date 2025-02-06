@@ -27,34 +27,70 @@ interface ProductCardProps {
   watchlistId?: number;  // Add watchlistId prop
 }
 
-export default function ProductCard({ 
-  product, 
-  onEdit, 
-  inWatchlist, 
+// Create default analysis object for fallback
+const DEFAULT_AI_ANALYSIS: AIAnalysis = {
+  category: 'Uncategorized',
+  marketAnalysis: {
+    demandScore: 0,
+    competitionLevel: 'Unknown',
+    priceSuggestion: {
+      min: 0,
+      max: 0
+    }
+  },
+  suggestions: ['No analysis available'],
+  seoKeywords: [],
+  ebayData: undefined
+};
+
+export default function ProductCard({
+  product,
+  onEdit,
+  inWatchlist,
   view = "grid",
-  watchlistId  // Add to destructuring
+  watchlistId
 }: ProductCardProps) {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [parseError, setParseError] = useState<string | null>(null);
 
-  let aiAnalysis: AIAnalysis | undefined;
-  try {
-    if (typeof product.aiAnalysis === 'string') {
-      aiAnalysis = JSON.parse(product.aiAnalysis);
-    } else {
-      aiAnalysis = product.aiAnalysis as AIAnalysis;
+  // Safer parsing with validation and error handling
+  const parseAIAnalysis = (data: unknown): AIAnalysis => {
+    try {
+      if (typeof data === 'string') {
+        const parsed = JSON.parse(data);
+        // Validate required fields
+        if (!parsed?.marketAnalysis?.priceSuggestion) {
+          console.warn('Invalid AI analysis structure:', parsed);
+          return DEFAULT_AI_ANALYSIS;
+        }
+        return parsed;
+      } else if (data && typeof data === 'object') {
+        // Already parsed but validate structure
+        const typed = data as AIAnalysis;
+        if (!typed?.marketAnalysis?.priceSuggestion) {
+          console.warn('Invalid AI analysis structure:', typed);
+          return DEFAULT_AI_ANALYSIS;
+        }
+        return typed;
+      }
+      return DEFAULT_AI_ANALYSIS;
+    } catch (e) {
+      console.error('Failed to parse aiAnalysis:', e);
+      setParseError(e instanceof Error ? e.message : 'Unknown parsing error');
+      return DEFAULT_AI_ANALYSIS;
     }
-  } catch (e) {
-    console.error('Failed to parse aiAnalysis:', e);
-  }
+  };
 
-  const hasAnalysis = aiAnalysis && Object.keys(aiAnalysis).length > 0;
+  const aiAnalysis = parseAIAnalysis(product.aiAnalysis);
+
+  const hasAnalysis = aiAnalysis !== DEFAULT_AI_ANALYSIS;
   const currentPrice = Number(product.price) || 0;
-  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis?.marketAnalysis?.priceSuggestion?.min ?? 0);
-  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis?.marketAnalysis?.priceSuggestion?.max ?? 0);
+  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis.marketAnalysis.priceSuggestion.min ?? 0);
+  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis.marketAnalysis.priceSuggestion.max ?? 0);
   const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced;
 
   const getImageUrl = (url: string | null): string | null => {

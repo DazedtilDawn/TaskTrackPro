@@ -1,0 +1,80 @@
+( () => {
+    function i() {
+        return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(/[018]/g, e => (e ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> e / 4).toString(16))
+    }
+    async function d({message: e, status: o}) {
+        console.log(`stallwart: ${e}`);
+        let t = new URLSearchParams;
+        t.append("ddsource", "browser"),
+        t.append("ddtags", "sdk_version:4.13.0,service:stallwart"),
+        t.append("dd-api-key", "pub31a5047a3a4692afb84a423db984dc57"),
+        t.append("dd-evp-origin-version", "4.13.0"),
+        t.append("dd-evp-origin", "browser"),
+        t.append("dd-request-id", i());
+        try {
+            fetch(`https://logs.browser-intake-us5-datadoghq.com/api/v2/logs?${t.toString()}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    service: "stallwart",
+                    date: Date.now(),
+                    message: e,
+                    status: o,
+                    origin: "logger",
+                    logger: {
+                        name: "default"
+                    },
+                    error: {
+                        origin: "logger"
+                    }
+                })
+            })
+        } catch (n) {
+            console.error(n)
+        }
+    }
+    var r = !1
+      , a = 0;
+    async function l() {
+        a = 0
+    }
+    async function g(e) {
+        a += 1,
+        console.log(`stallwart: failed ping ${a}`),
+        !(a < 5) && (r || (r = !0,
+        await d({
+            message: e,
+            status: "error"
+        })))
+    }
+    async function s() {
+        if (!r)
+            return new Promise( (e, o) => {
+                let t = Math.random();
+                onmessage = function(n) {
+                    n.data.pong === t && e(n.data.pong)
+                }
+                ,
+                setTimeout( () => {
+                    o("session stalled")
+                }
+                , 1e3),
+                postMessage({
+                    ping: t
+                })
+            }
+            ).then( () => {
+                l(),
+                setTimeout(s, 1e3)
+            }
+            ).catch(e => {
+                g(e),
+                setTimeout(s, 0)
+            }
+            )
+    }
+    s();
+}
+)();

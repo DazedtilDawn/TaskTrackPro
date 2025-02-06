@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, TrendingUp, AlertCircle } from "lucide-react";
+import { Loader2, DollarSign, TrendingUp } from "lucide-react";
 import type { SelectProduct } from "@db/schema";
 import { cn } from "@/lib/utils";
 
@@ -44,8 +44,8 @@ export default function ConvertWatchlistDialog({
   const [isGenerating, setIsGenerating] = useState(false);
 
   // Watch form values for real-time calculations
-  const buyPrice = watch("buyPrice");
-  const recommendedSalePrice = watch("recommendedSalePrice");
+  const buyPrice = watch("buyPrice") || 0;
+  const recommendedSalePrice = watch("recommendedSalePrice") || 0;
 
   // Calculate potential profit
   const potentialProfit = recommendedSalePrice - buyPrice;
@@ -94,7 +94,7 @@ export default function ConvertWatchlistDialog({
 
   const onSubmit = async (data: ConvertWatchlistFormData) => {
     try {
-      // 1. Update the product with new price and quantity
+      // Update the product with new price and quantity
       const updateResponse = await apiRequest("PATCH", `/api/products/${product.id}`, {
         price: data.recommendedSalePrice,
         quantity: 1,
@@ -106,7 +106,7 @@ export default function ConvertWatchlistDialog({
         throw new Error(error.error || "Failed to update product");
       }
 
-      // 2. Find and remove from watchlist
+      // Find and remove from watchlist
       const watchlistResponse = await apiRequest("GET", "/api/watchlist");
       const watchlistItems = await watchlistResponse.json();
       const itemToDelete = watchlistItems.find((item: any) => item.productId === product.id);
@@ -119,7 +119,7 @@ export default function ConvertWatchlistDialog({
         }
       }
 
-      // 3. Invalidate queries to refresh the UI
+      // Invalidate queries to refresh the UI
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
@@ -167,7 +167,7 @@ export default function ConvertWatchlistDialog({
               <DollarSign className="h-4 w-4 text-primary" />
               Purchase Price
             </label>
-            <Input
+            <input
               type="number"
               step="0.01"
               min="0"
@@ -176,11 +176,7 @@ export default function ConvertWatchlistDialog({
                 min: 0,
                 valueAsNumber: true
               })}
-              onChange={(e) => {
-                const value = e.target.value ? parseFloat(e.target.value) : 0;
-                setValue("buyPrice", value);
-              }}
-              className="text-lg font-medium"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-lg font-medium ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="0.00"
             />
           </div>
@@ -207,7 +203,7 @@ export default function ConvertWatchlistDialog({
                 )}
               </Button>
             </div>
-            <Input
+            <input
               type="number"
               step="0.01"
               min="0"
@@ -216,11 +212,7 @@ export default function ConvertWatchlistDialog({
                 min: 0,
                 valueAsNumber: true
               })}
-              onChange={(e) => {
-                const value = e.target.value ? parseFloat(e.target.value) : 0;
-                setValue("recommendedSalePrice", value);
-              }}
-              className="text-lg font-medium"
+              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-lg font-medium ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               placeholder="0.00"
             />
           </div>

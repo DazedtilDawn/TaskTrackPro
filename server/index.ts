@@ -3,12 +3,30 @@ import { createServer, type Server } from "http";
 import { setupVite, serveStatic } from "./vite";
 import { registerRoutes } from "./routes";
 import { db } from "@db";
+import cors from 'cors';
 
 const app = express();
 
 // Essential middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Configure CORS
+const allowedOrigins = [
+  'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev',
+  'http://localhost:5000'
+];
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('Not allowed by CORS'))
+    }
+  },
+  credentials: true
+}));
 
 // Log request details
 app.use((req, res, next) => {
@@ -35,11 +53,16 @@ async function initializeServer() {
 
         const server = createServer(app);
 
+        // Add health check endpoint before registering other routes
+        app.get('/api/health', (req, res) => {
+            res.json({ status: 'ok' });
+        });
+
         // Register all routes before setting up Vite
         console.log('[Server] Registering routes...');
         registerRoutes(app);
 
-        // Setup Vite for development
+        // Re-enable Vite setup
         console.log('[Server] Setting up Vite...');
         if (process.env.NODE_ENV !== 'production') {
             await setupVite(app, server);
@@ -50,16 +73,6 @@ async function initializeServer() {
         await new Promise<void>((resolve, reject) => {
             server.listen(port, '0.0.0.0', () => {
                 console.log(`[Server] Server running on port ${port}`);
-
-                // Set environment variables for Vite with the specific URL format
-                const replitId = process.env.REPL_ID || '';
-                const replitUrl = `https://${replitId}-00-1vlomg3cflyir.spock.replit.dev`;
-                console.log(`[Server] Replit URL: ${replitUrl}`);
-
-                // Set environment variables for Vite
-                process.env.VITE_DEV_SERVER_URL = replitUrl;
-                process.env.VITE_REPLIT_URL = replitUrl;
-
                 resolve();
             });
 

@@ -1,0 +1,73 @@
+Re-enable Vite (Carefully):
+
+Undo the temporary changes: In server/index.ts, undo the changes we made in the last step. That means:
+
+Uncomment the lines:
+
+import { setupVite, serveStatic } from "./vite";
+Use code with caution.
+TypeScript
+and
+
+if (process.env.NODE_ENV !== 'production') {
+  await setupVite(app, server);
+} else {
+  serveStatic(app);
+}
+Use code with caution.
+TypeScript
+Ensure that you have removed all of the placeholder routes that you added previously.
+
+Save server/index.ts.
+
+Re-verify vite.config.ts (CRITICAL):
+
+Make absolutely sure your vite.config.ts file is exactly as follows (this is the corrected version from our earlier discussion):
+
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import themePlugin from "@replit/vite-plugin-shadcn-theme-json";
+import path, { dirname } from "path";
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+export default defineConfig({
+  plugins: [react(), runtimeErrorOverlay(), themePlugin()],
+  resolve: {
+    alias: {
+      "@db": path.resolve(__dirname, "db"),
+      "@": path.resolve(__dirname, "client", "src"),
+    },
+  },
+  root: path.resolve(__dirname, "client"),
+  build: {
+    outDir: path.resolve(__dirname, "dist/public"),
+    emptyOutDir: true,
+  },
+    server: {
+        host: '0.0.0.0', // Listen on all addresses, including LAN and public IPs
+        port: 5173,     // Explicitly set Vite's dev server port
+        hmr: false,      // disables hot reloading
+        origin: `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+  },
+});
+Use code with caution.
+TypeScript
+origin: The origin should not be hard coded, but use the Repl environment variables.
+
+Save vite.config.ts.
+
+Run npm run dev: Start the server again using the Replit "Run" button (or npm run dev in the shell).
+
+Wait and Observe: Give it at least 60 seconds. Replit can be slow to update.
+
+Check Webview and Browser Console
+
+Use replit's webview to view your application.
+
+Open your browser's developer tools (F12). Go to the "Console" tab and look for any errors. Copy and paste them.
+
+Go to the "Network" tab. Refresh the page. Look for any requests that have a red status (400s, 500s). Click on those requests, and look at the "Response" tab. Copy and paste the response.

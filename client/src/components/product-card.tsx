@@ -69,7 +69,7 @@ interface ProductCardProps {
   watchlistId?: number;
 }
 
-export default function ProductCard({
+function ProductCard({
   product,
   onEdit,
   inWatchlist = false,
@@ -495,10 +495,10 @@ export default function ProductCard({
 
   return (
     <>
-      <Card className="overflow-hidden h-[600px]">
+      <Card className="overflow-hidden h-[700px]">
         <div className="flex flex-col h-full">
           <div className="flex-none">
-            <div className="relative aspect-video bg-secondary/20">
+            <div className="relative aspect-[16/9] bg-secondary/20">
               {product.imageUrl && !imageError ? (
                 <img
                   src={getImageUrl(product.imageUrl)}
@@ -508,17 +508,17 @@ export default function ProductCard({
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <ImageIcon className="w-12 h-12 text-muted-foreground" />
+                  <ImageIcon className="w-16 h-16 text-muted-foreground" />
                 </div>
               )}
-              <div className="absolute top-2 right-2 flex gap-1">
+              <div className="absolute top-4 right-4 flex gap-2">
                 <Button
                   size="icon"
                   variant="secondary"
-                  className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                  className="h-9 w-9 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                   onClick={toggleWatchlist}
                 >
-                  <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+                  <Heart className="h-5 w-5" fill={inWatchlist ? "currentColor" : "none"} />
                 </Button>
                 {hasAnalysis && (
                   <Popover>
@@ -526,13 +526,13 @@ export default function ProductCard({
                       <Button
                         size="icon"
                         variant="secondary"
-                        className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                        className="h-9 w-9 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                       >
-                        <Sparkles className="h-4 w-4 text-primary" />
+                        <Sparkles className="h-5 w-5 text-primary" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0" side="left">
-                      <ScrollArea className="h-[400px]">
+                    <PopoverContent className="w-96 p-0" side="left">
+                      <ScrollArea className="h-[500px]">
                         <div className="p-4 space-y-4">
                           <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
                             <h4 className="font-medium text-lg">Market Analysis</h4>
@@ -642,59 +642,59 @@ export default function ProductCard({
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 flex flex-col min-h-0 pt-6">
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-              <div className="flex-none px-4 pt-4">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="details">Details</TabsTrigger>
-                  <TabsTrigger value="pricing">Pricing</TabsTrigger>
-                  <TabsTrigger value="metrics">Metrics</TabsTrigger>
+              <div className="flex-none px-6">
+                <TabsList className="grid w-full grid-cols-3 p-1">
+                  <TabsTrigger value="details" className="py-2">Details</TabsTrigger>
+                  <TabsTrigger value="pricing" className="py-2">Pricing</TabsTrigger>
+                  <TabsTrigger value="metrics" className="py-2">Metrics</TabsTrigger>
                 </TabsList>
               </div>
 
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 mt-6">
                 <ScrollArea className="h-full">
-                  <TabsContent value="details" className="p-4 m-0">
-                    <div className="space-y-4">
+                  <TabsContent value="details" className="px-6 pb-6 m-0">
+                    <div className="space-y-6">
                       <div>
-                        <h3 className="text-xl font-semibold">{product.name}</h3>
-                        <p className="text-muted-foreground mt-1">{product.description}</p>
+                        <h3 className="text-2xl font-semibold mb-3">{product.name}</h3>
+                        <p className="text-muted-foreground text-base leading-relaxed">{product.description}</p>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Package className="h-4 w-4 text-primary" />
+                      <div className="grid grid-cols-2 gap-8">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 text-sm">
+                            <Package className="h-5 w-5 text-primary" />
                             <span className="font-medium">SKU:</span>
                             <span>{product.sku || "N/A"}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Box className="h-4 w-4 text-primary" />
+                          <div className="flex items-center gap-3 text-sm">
+                            <Box className="h-5 w-5 text-primary" />
                             <span className="font-medium">Brand:</span>
                             <span>{product.brand || "N/A"}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Tag className="h-4 w-4 text-primary" />
+                          <div className="flex items-center gap-3 text-sm">
+                            <Tag className="h-5 w-5 text-primary" />
                             <span className="font-medium">Category:</span>
                             <span>{product.category || "N/A"}</span>
                           </div>
                         </div>
 
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-2 text-sm">
-                            <Info className="h-4 w-4 text-primary" />
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-3 text-sm">
+                            <Info className="h-5 w-5 text-primary" />
                             <span className="font-medium">Condition:</span>
                             <span className="capitalize">
                               {(product.condition || "").replace(/_/g, " ")}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Boxes className="h-4 w-4 text-primary" />
+                          <div className="flex items-center gap-3 text-sm">
+                            <Boxes className="h-5 w-5 text-primary" />
                             <span className="font-medium">Quantity:</span>
                             <span>{product.quantity}</span>
                           </div>
-                          <div className="flex items-center gap-2 text-sm">
-                            <Calendar className="h-4 w-4 text-primary" />
+                          <div className="flex items-center gap-3 text-sm">
+                            <Calendar className="h-5 w-5 text-primary" />
                             <span className="font-medium">Added:</span>
                             <span>
                               {format(new Date(product.createdAt), "MMM d, yyyy")}
@@ -704,17 +704,17 @@ export default function ProductCard({
                       </div>
 
                       {(product.weight || product.dimensions) && (
-                        <div className="pt-2 border-t">
-                          <h4 className="text-sm font-medium mb-2">Specifications</h4>
+                        <div className="pt-4 mt-4 border-t">
+                          <h4 className="text-sm font-medium mb-4">Specifications</h4>
                           <div className="grid grid-cols-2 gap-4">
                             {product.weight && (
-                              <div className="flex items-center gap-2 text-sm">
+                              <div className="flex items-center gap-3 text-sm">
                                 <span className="font-medium">Weight:</span>
                                 <span>{product.weight} lbs</span>
                               </div>
                             )}
                             {product.dimensions && (
-                              <div className="flex items-center gap-2 text-sm">
+                              <div className="flex items-center gap-3 text-sm">
                                 <span className="font-medium">Dimensions:</span>
                                 <span>{product.dimensions}</span>
                               </div>
@@ -725,24 +725,24 @@ export default function ProductCard({
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="pricing" className="p-4 m-0">
-                    <div className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="p-3 rounded-lg bg-secondary/10">
-                          <div className="text-sm text-muted-foreground mb-1">
+                  <TabsContent value="pricing" className="px-6 pb-6 m-0">
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 gap-6">
+                        <div className="p-4 rounded-lg bg-secondary/10">
+                          <div className="text-sm text-muted-foreground mb-2">
                             List Price
                           </div>
-                          <div className="text-2xl font-semibold text-primary">
+                          <div className="text-3xl font-semibold text-primary">
                             ${Number(product.price).toFixed(2)}
                           </div>
                         </div>
 
                         {product.ebayPrice && (
-                          <div className="p-3 rounded-lg bg-secondary/10">
-                            <div className="text-sm text-muted-foreground mb-1">
+                          <div className="p-4 rounded-lg bg-secondary/10">
+                            <div className="text-sm text-muted-foreground mb-2">
                               eBay Price
                             </div>
-                            <div className="text-2xl font-semibold">
+                            <div className="text-3xl font-semibold">
                               ${Number(product.ebayPrice).toFixed(2)}
                             </div>
                           </div>
@@ -752,7 +752,7 @@ export default function ProductCard({
                       {hasAnalysis && aiAnalysis?.marketAnalysis?.priceSuggestion && (
                         <div className="space-y-2">
                           <h4 className="text-sm font-medium">Price Analysis</h4>
-                          <div className="p-3 rounded-lg bg-secondary/10 space-y-3">
+                          <div className="p-4 rounded-lg bg-secondary/10 space-y-3">
                             <div className="flex justify-between text-sm">
                               <span>Suggested Range:</span>
                               <span>
@@ -781,13 +781,13 @@ export default function ProductCard({
                     </div>
                   </TabsContent>
 
-                  <TabsContent value="metrics" className="p-4 m-0">
-                    <div className="space-y-4">
+                  <TabsContent value="metrics" className="px-6 pb-6 m-0">
+                    <div className="space-y-6">
                       {hasAnalysis && (
                         <>
                           <div className="space-y-2">
                             <h4 className="text-sm font-medium">Market Demand</h4>
-                            <div className="p-3 rounded-lg bg-secondary/10 space-y-3">
+                            <div className="p-4 rounded-lg bg-secondary/10 space-y-3">
                               <div className="flex items-center justify-between">
                                 <span className="text-sm">Demand Score</span>
                                 <span className="text-sm font-medium">
@@ -811,16 +811,16 @@ export default function ProductCard({
                             <div className="space-y-2">
                               <h4 className="text-sm font-medium">Market Activity</h4>
                               <div className="grid grid-cols-2 gap-3">
-                                <div className="p-3 rounded-lg bg-secondary/10">
-                                  <div className="text-sm text-muted-foreground mb-1">
+                                <div className="p-4 rounded-lg bg-secondary/10">
+                                  <div className="text-sm text-muted-foreground mb-2">
                                     Sold Items
                                   </div>
                                   <div className="text-xl font-semibold">
                                     {aiAnalysis.ebayData.soldCount}
                                   </div>
                                 </div>
-                                <div className="p-3 rounded-lg bg-secondary/10">
-                                  <div className="text-sm text-muted-foreground mb-1">
+                                <div className="p-4 rounded-lg bg-secondary/10">
+                                  <div className="text-sm text-muted-foreground mb-2">
                                     Active Listings
                                   </div>
                                   <div className="text-xl font-semibold">
@@ -839,73 +839,78 @@ export default function ProductCard({
             </Tabs>
           </div>
 
-          <div className="flex-none p-4 border-t bg-muted/5">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex gap-1">
+          <div className="flex-none p-6 border-t bg-muted/5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex gap-2">
                 <Button
-                  size="icon"
+                  size="default"
                   variant="ghost"
                   onClick={handleEdit}
-                  className="h-8 w-8"
+                  className="h-10"
                 >
-                  <Edit className="h-4 w-4" />
+                  <Edit className="h-4 w-4 mr-2" />
+                  Edit
                 </Button>
                 <Button
-                  size="icon"
+                  size="default"
                   variant="ghost"
                   onClick={deleteProduct}
-                  className="h-8 w-8"
+                  className="h-10"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
                 </Button>
                 {!inWatchlist && (
                   <>
                     <Button
-                      size="icon"
+                      size="default"
                       variant="ghost"
                       onClick={markAsSold}
-                      className="h-8 w-8 text-green-600 hover:text-green-700"
+                      className="h-10 text-green-600 hover:text-green-700"
                     >
-                      <CheckCircle2 className="h-4 w-4" />
+                      <CheckCircle2 className="h-4 w-4 mr-2" />
+                      Mark Sold
                     </Button>
                     {!product.ebayListingUrl ? (
                       <Button
-                        size="icon"
+                        size="default"
                         variant="ghost"
                         onClick={generateEbayListing}
                         disabled={isGeneratingListing}
-                        className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                        className="h-10 text-blue-600 hover:text-blue-700"
                       >
-                        <Share2 className="h-4 w-4" />
+                        <Share2 className="h-4 w-4 mr-2" />
+                        List on eBay
                       </Button>
                     ) : (
                       <Button
-                        size="icon"
+                        size="default"
                         variant="ghost"
                         onClick={() => window.open(product.ebayListingUrl, '_blank')}
-                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                        className="h-10 text-green-600 hover:text-green-700"
                       >
-                        <ArrowUpRight className="h-4 w-4" />
+                        <ArrowUpRight className="h-4 w-4 mr-2" />
+                        View on eBay
                       </Button>
                     )}
                   </>
                 )}
               </div>
-              {inWatchlist && (
+              {inWatchlist ? (
                 <Button
+                  size="lg"
                   variant="default"
                   onClick={handleConvertDialog}
                   className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  <ArrowUpRight className="h-4 w-4 mr-2" />
+                  <ArrowUpRight className="h-5 w-5 mr-2" />
                   Add to Inventory
                 </Button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
       </Card>
-
       <ConvertWatchlistDialog
         product={product}
         open={showConvertDialog}
@@ -914,3 +919,5 @@ export default function ProductCard({
     </>
   );
 }
+
+export default ProductCard;

@@ -693,82 +693,100 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         return res.status(400).json({ error: "Product ID is required" });
       }
 
-      // Retrieve the product details
-      const [product] = await db.select()
-        .from(products)
-        .where(
-          and(
-            eq(products.id, productId),
-            eq(products.sold, false)  // Ensure product isn't already sold
+      // Use a transaction for atomicity
+      const result = await db.transaction(async (tx) => {
+        console.log("[Order Creation] Starting transaction");
+
+        // Retrieve the product details within the transaction
+        const [product] = await tx.select()
+          .from(products)
+          .where(
+            and(
+              eq(products.id, productId),
+              eq(products.sold, false)  // Ensure product isn't already sold
+            )
           )
-        )
-        .limit(1);
+          .limit(1);
 
-      if (!product) {
-        console.log("[Order Creation] Product not found or already sold:", productId);
-        return res.status(404).json({ error: "Product not found or already sold" });
-      }
+        if (!product) {
+          console.log("[Order Creation] Product not found or already sold:", productId);
+          throw new Error("Product not found or already sold");
+        }
 
-      console.log("[Order Creation] Creating order for product:", product);
+        console.log("[Order Creation] Creating order for product:", product);
 
-      // Create an order record
-      const [order] = await db.insert(orders)
-        .values({
-          userId: req.user!.id,
-          status: "completed",
-          total: product.price || "0",
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } as const)
-        .returning();
+        // Create an order record within transaction
+        const [order] = await tx.insert(orders)
+          .values({
+            userId: req.user!.id,
+            status: "completed",
+            total: product.price || "0",
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as const)
+          .returning();
 
-      console.log("[Order Creation] Created order:", order);
+        console.log("[Order Creation] Created order:", order);
 
-      // Create order item
-      const [orderItem] = await db.insert(orderItems)
-        .values({
-          orderId: order.id,
-          productId: product.id,
-          price: product.price || "0",
-          quantity: 1,
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } as const)
-        .returning();
+        // Create order item within transaction
+        const [orderItem] = await tx.insert(orderItems)
+          .values({
+            orderId: order.id,
+            productId: product.id,
+            price: product.price || "0",
+            quantity: 1,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as const)
+          .returning();
 
-      console.log("[Order Creation] Created order item:", orderItem);
+        console.log("[Order Creation] Created order item:", orderItem);
 
-      // Mark product as sold and set soldAt timestamp
-      const now = new Date();
-      const [updatedProduct] = await db.update(products)
-        .set({
-          sold: true,
-          soldAt: now,
-          updatedAt: now
-        })
-        .where(eq(products.id, productId))
-        .returning();
+        // Mark product as sold and set soldAt timestamp within transaction
+        const now = new Date();
+        const [updatedProduct] = await tx.update(products)
+          .set({
+            sold: true,
+            soldAt: now,
+            updatedAt: now
+          })
+          .where(eq(products.id, productId))
+          .returning();
 
-      console.log("[Order Creation] Updated product as sold:", updatedProduct);
+        console.log("[Order Creation] Updated product as sold:", updatedProduct);
 
-      // Remove from any watchlists
-      await db.delete(watchlist)
-        .where(eq(watchlist.productId, productId));
+        // Remove from any watchlists within transaction
+        await tx.delete(watchlist)
+          .where(eq(watchlist.productId, productId));
 
-      console.log("[Order Creation] Removed product from watchlists");
+        console.log("[Order Creation] Removed product from watchlists");
 
+        // Return all updated records
+        return {
+          order,
+          orderItem,
+          product: updatedProduct
+        };
+      });
+
+      // Transaction succeeded
       res.status(201).json({
         message: "Product marked as sold",
-        order,
-        orderItem,
-        product: updatedProduct
+        ...result
       });
     } catch (error) {
       console.error('[Order Creation] Error marking product as sold:', error);
-      res.status(500).json({
-        error: "Failed to mark product as sold",
-        details: error instanceof Error ? error.message : "Unknown error",
-      });
+      // Return appropriate error response based on error type
+      if (error instanceof Error && error.message === "Product not found or already sold") {
+        res.status(404).json({
+          error: error.message
+        });
+      } else {
+        res.status(500).json({
+          error: "Failed to mark product as sold",
+          details: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
     }
   });
 

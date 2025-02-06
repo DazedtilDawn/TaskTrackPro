@@ -4,6 +4,12 @@ import { setupVite, serveStatic } from "./vite";
 import { registerRoutes } from "./routes";
 import { db } from "@db";
 import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get directory name in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -27,6 +33,28 @@ app.use(cors({
   },
   credentials: true
 }));
+
+// Configure uploads directory
+const uploadsPath = path.resolve(__dirname, '../uploads');
+console.log('[Static Files] Uploads directory path:', uploadsPath);
+
+// Serve static files from uploads directory with logging
+app.use('/uploads', (req, res, next) => {
+  console.log('[Static Files] Accessing:', req.url);
+  express.static(uploadsPath, {
+    setHeaders: (res, path) => {
+      res.set('Cache-Control', 'public, max-age=31536000'); // 1 year cache
+      res.set('Access-Control-Allow-Origin', '*');
+    }
+  })(req, res, (err) => {
+    if (err) {
+      console.error('[Static Files] Error serving:', req.url, err);
+      next(err);
+    } else {
+      next();
+    }
+  });
+});
 
 // Log request details
 app.use((req, res, next) => {

@@ -29,7 +29,7 @@ const upload = multer({ storage: storage });
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
-export function registerRoutes(app: Express): Server {
+export function registerRoutes(app: Express): Express {
   setupAuth(app);
 
   app.use(bodyParser.json({
@@ -580,7 +580,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       updateData.updatedAt = new Date();
 
       // Remove undefined values
-      Object.keys(updateData).forEach(key => 
+      Object.keys(updateData).forEach(key =>
         updateData[key] === undefined && delete updateData[key]
       );
 
@@ -895,7 +895,7 @@ Do not include any additional text.`;
       }
 
       res.json(recommendation);
-    } catch(error) {
+    } catch (error) {
       console.error("Error generating sale price:", error);
       res.status(500).json({
         error: "Failed to generate sale price",
@@ -1161,5 +1161,5 @@ Format the response as JSON with:
   });
 
   const httpServer = createServer(app);
-  return httpServer;
+  return app;
 }

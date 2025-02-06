@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { setupVite, serveStatic } from "./vite";
 import type { Server } from "http";
 import { db } from "@db";
+import { registerRoutes } from "./routes";
 
 const app = express();
 
@@ -69,18 +70,15 @@ async function initializeServer() {
       });
     });
 
+    // Register all routes
+    registerRoutes(app);
+
     // Setup Vite for development
     if (process.env.NODE_ENV !== 'production') {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
-
-    // Register all routes (will be handled by API middleware)
-    app.use('/api', (req, res, next) => {
-      // Routes will be registered via middleware
-      next();
-    });
 
     // Handle shutdown gracefully
     process.on('SIGTERM', () => {

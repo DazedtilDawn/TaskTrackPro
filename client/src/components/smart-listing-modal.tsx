@@ -9,22 +9,15 @@ import { cn } from "@/lib/utils";
 
 interface SmartListingModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
   imageFiles: File[];
-  onAnalysisComplete?: (analysis: any) => void;
+  onAnalysisComplete: (analysis: any) => void;
 }
-
-// Error handling helper
-const handleError = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
-  return 'An unexpected error occurred';
-};
 
 export default function SmartListingModal({
   open,
-  onOpenChange,
-  imageFiles = [],
+  onClose,
+  imageFiles = [], // Add default value
   onAnalysisComplete,
 }: SmartListingModalProps) {
   const [loading, setLoading] = useState(false);
@@ -56,22 +49,6 @@ export default function SmartListingModal({
     }
   }, []);
 
-  // Validate image files
-  const validateImages = useCallback((files: File[]) => {
-    if (!files.length) {
-      throw new Error('No images provided for analysis');
-    }
-
-    for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        throw new Error(`Invalid file type: ${file.type}. Only images are allowed.`);
-      }
-      if (file.size > 4 * 1024 * 1024) {
-        throw new Error(`File ${file.name} is too large. Maximum size is 4MB.`);
-      }
-    }
-  }, []);
-
   const runAnalysis = useCallback(async () => {
     if (!isMounted.current || analysisLock.current || !imageFiles?.length) return;
 
@@ -81,53 +58,45 @@ export default function SmartListingModal({
       setError(null);
       setProgress(10);
 
-      // Input validation
-      validateImages(imageFiles);
-
-      // Set up progress interval
       progressInterval.current = setInterval(() => {
         if (isMounted.current) {
-          setProgress(prev => Math.min(prev + 5, 90));
+          setProgress(prev => Math.min(prev + 10, 90));
         }
-      }, 1000);
+      }, 2000);
 
       const analysis = await generateSmartListing(imageFiles);
       if (!isMounted.current) return;
 
       setProgress(100);
-      if (onAnalysisComplete) {
-        onAnalysisComplete(analysis);
-      }
-      onOpenChange(false);
+      onAnalysisComplete(analysis);
+      onClose();
 
       toast({
         title: "Analysis complete",
-        description: "Product details have been analyzed successfully",
+        description: "Product details have been analyzed successfully"
       });
     } catch (err) {
       console.error('Analysis error:', err);
       if (isMounted.current) {
-        const errorMessage = handleError(err);
-        setError(errorMessage);
+        setError(err instanceof Error ? err.message : 'Analysis failed');
         toast({
           title: "Analysis failed",
-          description: errorMessage,
+          description: err instanceof Error ? err.message : 'Could not analyze product details',
           variant: "destructive",
         });
       }
     } finally {
       cleanup();
     }
-  }, [imageFiles, onAnalysisComplete, onOpenChange, toast, cleanup, validateImages]);
+  }, [imageFiles, onAnalysisComplete, onClose, toast, cleanup]);
 
   useEffect(() => {
-    // Reset state when modal opens/closes
-    if (!open) {
+    if (!open || !imageFiles?.length) {
       cleanup();
+      return;
     }
 
-    // Start analysis with delay when modal opens with valid images
-    if (open && imageFiles?.length && !analysisLock.current) {
+    if (!analysisLock.current) {
       analysisTimeout.current = setTimeout(() => {
         if (isMounted.current) {
           runAnalysis();
@@ -138,19 +107,17 @@ export default function SmartListingModal({
     return cleanup;
   }, [open, imageFiles, runAnalysis, cleanup]);
 
-  // Validate images when modal opens
   useEffect(() => {
     if (open && (!imageFiles?.length)) {
-      onOpenChange(false);
+      onClose();
       toast({
         title: "No images selected",
         description: "Please select at least one image to analyze",
         variant: "destructive",
       });
     }
-  }, [open, imageFiles?.length, onOpenChange, toast]);
+  }, [open, imageFiles?.length, onClose, toast]);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       isMounted.current = false;
@@ -158,38 +125,34 @@ export default function SmartListingModal({
     };
   }, [cleanup]);
 
-  const getStatusIcon = useCallback(() => {
+  const getStatusIcon = () => {
     if (error) return <AlertCircle className="h-8 w-8 text-destructive" />;
     if (progress === 100) return <CheckCircle2 className="h-8 w-8 text-primary" />;
     return <Loader2 className="h-8 w-8 animate-spin text-primary" />;
-  }, [error, progress]);
+  };
 
-  const getStatusMessage = useCallback(() => {
-    if (error) return 'Analysis failed';
+  const getStatusMessage = () => {
     if (progress < 20) return 'Validating images...';
     if (progress < 50) return 'Processing images...';
     if (progress < 80) return 'Analyzing content...';
     return 'Finalizing results...';
-  }, [error, progress]);
+  };
 
   return (
     <Dialog 
       open={open} 
-      onOpenChange={onOpenChange}
+      onOpenChange={(newOpen) => {
+        if (!newOpen) cleanup();
+        onClose();
+      }}
     >
-      <DialogContent 
-        className="max-w-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="dialog-title"
-        aria-describedby="dialog-description"
-      >
+      <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle id="dialog-title" className="flex items-center gap-2">
-            <FileImage className="h-5 w-5" aria-hidden="true" />
+          <DialogTitle className="flex items-center gap-2">
+            <FileImage className="h-5 w-5" />
             Smart Listing Analysis
           </DialogTitle>
-          <DialogDescription id="dialog-description">
+          <DialogDescription>
             {loading 
               ? `Analyzing ${imageFiles?.length} product image${imageFiles?.length !== 1 ? 's' : ''} with AI`
               : error 
@@ -198,9 +161,14 @@ export default function SmartListingModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-6" role="status" aria-live="polite" aria-atomic="true">
+        <div className="space-y-6">
           {loading && (
-            <div className="relative p-6 bg-card rounded-lg border">
+            <div 
+              className="relative p-6 bg-card rounded-lg border" 
+              role="status" 
+              aria-live="polite"
+              aria-busy="true"
+            >
               <div className="space-y-4">
                 <div className="flex items-center gap-3 mb-6">
                   {getStatusIcon()}
@@ -217,15 +185,22 @@ export default function SmartListingModal({
                     <span>Analysis Progress</span>
                     <span className="font-medium">{progress}%</span>
                   </div>
-                  <Progress
-                    value={progress}
-                    className="h-2"
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                    aria-valuenow={progress}
-                  />
+                  <div className="w-full bg-secondary rounded-full h-2.5">
+                    <div 
+                      className={cn(
+                        "h-2.5 rounded-full transition-all duration-300",
+                        error ? "bg-destructive" : "bg-primary"
+                      )}
+                      style={{ width: `${progress}%` }}
+                      role="progressbar"
+                      aria-valuenow={progress}
+                      aria-valuemin={0}
+                      aria-valuemax={100}
+                    />
+                  </div>
                 </div>
 
+                {/* Steps indicator */}
                 <div className="space-y-3 mt-6">
                   {['Image Validation', 'Processing', 'AI Analysis', 'Results'].map((step, index) => {
                     const stepProgress = (index + 1) * 25;
@@ -239,8 +214,6 @@ export default function SmartListingModal({
                           "flex items-center gap-3 px-3 py-2 rounded-md transition-colors",
                           isActive ? "bg-secondary/50" : "opacity-50"
                         )}
-                        role="listitem"
-                        aria-current={isActive ? "step" : undefined}
                       >
                         <div className={cn(
                           "h-2 w-2 rounded-full",
@@ -252,12 +225,7 @@ export default function SmartListingModal({
                         )}>
                           {step}
                         </span>
-                        {isCompleted && (
-                          <ChevronRight 
-                            className="h-4 w-4 ml-auto text-primary"
-                            aria-hidden="true"
-                          />
-                        )}
+                        {isCompleted && <ChevronRight className="h-4 w-4 ml-auto text-primary" />}
                       </div>
                     );
                   })}
@@ -285,7 +253,6 @@ export default function SmartListingModal({
                     runAnalysis();
                   }
                 }}
-                aria-label="Retry analysis"
               >
                 Retry Analysis
               </Button>

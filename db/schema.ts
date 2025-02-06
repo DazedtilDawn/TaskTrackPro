@@ -2,7 +2,6 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, decimal } fr
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from "drizzle-orm";
 
-// User table with proper eBay authentication fields
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
@@ -14,10 +13,9 @@ export const users = pgTable("users", {
   ebayTokenExpiry: timestamp("ebay_token_expiry"),
 });
 
-// Products table with comprehensive fields
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   name: text("name").notNull(),
   description: text("description"),
   sku: text("sku").unique(),
@@ -28,8 +26,6 @@ export const products = pgTable("products", {
   ebayPrice: decimal("ebay_price", { precision: 10, scale: 2 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-  listedAt: timestamp("listed_at").defaultNow().notNull(),
-  soldAt: timestamp("sold_at"),
   sold: boolean("sold").default(false).notNull(),
   condition: text("condition").default("used_good").notNull(),
   brand: text("brand"),
@@ -44,19 +40,17 @@ export const products = pgTable("products", {
   ebayCategoryId: text("ebay_category_id"),
 });
 
-// Watchlist table with proper timestamps and foreign keys
 export const watchlist = pgTable("watchlist", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  productId: integer("product_id").references(() => products.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Orders table with eBay integration fields
 export const orders = pgTable("orders", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  userId: integer("user_id").references(() => users.id).notNull(),
   status: text("status").default("pending").notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -65,18 +59,27 @@ export const orders = pgTable("orders", {
   ebayOrderData: jsonb("ebay_order_data"),
 });
 
-// Order items with proper references and nullable product ID
 export const orderItems = pgTable("order_items", {
   id: serial("id").primaryKey(),
-  orderId: integer("order_id").references(() => orders.id, { onDelete: 'cascade' }).notNull(),
-  productId: integer("product_id").references(() => products.id, { onDelete: 'set null' }),
+  orderId: integer("order_id").references(() => orders.id).notNull(),
+  productId: integer("product_id").references(() => products.id).notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Define relations
+export const ebayCategories = pgTable("ebay_categories", {
+  id: serial("id").primaryKey(),
+  categoryId: text("category_id").notNull(),
+  name: text("name").notNull(),
+  level: integer("level").notNull(),
+  parentId: text("parent_id"),
+  leafCategory: boolean("leaf_category").default(false).notNull(),
+  lastUpdate: timestamp("last_update").defaultNow().notNull(),
+});
+
+// Relations configuration
 export const productsRelations = relations(products, ({ one }) => ({
   user: one(users, {
     fields: [products.userId],
@@ -114,7 +117,7 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   }),
 }));
 
-// Export schemas for input validation
+// Export schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export const insertProductSchema = createInsertSchema(products);
@@ -123,10 +126,10 @@ export const insertWatchlistSchema = createInsertSchema(watchlist);
 export const selectWatchlistSchema = createSelectSchema(watchlist);
 export const insertOrderSchema = createInsertSchema(orders);
 export const selectOrderSchema = createSelectSchema(orders);
-export const insertOrderItemSchema = createInsertSchema(orderItems);
-export const selectOrderItemSchema = createSelectSchema(orderItems);
+export const insertEbayCategorySchema = createInsertSchema(ebayCategories);
+export const selectEbayCategorySchema = createSelectSchema(ebayCategories);
 
-// Export types for TypeScript
+// Export types
 export type InsertUser = typeof users.$inferInsert;
 export type SelectUser = typeof users.$inferSelect;
 export type InsertProduct = typeof products.$inferInsert;
@@ -135,5 +138,5 @@ export type InsertWatchlist = typeof watchlist.$inferInsert;
 export type SelectWatchlist = typeof watchlist.$inferSelect;
 export type InsertOrder = typeof orders.$inferInsert;
 export type SelectOrder = typeof orders.$inferSelect;
-export type InsertOrderItem = typeof orderItems.$inferInsert;
-export type SelectOrderItem = typeof orderItems.$inferSelect;
+export type InsertEbayCategory = typeof ebayCategories.$inferInsert;
+export type SelectEbayCategory = typeof ebayCategories.$inferSelect;

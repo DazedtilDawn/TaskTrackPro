@@ -38,6 +38,7 @@ export default function ConvertWatchlistDialog({
       recommendedSalePrice: Number(product.price) || 0,
     }
   });
+
   const [isGenerating, setIsGenerating] = useState(false);
 
   const generateRecommendation = async () => {
@@ -61,7 +62,6 @@ export default function ConvertWatchlistDialog({
         throw new Error(data.error);
       }
 
-      // Update the form with the recommended price
       setValue("recommendedSalePrice", data.recommendedSalePrice);
 
       toast({
@@ -84,17 +84,31 @@ export default function ConvertWatchlistDialog({
 
   const onSubmit = async (data: ConvertWatchlistFormData) => {
     try {
-      // Update the product with buy price and recommended sale price
+      // 1. Update the product with new price and quantity
       await apiRequest("PATCH", `/api/products/${product.id}`, {
-        buyPrice: data.buyPrice,
-        price: data.recommendedSalePrice, // Use recommendedSalePrice as the new price
+        price: data.recommendedSalePrice,
         quantity: 1,
+        sold: false,
       });
 
-      // Remove from watchlist
-      await apiRequest("DELETE", `/api/watchlist/${product.id}`);
+      // 2. Find and remove from watchlist using the correct watchlist item ID
+      const watchlistResponse = await apiRequest("GET", "/api/watchlist");
+      const watchlistItems = await watchlistResponse.json();
 
-      // Invalidate queries to refresh the UI
+      const itemToDelete = watchlistItems.find((item: any) => item.productId === product.id);
+
+      if (itemToDelete) {
+        await apiRequest("DELETE", `/api/watchlist/${itemToDelete.id}`);
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to find item in the watchlist",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 3. Invalidate queries to refresh the UI
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["/api/products"] }),
         queryClient.invalidateQueries({ queryKey: ["/api/watchlist"] })
@@ -105,7 +119,6 @@ export default function ConvertWatchlistDialog({
         description: `${product.name} has been added to your inventory.`,
       });
 
-      // Reset form and close dialog
       reset();
       onOpenChange(false);
     } catch (error) {

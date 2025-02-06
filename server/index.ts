@@ -1,8 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
+import { createServer, type Server } from "http";
 import { setupVite, serveStatic } from "./vite";
-import type { Server } from "http";
-import { db } from "@db";
 import { registerRoutes } from "./routes";
+import { db } from "@db";
 
 const app = express();
 
@@ -10,104 +10,91 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Health check endpoint
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok' });
-});
-
+// Log request details
 app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      console.log(logLine);
-    }
-  });
-
-  next();
+    const start = Date.now();
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Started`);
+    const originalResJson = res.json;
+    res.json = function (body) {
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Response:`, body);
+        return originalResJson.call(this, body);
+    };
+    res.on("finish", () => {
+        const duration = Date.now() - start;
+        console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Completed in ${duration}ms`);
+    });
+    next();
 });
 
 // Initialize server with proper error handling
 async function initializeServer() {
-  try {
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 8081;
-    console.log(`Attempting to start server on port ${port}...`);
+    try {
+        // Use PORT from environment, fallback to 5000 (Replit's preferred port)
+        const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+        console.log(`[Server] Attempting to start server on port ${port}`);
 
-    const server: Server = await new Promise((resolve, reject) => {
-      const httpServer = app.listen(port, '0.0.0.0', () => {
-        console.log(`Server successfully started on port ${port}`);
-        const replitUrl = process.env.REPL_SLUG && process.env.REPL_ID ?
-          `https://${process.env.REPL_ID}-00-1vlomg3cflyir.spock.replit.dev` :
-          `http://localhost:${port}`;
-        console.log(`Full URL: ${replitUrl}`);
-        resolve(httpServer);
-      });
+        const server = createServer(app);
 
-      httpServer.once('error', (err: NodeJS.ErrnoException) => {
-        if (err.code === 'EADDRINUSE') {
-          console.error(`Port ${port} is already in use`);
-          reject(new Error(`Port ${port} is already in use`));
+        // Register all routes
+        console.log('[Server] Registering routes...');
+        registerRoutes(app);
+
+        // Setup Vite for development
+        console.log('[Server] Setting up Vite...');
+        if (process.env.NODE_ENV !== 'production') {
+            await setupVite(app, server);
         } else {
-          reject(err);
+            serveStatic(app);
         }
-      });
-    });
 
-    // Register all routes
-    registerRoutes(app);
+        await new Promise<void>((resolve, reject) => {
+            server.listen(port, '0.0.0.0', () => {
+                console.log(`[Server] Server running on port ${port}`);
 
-    // Setup Vite for development
-    if (process.env.NODE_ENV !== 'production') {
-      await setupVite(app, server);
-    } else {
-      serveStatic(app);
+                // Use the specific Replit URL format
+                if (process.env.REPL_ID) {
+                    // Note: Instead of using REPL_SLUG directly, we'll construct the URL with
+                    // your specific subdomain format
+                    const replitDomain = process.env.REPL_ID.includes('1vlomg3cflyir') 
+                        ? '1vlomg3cflyir' 
+                        : process.env.REPL_SLUG || 'workspace';
+                    const replitUrl = `https://${process.env.REPL_ID}-00-${replitDomain}.spock.replit.dev`;
+                    console.log(`[Server] Replit URL: ${replitUrl}`);
+                } else {
+                    console.log(`[Server] Local URL: http://localhost:${port}`);
+                }
+                resolve();
+            });
+
+            server.on('error', (err: NodeJS.ErrnoException) => {
+                if (err.code === 'EADDRINUSE') {
+                    console.error(`[Server Error] Port ${port} is already in use`);
+                    reject(new Error(`Port ${port} is already in use`));
+                } else {
+                    console.error('[Server Error] Server failed to start:', err);
+                    reject(err);
+                }
+            });
+        });
+
+        return server;
+
+    } catch (error) {
+        console.error('[Server Error] Server initialization failed:', error);
+        process.exit(1);
     }
-
-    // Handle shutdown gracefully
-    process.on('SIGTERM', () => {
-      console.log('SIGTERM received. Shutting down gracefully...');
-      server.close(() => {
-        console.log('Server closed');
-        process.exit(0);
-      });
-    });
-
-  } catch (error) {
-    console.error('Server initialization failed:', error);
-    process.exit(1);
-  }
 }
 
 // Basic error handler
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Error:', err.stack);
-  const status = (err as any).status || (err as any).statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  res.status(status).json({ message });
+app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error('[Server Error]:', err.stack);
+    const status = (err as any).status || (err as any).statusCode || 500;
+    const message = err.message || "Internal Server Error";
+    res.status(status).json({ message });
 });
 
 // Start server
-initializeServer().catch((error) => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
-});
+console.log('[Server] Starting server initialization...');
+initializeServer();
 
 export default app;

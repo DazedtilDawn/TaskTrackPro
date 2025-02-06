@@ -1,0 +1,56 @@
+Okay, we're still debugging the server startup, and Replit is *again* suggesting a port mismatch. This reinforces the importance of using `process.env.PORT` correctly.  Let's prioritize the steps to ensure the port is handled correctly and eliminate that as a source of the problem:
+
+**Here's the prioritized action plan:**
+
+1.  **VERIFY `server/index.ts` (AGAIN, with EXTREME PRECISION):**
+
+    *   I cannot emphasize this enough: Make *absolutely certain* that your `server/index.ts` file contains the *exact* code I provided in my previous response.  Copy and paste it again if you have any doubts.  Specifically, these lines are critical:
+
+        ```typescript
+        const port = process.env.PORT ? parseInt(process.env.PORT) : 8081; // Use PORT, or 8081
+        const server = app.listen(port, '0.0.0.0', () => { // Listen on all interfaces
+            // ...
+        });
+        ```
+
+    *   **There should be NO other `app.listen` calls anywhere else in your `server/index.ts` file.**  Make sure you haven't accidentally left an old one in.
+    *   **Save the file.**
+
+2.  **Re-Check Environment Variables (DATABASE_URL):**
+
+    *   Go to Replit's "Secrets".
+    *   **Verify that `DATABASE_URL` is set,** and that its value is the *correct* connection string for your Replit PostgreSQL database. If you're unsure about the value, refer to Replit's documentation on how to find the connection string for your database. A missing or incorrect `DATABASE_URL` *will* prevent the server from starting. Since we are still having start up problems, this is a likely culprit.
+    * **Verify GEMINI_API_KEY and EBAY variables:** Double check these are valid.
+
+3.  **`package.json` and Run Command (One Last Time):**
+
+    *   **`package.json`:**  Ensure `"dev": "tsx server/index.ts"` is in the `scripts` section.
+    *   **Replit Run Button:**  Confirm it's set to `npm run dev`.
+     * **.replit file**: Verify that it contains `run = "npm run dev"`
+
+4.  **Run `npm run db:push` (One Last Time):** In the Replit Shell, run this command *again* to be absolutely certain your database schema is up-to-date.
+
+5.  **Restart and Observe:**
+
+    *   Stop the server if it's somehow running.
+    *   Run `npm run dev` in the Shell.
+    *   **Wait a full 60 seconds.**
+    *   **Check the Replit Webview:** Note the URL.
+    *   **Try the `/api/health` endpoint:**  Append `/api/health` to the Webview URL and try to access it.
+
+6.  **Report Back (Precisely):**
+
+    *   **Copy and paste the *entire* output from the Replit console** after running `npm run dev`.
+    *   **What URL does the Replit Webview show?**
+    *   **What happens when you try to access `/api/health`?** (e.g., "404 Not Found", "Cannot GET /api/health", a blank page, or the expected `{"status": "ok"}` response).
+    *   **Browser Console:** If the page doesn't load, open your browser's developer tools (F12), go to the "Console" tab, and copy any error messages.  Also check the "Network" tab for any failed requests (status codes in red).
+
+**Do NOT "Start fresh" or "Roll back" yet.**
+
+**Why we're focusing on these steps:**
+
+*   **Port 5000:** The message "system is expecting port 5000" is a *misleading* message from Replit. Replit manages the ports dynamically. The `process.env.PORT` and `'0.0.0.0'` setup in `server/index.ts` is the *correct* way to handle this. We are *not* going to hardcode port 5000.
+*   **Database Connection:** A missing or incorrect `DATABASE_URL` is a very common reason for server startup failures.
+*   **Eliminating Variables:** By temporarily commenting out the AI and eBay integrations, we're simplifying the problem to focus on the core server and database connection.
+
+Provide the detailed results of these steps, and we'll proceed from there. We're getting closer to isolating the root cause. The fact that the server *sometimes* starts (as evidenced by the URL you provided earlier) is a good sign – it means the basic setup is likely correct, and we're dealing with a configuration or initialization issue.

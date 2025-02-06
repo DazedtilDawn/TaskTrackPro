@@ -32,6 +32,11 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 export function registerRoutes(app: Express): Express {
   setupAuth(app);
 
+  // Add health check endpoint
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
   app.use(bodyParser.json({
     limit: '50mb',
     verify: (req, res, buf) => {

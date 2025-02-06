@@ -15,6 +15,9 @@ import cookieParser from "cookie-parser";
 declare global {
   namespace Express {
     interface User extends SelectUser {}
+    interface NextFunction {
+      (err?: any): void;
+    }
   }
 }
 
@@ -87,55 +90,6 @@ export function setupAuth(app: Express) {
     res.json({ csrfToken: req.csrfToken() });
   });
 
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      const [user] = await getUserByUsername(username);
-      if (!user || !(await comparePasswords(password, user.password))) {
-        return done(null, false);
-      } else {
-        return done(null, user);
-      }
-    }),
-  );
-
-  passport.serializeUser((user, done) => done(null, user.id));
-  passport.deserializeUser(async (id: number, done) => {
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, id))
-      .limit(1);
-
-    done(null, user);
-  });
-
-  // Protected routes with CSRF
-  app.post("/api/register", csrfProtection, async (req, res, next) => {
-    const result = insertUserSchema.safeParse(req.body);
-    if (!result.success) {
-      const error = fromZodError(result.error);
-      return res.status(400).send(error.toString());
-    }
-
-    const [existingUser] = await getUserByUsername(result.data.username);
-    if (existingUser) {
-      return res.status(400).send("Username already exists");
-    }
-
-    const [user] = await db
-      .insert(users)
-      .values({
-        ...result.data,
-        password: await hashPassword(result.data.password),
-      })
-      .returning();
-
-    req.login(user, (err) => {
-      if (err) return next(err);
-      res.status(201).json(user);
-    });
-  });
-
   // Add middleware to validate login credentials
   const validateLoginCredentials = async (req: Express.Request, res: Express.Response, next: Express.NextFunction) => {
     const result = loginCredentialsSchema.safeParse(req.body);
@@ -148,6 +102,71 @@ export function setupAuth(app: Express) {
     }
     next();
   };
+
+  passport.use(
+    new LocalStrategy(async (username, password, done) => {
+      try {
+        const [user] = await getUserByUsername(username);
+        if (!user || !(await comparePasswords(password, user.password))) {
+          return done(null, false);
+        } else {
+          return done(null, user);
+        }
+      } catch (error) {
+        return done(error);
+      }
+    }),
+  );
+
+  passport.serializeUser((user, done) => done(null, user.id));
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
+
+      done(null, user);
+    } catch (error) {
+      done(error);
+    }
+  });
+
+  app.post("/api/register", csrfProtection, async (req, res, next) => {
+    const result = insertUserSchema.safeParse(req.body);
+    if (!result.success) {
+      const error = fromZodError(result.error);
+      return res.status(400).json({
+        error: "Invalid registration data",
+        details: error.toString()
+      });
+    }
+
+    try {
+      const [existingUser] = await getUserByUsername(result.data.username);
+      if (existingUser) {
+        return res.status(400).json({
+          error: "Username already exists"
+        });
+      }
+
+      const [user] = await db
+        .insert(users)
+        .values({
+          ...result.data,
+          password: await hashPassword(result.data.password),
+        })
+        .returning();
+
+      req.login(user, (err) => {
+        if (err) return next(err);
+        res.status(201).json(user);
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
 
   app.post("/api/login", csrfProtection, validateLoginCredentials, (req, res, next) => {
     passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {

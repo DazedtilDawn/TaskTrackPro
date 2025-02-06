@@ -1,16 +1,18 @@
 import React, { useState, useCallback } from "react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Heart, Edit, Trash2, Sparkles, TrendingUp, Tag, Box,
-  BarChart, CheckCircle2, ArrowUpRight, Share2, Info, BarChart2, PackageOpen, ImageIcon
+  BarChart, CheckCircle2, ArrowUpRight, Share2, Info,
+  Package, Calendar, DollarSign, Boxes, ImageIcon, PackageOpen
 } from "lucide-react";
 import type { SelectProduct } from "@db/schema";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 import ConvertWatchlistDialog from "./convert-watchlist-dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import {
   Popover,
@@ -18,6 +20,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 
 interface AIAnalysis {
   category: string;
@@ -78,8 +81,7 @@ export default function ProductCard({
   const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [isGeneratingListing, setIsGeneratingListing] = useState(false);
   const [imageError, setImageError] = useState(false);
-  const [parseError, setParseError] = useState<string | null>(null);
-  const [focusVisible, setFocusVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState("details");
 
   const parseAIAnalysis = (data: unknown): AIAnalysis => {
     try {
@@ -101,7 +103,7 @@ export default function ProductCard({
       return DEFAULT_AI_ANALYSIS;
     } catch (e) {
       console.error('Failed to parse aiAnalysis:', e);
-      setParseError(e instanceof Error ? e.message : 'Unknown parsing error');
+      setImageError(e instanceof Error ? e.message : 'Unknown parsing error');
       return DEFAULT_AI_ANALYSIS;
     }
   };
@@ -493,81 +495,42 @@ export default function ProductCard({
 
   return (
     <>
-      <Card
-        className={cn(
-          "overflow-hidden transition-all duration-200 hover:shadow-lg",
-          isUnderpriced && "border-yellow-500/50",
-          isOverpriced && "border-red-500/50",
-          isPricedRight && "border-green-500/50",
-          view === "list" && "flex"
-        )}
-        role="article"
-        aria-label={`Product: ${product.name}`}
-        tabIndex={0}
-        onKeyDown={handleKeyDown}
-      >
-        <div
-          className={cn(
-            "relative bg-secondary/20",
-            view === "grid" ? "aspect-square w-full" : "w-48 h-48 shrink-0"
-          )}
-        >
-          {product.imageUrl && !imageError ? (
-            <img
-              src={getImageUrl(product.imageUrl)}
-              alt={`Image of ${product.name}`}
-              className={cn(
-                "object-cover transition-transform duration-200",
-                view === "grid" ? "w-full h-full hover:scale-105" : "w-48 h-full"
-              )}
-              onError={() => setImageError(true)}
-              loading="lazy"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <ImageIcon className="w-8 h-8 text-muted-foreground" />
-            </div>
-          )}
-          {hasAnalysis && (
-            <div className={cn(
-              "absolute top-2 right-2 px-2 py-1 rounded-full text-xs font-medium shadow-sm",
-              isUnderpriced && "bg-yellow-500/90 text-yellow-50",
-              isOverpriced && "bg-red-500/90 text-red-50",
-              isPricedRight && "bg-green-500/90 text-green-50"
-            )}>
-              {isUnderpriced ? 'Underpriced' :
-                isOverpriced ? 'Overpriced' :
-                  'Optimal Price'}
-            </div>
-          )}
-        </div>
-        <div className={cn(
-          view === "list" && "flex-1 flex flex-col"
-        )}>
-          <CardContent className={cn(
-            "p-4",
-            view === "list" && "flex-1"
-          )}>
-            <div className="flex items-start justify-between mb-2">
-              <div className={cn(
-                view === "list" && "flex-1"
-              )}>
-                <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
-                <p className="text-muted-foreground text-sm">{product.description}</p>
+      <Card className="overflow-hidden">
+        <div className="flex flex-col h-full">
+          <div className="relative aspect-video bg-secondary/20">
+            {product.imageUrl && !imageError ? (
+              <img
+                src={getImageUrl(product.imageUrl)}
+                alt={`Image of ${product.name}`}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="w-12 h-12 text-muted-foreground" />
               </div>
-              {hasAnalysis && aiAnalysis && (
+            )}
+            <div className="absolute top-2 right-2 flex gap-1">
+              <Button
+                size="icon"
+                variant="secondary"
+                className="h-8 w-8 bg-background/80 backdrop-blur-sm"
+                onClick={toggleWatchlist}
+              >
+                <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+              </Button>
+              {hasAnalysis && (
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant="ghost"
                       size="icon"
-                      className="h-8 w-8 transition-transform hover:scale-110 shrink-0"
-                      aria-label="View market analysis"
+                      variant="secondary"
+                      className="h-8 w-8 bg-background/80 backdrop-blur-sm"
                     >
                       <Sparkles className="h-4 w-4 text-primary" />
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0" role="dialog" aria-label="Market Analysis Details">
+                  <PopoverContent className="w-80 p-0">
                     <ScrollArea className="h-[400px]">
                       <div className="p-4 space-y-4">
                         <div className="flex items-center justify-between border-b pb-2 sticky top-0 bg-background z-10">
@@ -675,148 +638,268 @@ export default function ProductCard({
                 </Popover>
               )}
             </div>
+          </div>
 
-            <div className={cn(
-              "space-y-2",
-              view === "list" && "flex items-center gap-6"
-            )}>
-              <div className={cn(
-                "flex items-baseline justify-between",
-                view === "list" && "flex-1"
-              )}>
-                <div className="space-y-1">
-                  <div className="text-sm text-muted-foreground font-medium">
-                    {inWatchlist ? "Recommended Buy Price" : "Selling Price"}
-                  </div>
-                  <div className="text-xl font-semibold text-primary">
-                    ${Number(product.price).toFixed(2)}
-                  </div>
-                </div>
-                {product.ebayPrice && (
-                  <div className="flex flex-col items-end">
-                    <span className="text-sm text-muted-foreground">eBay Price</span>
-                    <span className="text-sm font-medium bg-secondary/20 px-2 py-1 rounded">
-                      ${Number(product.ebayPrice).toFixed(2)}
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {(product.weight || product.dimensions) && (
-                <div className="flex flex-col gap-2 text-sm text-muted-foreground">
-                  {product.weight && (
-                    <div className="flex items-center gap-2">
-                      <span>Weight:</span>
-                      <span className="font-medium">{product.weight} lbs</span>
-                    </div>
-                  )}
-                  {product.dimensions && (
-                    <div className="flex items-center gap-2">
-                      <span>Dimensions:</span>
-                      <span className="font-medium">{product.dimensions}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {product.condition && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <span>Condition:</span>
-                  <span className="capitalize">{product.condition.replace(/_/g, ' ')}</span>
-                </div>
-              )}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1">
+            <div className="px-4 pt-4">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="details">Details</TabsTrigger>
+                <TabsTrigger value="pricing">Pricing</TabsTrigger>
+                <TabsTrigger value="metrics">Metrics</TabsTrigger>
+              </TabsList>
             </div>
-          </CardContent>
 
-          <CardFooter className={cn(
-            "p-4 pt-0 flex justify-between",
-            view === "list" && "border-t"
-          )}>
-            <div className="flex gap-2" role="toolbar" aria-label="Product actions">
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={handleEdit}
-                className="hover:scale-105 transition-transform"
-                aria-label="Edit product"
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-              <Button
-                size="icon"
-                variant="ghost"
-                onClick={deleteProduct}
-                className="hover:scale-105 transition-transform"
-                aria-label="Delete product"
-              >
-                <Trash2 className="h-4 w-4" />
-              </Button>
-              {!inWatchlist && (
+            <ScrollArea className="flex-1 h-[300px]">
+              <TabsContent value="details" className="p-4 m-0">
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xl font-semibold">{product.name}</h3>
+                    <p className="text-muted-foreground mt-1">{product.description}</p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Package className="h-4 w-4 text-primary" />
+                        <span className="font-medium">SKU:</span>
+                        <span>{product.sku || "N/A"}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Box className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Brand:</span>
+                        <span>{product.brand || "N/A"}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Tag className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Category:</span>
+                        <span>{product.category || "N/A"}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Info className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Condition:</span>
+                        <span className="capitalize">
+                          {(product.condition || "").replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Boxes className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Quantity:</span>
+                        <span>{product.quantity}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm">
+                        <Calendar className="h-4 w-4 text-primary" />
+                        <span className="font-medium">Added:</span>
+                        <span>
+                          {format(new Date(product.createdAt), "MMM d, yyyy")}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {(product.weight || product.dimensions) && (
+                    <div className="pt-2 border-t">
+                      <h4 className="text-sm font-medium mb-2">Specifications</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        {product.weight && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">Weight:</span>
+                            <span>{product.weight} lbs</span>
+                          </div>
+                        )}
+                        {product.dimensions && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <span className="font-medium">Dimensions:</span>
+                            <span>{product.dimensions}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="pricing" className="p-4 m-0">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 rounded-lg bg-secondary/10">
+                      <div className="text-sm text-muted-foreground mb-1">
+                        List Price
+                      </div>
+                      <div className="text-2xl font-semibold text-primary">
+                        ${Number(product.price).toFixed(2)}
+                      </div>
+                    </div>
+
+                    {product.ebayPrice && (
+                      <div className="p-3 rounded-lg bg-secondary/10">
+                        <div className="text-sm text-muted-foreground mb-1">
+                          eBay Price
+                        </div>
+                        <div className="text-2xl font-semibold">
+                          ${Number(product.ebayPrice).toFixed(2)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {hasAnalysis && aiAnalysis?.marketAnalysis?.priceSuggestion && (
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-medium">Price Analysis</h4>
+                      <div className="p-3 rounded-lg bg-secondary/10 space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span>Suggested Range:</span>
+                          <span>
+                            ${aiAnalysis.marketAnalysis.priceSuggestion.min} -
+                            ${aiAnalysis.marketAnalysis.priceSuggestion.max}
+                          </span>
+                        </div>
+                        {aiAnalysis.ebayData && (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span>Average Price:</span>
+                              <span>${aiAnalysis.ebayData.averagePrice.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Market Range:</span>
+                              <span>
+                                ${aiAnalysis.ebayData.lowestPrice} -
+                                ${aiAnalysis.ebayData.highestPrice}
+                              </span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="metrics" className="p-4 m-0">
+                <div className="space-y-4">
+                  {hasAnalysis && (
+                    <>
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-medium">Market Demand</h4>
+                        <div className="p-3 rounded-lg bg-secondary/10 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm">Demand Score</span>
+                            <span className="text-sm font-medium">
+                              {aiAnalysis.marketAnalysis.demandScore}/100
+                            </span>
+                          </div>
+                          <Progress
+                            value={aiAnalysis.marketAnalysis.demandScore}
+                            className="h-2"
+                          />
+                          <div className="flex items-center gap-2 text-sm">
+                            <BarChart className="h-4 w-4 text-muted-foreground" />
+                            <span>
+                              Competition: {aiAnalysis.marketAnalysis.competitionLevel}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {aiAnalysis.ebayData && (
+                        <div className="space-y-2">
+                          <h4 className="text-sm font-medium">Market Activity</h4>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="p-3 rounded-lg bg-secondary/10">
+                              <div className="text-sm text-muted-foreground mb-1">
+                                Sold Items
+                              </div>
+                              <div className="text-xl font-semibold">
+                                {aiAnalysis.ebayData.soldCount}
+                              </div>
+                            </div>
+                            <div className="p-3 rounded-lg bg-secondary/10">
+                              <div className="text-sm text-muted-foreground mb-1">
+                                Active Listings
+                              </div>
+                              <div className="text-xl font-semibold">
+                                {aiAnalysis.ebayData.activeListing}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </TabsContent>
+            </ScrollArea>
+          </Tabs>
+
+          <div className="p-4 border-t bg-muted/5">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex gap-1">
                 <Button
                   size="icon"
                   variant="ghost"
-                  onClick={markAsSold}
-                  className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
-                  aria-label="Mark as sold"
-                >
-                  <CheckCircle2 className="h-4 w-4" />
+                  onClick={handleEdit}
+                  className="h-8 w-8"
+                                >
+                  <Edit className="h-4 w-4" />
                 </Button>
-              )}
-              {inWatchlist && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={deleteProduct}
+                  className="h-8 w-8"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                {!inWatchlist && (
+                  <>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={markAsSold}
+                      className="h-8 w-8 text-green-600 hover:text-green-700"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                    </Button>
+                    {!product.ebayListingUrl ? (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={generateEbayListing}
+                        disabled={isGeneratingListing}
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                    ) : (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        onClick={() => window.open(product.ebayListingUrl, '_blank')}
+                        className="h-8 w-8 text-green-600 hover:text-green-700"
+                      >
+                        <ArrowUpRight className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </>
+                )}
+              </div>
+              {inWatchlist ? (
                 <Button
                   variant="default"
                   onClick={handleConvertDialog}
-                  className="bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2"
-                  title="Add to Inventory"
-                  aria-label="Add to Inventory"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
-                  <ArrowUpRight className="h-4 w-4" />
+                  <ArrowUpRight className="h-4 w-4 mr-2" />
                   Add to Inventory
                 </Button>
-              )}
-
-              {!inWatchlist && (
-                <>
-                  {!product.ebayListingUrl && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={generateEbayListing}
-                      disabled={isGeneratingListing}
-                      className="hover:scale-105 transition-transform text-blue-600 hover:text-blue-700"
-                      title="Generate eBay Listing"
-                      aria-label="Generate eBay Listing"
-                    >
-                      <Share2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                  {product.ebayListingUrl && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl, '_blank')}
-                      className="hover:scale-105 transition-transform text-green-600 hover:text-green-700"
-                      title="View on eBay"
-                      aria-label="View on eBay"
-                    >
-                      <ArrowUpRight className="h-4 w-4" />
-                    </Button>
-                  )}
-                </>
-              )}
+              ) : null}
             </div>
-            <Button
-              size="icon"
-              variant={inWatchlist ? "secondary" : "ghost"}
-              onClick={toggleWatchlist}
-              className="hover:scale-105 transition-transform"
-              aria-label={inWatchlist ? "Remove from watchlist" : "Add to watchlist"}
-            >
-              <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
-            </Button>
-          </CardFooter>
+          </div>
         </div>
       </Card>
+
       <ConvertWatchlistDialog
         product={product}
         open={showConvertDialog}

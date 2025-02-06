@@ -17,14 +17,36 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Configure multer for file uploads
+const uploadsPath = path.resolve(__dirname, '../uploads');
+console.log('[Upload Config] Uploads directory path:', uploadsPath);
+
 const storage = multer.diskStorage({
-  destination: 'uploads/',
+  destination: function (req, file, cb) {
+    console.log('[Upload] Saving file to:', uploadsPath);
+    cb(null, uploadsPath);
+  },
   filename: function (req, file, cb) {
-    cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname))
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname);
+    const filename = file.fieldname + '-' + uniqueSuffix + ext;
+    console.log('[Upload] Generated filename:', filename);
+    cb(null, filename);
   }
 });
 
-const upload = multer({ storage: storage });
+const upload = multer({ 
+  storage: storage,
+  fileFilter: function (req, file, cb) {
+    // Accept images only
+    if (!file.originalname.match(/\.(jpg|jpeg|png|gif)$/i)) {
+      return cb(new Error('Only image files are allowed!'), false);
+    }
+    cb(null, true);
+  },
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  }
+});
 
 // Initialize Gemini API
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -45,8 +67,12 @@ export function registerRoutes(app: Express): Express {
     }
   }));
 
-  // Serve static files from uploads directory
-  app.use("/uploads", express.static(path.resolve(__dirname, "../uploads")));
+  // Serve static files from uploads directory with proper logging
+  console.log('[Static Files] Configuring uploads directory:', uploadsPath);
+  app.use("/uploads", (req, res, next) => {
+    console.log('[Static Files] Accessing:', req.url);
+    express.static(uploadsPath)(req, res, next);
+  });
 
   // Add this near the top of the routes registration, before the eBay-specific endpoints
   app.get("/callback", (req, res) => {

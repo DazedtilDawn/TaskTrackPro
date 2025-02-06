@@ -7,6 +7,7 @@ import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+
 export default defineConfig({
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
@@ -19,5 +20,11 @@ export default defineConfig({
   build: {
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
+  },
+    server: {
+        host: '0.0.0.0', // Listen on all addresses, including LAN and public IPs
+        port: 5173,     // Explicitly set Vite's dev server port
+        hmr: false,      // disables hot reloading
+        origin: `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
   },
 });

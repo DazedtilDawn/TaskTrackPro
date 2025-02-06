@@ -29,13 +29,13 @@ app.use((req, res, next) => {
 // Initialize server with proper error handling
 async function initializeServer() {
     try {
-        // Use PORT from environment, fallback to 5000 (Replit's preferred port)
-        const port = process.env.PORT ? parseInt(process.env.PORT) : 5000;
+        // Always use port 5000 as specified in .replit file
+        const port = 5000;
         console.log(`[Server] Attempting to start server on port ${port}`);
 
         const server = createServer(app);
 
-        // Register all routes
+        // Register all routes before setting up Vite
         console.log('[Server] Registering routes...');
         registerRoutes(app);
 
@@ -51,18 +51,15 @@ async function initializeServer() {
             server.listen(port, '0.0.0.0', () => {
                 console.log(`[Server] Server running on port ${port}`);
 
-                // Use the specific Replit URL format
-                if (process.env.REPL_ID) {
-                    // Note: Instead of using REPL_SLUG directly, we'll construct the URL with
-                    // your specific subdomain format
-                    const replitDomain = process.env.REPL_ID.includes('1vlomg3cflyir') 
-                        ? '1vlomg3cflyir' 
-                        : process.env.REPL_SLUG || 'workspace';
-                    const replitUrl = `https://${process.env.REPL_ID}-00-${replitDomain}.spock.replit.dev`;
-                    console.log(`[Server] Replit URL: ${replitUrl}`);
-                } else {
-                    console.log(`[Server] Local URL: http://localhost:${port}`);
-                }
+                // Set environment variables for Vite with the specific URL format
+                const replitId = process.env.REPL_ID || '';
+                const replitUrl = `https://${replitId}-00-1vlomg3cflyir.spock.replit.dev`;
+                console.log(`[Server] Replit URL: ${replitUrl}`);
+
+                // Set environment variables for Vite
+                process.env.VITE_DEV_SERVER_URL = replitUrl;
+                process.env.VITE_REPLIT_URL = replitUrl;
+
                 resolve();
             });
 

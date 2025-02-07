@@ -1207,7 +1207,7 @@ Do not include any additional text outside the JSON object.`;
 
     try {
       const { startDate, endDate } = req.query;
-      const start = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
+      const start = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const end = endDate ? new Date(String(endDate)) : new Date();
 
       console.log("[Analytics] Fetching revenue data between", start, "and", end);
@@ -1215,14 +1215,26 @@ Do not include any additional text outside the JSON object.`;
       // Fetch orders with products and calculate revenue
       const revenueData = await db
         .select({
-          date: sql`DATE(${orders.createdAt})::text`,
-          revenue: sql`COALESCE(SUM(${orderItems.price} * ${orderItems.quantity}), 0)::numeric`,
-          cost: sql`COALESCE(SUM(COALESCE(${products.purchasePrice}, 0) * ${orderItems.quantity}), 0)::numeric`,
-          profit: sql`(COALESCE(SUM(${orderItems.price} * ${orderItems.quantity}), 0) - COALESCE(SUM(COALESCE(${products.purchasePrice}, 0) * ${orderItems.quantity}), 0))::numeric`
+          date: sql`to_char(${orders.createdAt}::date, 'YYYY-MM-DD')`,
+          revenue: sql`COALESCE(SUM(CAST(${orderItems.price} AS decimal) * ${orderItems.quantity}), 0)`,
+          cost: sql`COALESCE(SUM(CASE 
+            WHEN ${products.purchasePrice} IS NOT NULL 
+            THEN CAST(${products.purchasePrice} AS decimal) 
+            ELSE 0 
+          END * ${orderItems.quantity}), 0)`,
+          profit: sql`COALESCE(
+            SUM(CAST(${orderItems.price} AS decimal) * ${orderItems.quantity}) -
+            SUM(CASE 
+              WHEN ${products.purchasePrice} IS NOT NULL 
+              THEN CAST(${products.purchasePrice} AS decimal) 
+              ELSE 0 
+            END * ${orderItems.quantity}), 
+            0
+          )`
         })
         .from(orders)
         .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
-        .innerJoin(products, eq(orderItems.productId, products.id))
+        .leftJoin(products, eq(orderItems.productId, products.id))
         .where(
           and(
             eq(orders.userId, req.user!.id),
@@ -1230,28 +1242,34 @@ Do not include any additional text outside the JSON object.`;
             lte(orders.createdAt, end)
           )
         )
-        .groupBy(sql`DATE(${orders.createdAt})`)
-        .orderBy(sql`DATE(${orders.createdAt})`);
+        .groupBy(sql`${orders.createdAt}::date`)
+        .orderBy(sql`${orders.createdAt}::date`);
 
-      console.log("[Analytics] Revenue data:", revenueData);
+      console.log("[Analytics] Raw revenue data:", revenueData);
 
       // Fill in missing dates with zero values
       const filledData = [];
       const currentDate = new Date(start);
-      while (currentDate <= end) {
+      currentDate.setHours(0, 0, 0, 0);
+
+      const endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+
+      while (currentDate <= endDate) {
         const dateStr = currentDate.toISOString().split('T')[0];
         const existingData = revenueData.find(d => d.date === dateStr);
 
         filledData.push(existingData || {
           date: dateStr,
-          revenue: 0,
-          cost: 0,
-          profit: 0
+          revenue: "0",
+          cost: "0",
+          profit: "0"
         });
 
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
+      console.log("[Analytics] Filled revenue data:", filledData);
       res.json(filledData);
     } catch (error) {
       console.error("[Analytics] Error fetching revenue analytics:", error);

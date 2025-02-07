@@ -41,15 +41,15 @@ const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3
 
 type RevenueDataPoint = {
   date: string;
-  revenue: number;
-  cost: number;
-  profit: number;
+  revenue: string | number;
+  cost: string | number;
+  profit: string | number;
 };
 
 type InventoryCategory = {
   category: string;
-  totalValue: number;
-  totalCost: number;
+  totalValue: number | string;
+  totalCost: number | string;
   itemCount: number;
   totalQuantity: number;
 };
@@ -57,32 +57,46 @@ type InventoryCategory = {
 type TopProduct = {
   productId: number;
   name: string;
-  metric: number;
+  metric: number | string;
   totalQuantity: number;
-  averagePrice: number;
+  averagePrice: number | string;
 };
 
 type InventoryAging = {
   agingSummary: {
     ageGroup: string;
-    totalValue: number;
-    totalCost: number;
+    totalValue: number | string;
+    totalCost: number | string;
     itemCount: number;
     totalQuantity: number;
-    averagePrice: number;
+    averagePrice: number | string;
     categories: string[];
   }[];
   slowMovingItems: {
     id: number;
     name: string;
     category: string;
-    price: number;
-    purchasePrice: number | null;
+    price: number | string;
+    purchasePrice: number | string | null;
     quantity: number;
     createdAt: string;
     daysInStock: number;
-    potentialLoss: number;
+    potentialLoss: number | string;
   }[];
+};
+
+const convertToNumber = (value: string | number | null | undefined): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value.replace(/[^0-9.-]+/g, ''));
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+};
+
+const formatCurrency = (value: string | number | null | undefined): string => {
+  const num = convertToNumber(value);
+  return `$${num.toFixed(2)}`;
 };
 
 export default function Analytics() {
@@ -95,15 +109,35 @@ export default function Analytics() {
     queryKey: ["/api/analytics/revenue", { startDate: startDate.toISOString(), endDate: endDate.toISOString() }],
   });
 
+  // Process revenue data to ensure numeric values
+  const processedRevenueData = revenueData.map(point => ({
+    ...point,
+    revenue: convertToNumber(point.revenue),
+    cost: convertToNumber(point.cost),
+    profit: convertToNumber(point.profit)
+  }));
+
   // Fetch inventory data
   const { data: inventoryData = [], isLoading: isInventoryLoading } = useQuery<InventoryCategory[]>({
     queryKey: ["/api/analytics/inventory"],
   });
 
+  const processedInventoryData = inventoryData.map(item => ({
+    ...item,
+    totalValue: convertToNumber(item.totalValue),
+    totalCost: convertToNumber(item.totalCost)
+  }));
+
   // Fetch top products
   const { data: topProducts = [], isLoading: isTopProductsLoading } = useQuery<TopProduct[]>({
     queryKey: ["/api/analytics/top-products", { metric: metricType }],
   });
+
+  const processedTopProducts = topProducts.map(product => ({
+    ...product,
+    metric: convertToNumber(product.metric),
+    averagePrice: convertToNumber(product.averagePrice)
+  }));
 
   // Fetch inventory aging data
   const { data: agingData, isLoading: isAgingLoading } = useQuery<InventoryAging>({
@@ -150,7 +184,7 @@ export default function Analytics() {
                   <Skeleton className="w-full h-full" />
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={revenueData}>
+                    <LineChart data={processedRevenueData}>
                       <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                       <XAxis
                         dataKey="date"
@@ -160,12 +194,7 @@ export default function Analytics() {
                       <YAxis className="text-muted-foreground" />
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--background))" }}
-                        formatter={(value: any) => {
-                          if (typeof value === 'number') {
-                            return `$${value.toFixed(2)}`;
-                          }
-                          return '$0.00';
-                        }}
+                        formatter={(value: any) => formatCurrency(value)}
                       />
                       <Legend />
                       <Line
@@ -201,7 +230,7 @@ export default function Analytics() {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={inventoryData}
+                        data={processedInventoryData}
                         dataKey="totalValue"
                         nameKey="category"
                         cx="50%"
@@ -211,7 +240,7 @@ export default function Analytics() {
                           `${category}: ${(percent * 100).toFixed(0)}%`
                         }
                       >
-                        {inventoryData.map((_, index) => (
+                        {processedInventoryData.map((_, index) => (
                           <Cell
                             key={`cell-${index}`}
                             fill={COLORS[index % COLORS.length]}
@@ -220,7 +249,7 @@ export default function Analytics() {
                       </Pie>
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--background))" }}
-                        formatter={(value: number) => `$${value.toFixed(2)}`}
+                        formatter={(value: any) => formatCurrency(value)}
                       />
                     </PieChart>
                   </ResponsiveContainer>
@@ -242,14 +271,14 @@ export default function Analytics() {
                 <Skeleton className="w-full h-full" />
               ) : (
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={topProducts}>
+                  <BarChart data={processedTopProducts}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis dataKey="name" className="text-muted-foreground" />
                     <YAxis className="text-muted-foreground" />
                     <Tooltip
                       contentStyle={{ background: "hsl(var(--background))" }}
-                      formatter={(value: number) =>
-                        metricType === "quantity" ? value : `$${value.toFixed(2)}`
+                      formatter={(value: any) =>
+                        metricType === "quantity" ? value : formatCurrency(value)
                       }
                     />
                     <Legend />

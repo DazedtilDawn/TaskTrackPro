@@ -829,8 +829,8 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       .where(eq(orders.userId, req.user!.id))
       .orderBy(desc(orders.createdAt));
 
-      // Then fetch items for these orders
-      const orderItems = await db.select({
+      // Then fetch items for these orders with a different variable name
+      const orderItemsList = await db.select({
         orderId: orderItems.orderId,
         quantity: orderItems.quantity,
         price: orderItems.price,
@@ -849,7 +849,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       // Combine orders with their items
       const ordersWithItems = userOrders.map(order => ({
         ...order,
-        items: orderItems.filter(item => item.orderId === order.id)
+        items: orderItemsList.filter(item => item.orderId === order.id)
       }));
 
       res.json(ordersWithItems);

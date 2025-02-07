@@ -37,7 +37,7 @@ interface ProductCardProps {
   }
   onEdit: (product: any) => void
   inWatchlist?: boolean
-  view?: "grid" | "list" | "compact"
+  view?: "grid" | "list" | "table"
   watchlistId?: number
 }
 
@@ -182,129 +182,11 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
     }
   }
 
-  // Render different layouts based on view type
-  if (view === "compact") {
-    return (
-      <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
-        <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-secondary/20">
-          {product.imageUrl && !imageError ? (
-            <img
-              src={getImageUrl(product.imageUrl)}
-              alt={`Image of ${product.name}`}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <ImageIcon className="w-6 h-6 text-muted-foreground" />
-            </div>
-          )}
-        </div>
-
-        <div className="flex-1 min-w-0">
-          <h3 className="font-medium truncate">{product.name}</h3>
-          <p className="text-sm text-muted-foreground truncate">
-            {product.description}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <div className="text-right">
-            <div className="font-medium">${Number(product.price).toFixed(2)}</div>
-            <div className="text-sm text-muted-foreground">
-              {product.quantity} in stock
-            </div>
-          </div>
-          <Button
-            size="icon"
-            variant="ghost"
-            onClick={() => onEdit(product)}
-            className="h-8 w-8"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-    )
-  }
-
-  if (view === "list") {
-    return (
-      <Card className="overflow-hidden">
-        <div className="flex gap-6 p-4">
-          <div className="w-32 h-24 rounded-md overflow-hidden flex-shrink-0 bg-secondary/20">
-            {product.imageUrl && !imageError ? (
-              <img
-                src={getImageUrl(product.imageUrl)}
-                alt={`Image of ${product.name}`}
-                className="w-full h-full object-cover"
-                onError={() => setImageError(true)}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center">
-                <ImageIcon className="w-8 h-8 text-muted-foreground" />
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold">{product.name}</h3>
-                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                  {product.description}
-                </p>
-              </div>
-              <div className="flex items-start gap-2">
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={() => onEdit(product)}
-                  className="h-8 w-8"
-                >
-                  <Edit className="h-4 w-4" />
-                </Button>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  onClick={(e) => handleAction("toggleWatchlist", e)}
-                  className="h-8 w-8"
-                >
-                  <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-6 mt-4">
-              <div>
-                <div className="text-sm text-muted-foreground">Price</div>
-                <div className="font-medium">${Number(product.price).toFixed(2)}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">Quantity</div>
-                <div className="font-medium">{product.quantity}</div>
-              </div>
-              <div>
-                <div className="text-sm text-muted-foreground">SKU</div>
-                <div className="font-medium">{product.sku || "N/A"}</div>
-              </div>
-              {product.ebayPrice && (
-                <div>
-                  <div className="text-sm text-muted-foreground">eBay Price</div>
-                  <div className="font-medium">${Number(product.ebayPrice).toFixed(2)}</div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Card>
-    )
-  }
-
   return (
     <>
-      <Card className="overflow-hidden flex flex-col h-[650px]">
-        <div className="relative aspect-[21/9] bg-secondary/20">
+      <Card className="overflow-hidden flex flex-col">
+        {/* Image Section */}
+        <div className="relative aspect-[16/9] bg-secondary/20">
           {product.imageUrl && !imageError ? (
             <img
               src={getImageUrl(product.imageUrl)}
@@ -314,17 +196,17 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <ImageIcon className="w-12 h-12 text-muted-foreground" />
+              <ImageIcon className="w-16 h-16 text-muted-foreground" />
             </div>
           )}
           <div className="absolute top-4 right-4 flex gap-2">
             <Button
               size="icon"
               variant="secondary"
-              className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+              className="h-9 w-9 bg-background/80 backdrop-blur-sm hover:bg-background/90"
               onClick={(e) => handleAction("toggleWatchlist", e)}
             >
-              <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+              <Heart className="h-5 w-5" fill={inWatchlist ? "currentColor" : "none"} />
             </Button>
             {hasAnalysis && (
               <Popover>
@@ -332,19 +214,21 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                   <Button
                     size="icon"
                     variant="secondary"
-                    className="h-8 w-8 bg-background/80 backdrop-blur-sm hover:bg-background/90"
+                    className="h-9 w-9 bg-background/80 backdrop-blur-sm hover:bg-background/90"
                   >
-                    <Sparkles className="h-4 w-4 text-primary" />
+                    <Sparkles className="h-5 w-5 text-primary" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-96 p-0" side="left">
                   <ScrollArea className="h-[500px]">
                     <div className="p-6 space-y-6">
+                      {/* Market Analysis Header */}
                       <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background z-10">
                         <h4 className="font-medium text-lg">Market Analysis</h4>
                         <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
                       </div>
 
+                      {/* Demand Score */}
                       <div className="space-y-6">
                         <div className="p-4 rounded-lg bg-secondary/10 space-y-4">
                           <div className="flex items-center justify-between">
@@ -358,6 +242,7 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                           </div>
                         </div>
 
+                        {/* eBay Market Data */}
                         {aiAnalysis.ebayData && (
                           <div className="space-y-4">
                             <div className="flex items-center gap-2">
@@ -389,6 +274,7 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                           </div>
                         )}
 
+                        {/* Optimization Tips */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4" />
@@ -414,18 +300,19 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
           </div>
         </div>
 
-        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
-            <div className="flex-none px-6 pt-4">
+        {/* Content Section */}
+        <div className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
+            <div className="px-6 pt-6">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="details" className="py-2">Details</TabsTrigger>
-                <TabsTrigger value="pricing" className="py-2">Pricing</TabsTrigger>
-                <TabsTrigger value="metrics" className="py-2">Metrics</TabsTrigger>
+                <TabsTrigger value="details" className="py-2.5">Details</TabsTrigger>
+                <TabsTrigger value="pricing" className="py-2.5">Pricing</TabsTrigger>
+                <TabsTrigger value="metrics" className="py-2.5">Metrics</TabsTrigger>
               </TabsList>
             </div>
 
-            <div className="flex-1 overflow-hidden mt-4">
-              <ScrollArea className="h-[400px]">
+            <div className="flex-1 min-h-0 mt-6">
+              <ScrollArea className="h-full">
                 <div className="px-6 pb-6">
                   <TabsContent value="details" className="m-0">
                     <div className="space-y-6">
@@ -457,7 +344,9 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                           <div className="flex items-center gap-3">
                             <Info className="h-5 w-5 text-primary" />
                             <span className="font-medium min-w-[80px]">Condition:</span>
-                            <span className="capitalize">{(product.condition || "").replace(/_/g, " ")}</span>
+                            <span className="capitalize">
+                              {(product.condition || "").replace(/_/g, " ")}
+                            </span>
                           </div>
                           <div className="flex items-center gap-3">
                             <Boxes className="h-5 w-5 text-primary" />
@@ -598,23 +487,24 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
           </Tabs>
         </div>
 
-        <div className="flex-none p-4 border-t bg-muted/5">
+        {/* Actions Section */}
+        <div className="flex-none p-6 border-t bg-muted/5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-2">
               <Button
-                size="sm"
+                size="default"
                 variant="ghost"
                 onClick={() => onEdit(product)}
-                className="h-9"
+                className="h-10"
               >
                 <Edit className="h-4 w-4 mr-2" />
                 Edit
               </Button>
               <Button
-                size="sm"
+                size="default"
                 variant="ghost"
                 onClick={(e) => handleAction("deleteProduct", e)}
-                className="h-9"
+                className="h-10"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
@@ -622,31 +512,31 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
               {!inWatchlist && (
                 <>
                   <Button
-                    size="sm"
+                    size="default"
                     variant="ghost"
                     onClick={(e) => handleAction("markAsSold", e)}
-                    className="h-9 text-green-600 hover:text-green-700"
+                    className="h-10 text-green-600 hover:text-green-700"
                   >
                     <CheckCircle2 className="h-4 w-4 mr-2" />
                     Mark Sold
                   </Button>
                   {!product.ebayListingUrl ? (
                     <Button
-                      size="sm"
+                      size="default"
                       variant="ghost"
                       onClick={(e) => handleAction("generateEbayListing", e)}
                       disabled={isGeneratingListing}
-                      className="h-9 text-blue-600 hover:text-blue-700"
+                      className="h-10 text-blue-600 hover:text-blue-700"
                     >
                       <Share2 className="h-4 w-4 mr-2" />
                       List on eBay
                     </Button>
                   ) : (
                     <Button
-                      size="sm"
+                      size="default"
                       variant="ghost"
                       onClick={() => window.open(product.ebayListingUrl, "_blank")}
-                      className="h-9 text-green-600 hover:text-green-700"
+                      className="h-10 text-green-600 hover:text-green-700"
                     >
                       <ArrowUpRight className="h-4 w-4 mr-2" />
                       View on eBay
@@ -655,17 +545,17 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                 </>
               )}
             </div>
-            {inWatchlist && (
+            {inWatchlist ? (
               <Button
-                size="default"
+                size="lg"
                 variant="default"
                 onClick={() => setShowConvertDialog(true)}
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                <ArrowUpRight className="h-4 w-4 mr-2" />
+                <ArrowUpRight className="h-5 w-5 mr-2" />
                 Add to Inventory
               </Button>
-            )}
+            ) : null}
           </div>
         </div>
       </Card>

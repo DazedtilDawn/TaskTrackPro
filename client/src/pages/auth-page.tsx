@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useForm } from "react-hook-form";
-import { Form, FormControl, FormField, FormItem, FormLabel } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,15 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import type { InsertUser } from "@db/schema";
 import { ROUTES } from "@/lib/routes";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+
+const loginSchema = z.object({
+  username: z.string().min(1, "Username is required"),
+  password: z.string().min(1, "Password is required"),
+});
+
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
@@ -47,7 +56,10 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="login">
-                <LoginForm onSubmit={(data) => loginMutation.mutate(data)} />
+                <LoginForm onSubmit={(data) => {
+                  console.log("Login form data:", data);
+                  loginMutation.mutate(data);
+                }} />
               </TabsContent>
 
               <TabsContent value="register">
@@ -70,8 +82,14 @@ export default function AuthPage() {
   );
 }
 
-function LoginForm({ onSubmit }: { onSubmit: (data: Pick<InsertUser, "username" | "password">) => void }) {
-  const form = useForm<Pick<InsertUser, "username" | "password">>();
+function LoginForm({ onSubmit }: { onSubmit: (data: LoginFormData) => void }) {
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+    }
+  });
 
   return (
     <Form {...form}>
@@ -83,8 +101,9 @@ function LoginForm({ onSubmit }: { onSubmit: (data: Pick<InsertUser, "username" 
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} placeholder="Enter username" autoComplete="username" />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -95,8 +114,14 @@ function LoginForm({ onSubmit }: { onSubmit: (data: Pick<InsertUser, "username" 
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input 
+                  type="password" 
+                  {...field} 
+                  placeholder="Enter password"
+                  autoComplete="current-password"
+                />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -121,8 +146,9 @@ function RegisterForm({ onSubmit }: { onSubmit: (data: InsertUser) => void }) {
             <FormItem>
               <FormLabel>Username</FormLabel>
               <FormControl>
-                <Input {...field} />
+                <Input {...field} placeholder="Choose a username" autoComplete="username" />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />
@@ -133,8 +159,14 @@ function RegisterForm({ onSubmit }: { onSubmit: (data: InsertUser) => void }) {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="password" {...field} />
+                <Input 
+                  type="password" 
+                  {...field} 
+                  placeholder="Choose a password"
+                  autoComplete="new-password"
+                />
               </FormControl>
+              <FormMessage />
             </FormItem>
           )}
         />

@@ -26,12 +26,12 @@ interface Product {
   id: number
   name: string
   description: string | null
-  sku: string | null
   price: string | null
+  purchasePrice: string | null
   ebayPrice: string | null
   quantity: number
   condition: string
-  brand: string | null
+  supplier: string | null
   category: string | null
   imageUrl: string | null
   sold: boolean
@@ -50,12 +50,12 @@ export function ProductTable({ products }: ProductTableProps) {
     {
       image: true,
       name: true,
-      sku: true,
       price: true,
+      purchasePrice: true,
       ebayPrice: true,
       quantity: true,
       condition: true,
-      brand: true,
+      supplier: true,
       category: true,
       sold: true,
       createdAt: true,
@@ -111,15 +111,19 @@ export function ProductTable({ products }: ProductTableProps) {
       cell: ({ row }) => <div className="min-w-[180px]">{row.getValue("name")}</div>,
     },
     {
-      accessorKey: "sku",
-      header: "SKU",
-      cell: ({ row }) => row.getValue("sku") || "-",
-    },
-    {
       accessorKey: "price",
       header: "Price",
       cell: ({ row }) => {
         const price = row.getValue<string | null>("price")
+        const numPrice = price ? parseFloat(price) : null
+        return numPrice ? `$${numPrice.toFixed(2)}` : "-"
+      },
+    },
+    {
+      accessorKey: "purchasePrice",
+      header: "Purchase Price",
+      cell: ({ row }) => {
+        const price = row.getValue<string | null>("purchasePrice")
         const numPrice = price ? parseFloat(price) : null
         return numPrice ? `$${numPrice.toFixed(2)}` : "-"
       },
@@ -147,9 +151,9 @@ export function ProductTable({ products }: ProductTableProps) {
       ),
     },
     {
-      accessorKey: "brand",
-      header: "Brand",
-      cell: ({ row }) => row.getValue("brand") || "-",
+      accessorKey: "supplier",
+      header: "Supplier",
+      cell: ({ row }) => row.getValue("supplier") || "-",
     },
     {
       accessorKey: "category",

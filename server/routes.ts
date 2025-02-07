@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems, users } from "@db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from 'multer';
 import path from 'path';
@@ -895,7 +895,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
 
       // Delete associated order items first
       await db.delete(orderItems)
-        .where(eq(orderItems.orderId, orderId));
+        .where(eq(orderItems.id, orderId));
 
       // Delete the order
       const [deletedOrder] = await db.delete(orders)
@@ -913,7 +913,7 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
-    });
+  });
 
   // generate-sale-price endpoint
   app.post("/api/generate-sale-price", async (req, res) => {    if (!req.isAuthenticated()) returnres.status(401).json({ error: "Unauthorized" });
@@ -1101,6 +1101,129 @@ Do not include any additional text.`;
       console.error("[Watchlist] Error removing from watchlist:", error);
       res.status(500).json({
         error: "Failed to remove product from watchlist",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Analytics endpoints
+  app.get("/api/analytics/revenue", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { startDate, endDate } = req.query;
+      const start = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
+      const end = endDate ? new Date(String(endDate)) : new Date();
+
+      // Fetch orders with products and calculate revenue
+      const revenueData = await db
+        .select({
+          date: sql`DATE(${orders.createdAt})`,
+          revenue: sql`SUM(${orderItems.price} * ${orderItems.quantity})::numeric`,
+          cost: sql`SUM(${products.purchasePrice} * ${orderItems.quantity})::numeric`,
+          profit: sql`(SUM(${orderItems.price} * ${orderItems.quantity}) - SUM(${products.purchasePrice} * ${orderItems.quantity}))::numeric`
+        })
+        .from(orders)
+        .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .where(
+          and(
+            eq(orders.userId, req.user!.id),
+            gte(orders.createdAt, start),
+            lte(orders.createdAt, end)
+          )
+        )
+        .groupBy(sql`DATE(${orders.createdAt})`)
+        .orderBy(sql`DATE(${orders.createdAt})`);
+
+      res.json(revenueData);
+    } catch (error) {
+      console.error("Error fetching revenue analytics:", error);
+      res.status(500).json({
+        error: "Failed to fetch revenue analytics",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/analytics/inventory", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const inventoryData = await db
+        .select({
+          category: products.category,
+          totalValue: sql`SUM(${products.price} * ${products.quantity})::numeric`,
+          totalCost: sql`SUM(${products.purchasePrice} * ${products.quantity})::numeric`,
+          itemCount: sql`COUNT(*)::integer`,
+          totalQuantity: sql`SUM(${products.quantity})::integer`
+        })
+        .from(products)
+        .where(
+          and(
+            eq(products.userId, req.user!.id),
+            eq(products.sold, false)
+          )
+        )
+        .groupBy(products.category);
+
+      res.json(inventoryData);
+    } catch (error) {
+      console.error("Error fetching inventory analytics:", error);
+      res.status(500).json({
+        error: "Failed to fetch inventory analytics",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/analytics/top-products", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { metric = 'profit', limit = 10 } = req.query;
+
+      let orderMetric;
+      switch (String(metric)) {
+        case 'revenue':
+          orderMetric = sql`SUM(${orderItems.price} * ${orderItems.quantity})`;
+          break;
+        case 'quantity':
+          orderMetric = sql`SUM(${orderItems.quantity})`;
+          break;
+        case 'profit':
+        default:
+          orderMetric = sql`(SUM(${orderItems.price} * ${orderItems.quantity}) - SUM(${products.purchasePrice} * ${orderItems.quantity}))`;
+          break;
+      }
+
+      const topProducts = await db
+        .select({
+          productId: products.id,
+          name: products.name,
+          metric: sql`${orderMetric}::numeric`,
+          totalQuantity: sql`SUM(${orderItems.quantity})::integer`,
+          averagePrice: sql`AVG(${orderItems.price})::numeric`
+        })
+        .from(products)
+        .innerJoin(orderItems, eq(products.id, orderItems.productId))
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(eq(products.userId, req.user!.id))
+        .groupBy(products.id, products.name)
+        .orderBy(sql`${orderMetric}`, "desc")
+        .limit(Number(limit));
+
+      res.json(topProducts);
+    } catch (error) {
+      console.error("Error fetching top products:", error);
+      res.status(500).json({
+        error: "Failed to fetch top products",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }

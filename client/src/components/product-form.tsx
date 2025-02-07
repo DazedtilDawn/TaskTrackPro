@@ -50,11 +50,9 @@ const productFormSchema = z.object({
     .string()
     .min(10, "Description must be at least 10 characters")
     .optional(),
-  sku: z.string().optional(),
   condition: z
     .enum(["new", "open_box", "used_like_new", "used_good", "used_fair"])
     .default("used_good"),
-  brand: z.string().optional(),
   category: z.string().optional(),
   price: z.coerce.number().min(0, "Price must be greater than 0").optional(),
   quantity: z.coerce.number().min(0, "Quantity must be 0 or greater").default(0),
@@ -91,6 +89,8 @@ const productFormSchema = z.object({
   ebayPrice: z.coerce.number().optional(),
   weight: z.coerce.number().optional(),
   dimensions: z.string().optional(),
+  purchasePrice: z.coerce.number().optional(),
+  supplier: z.string().optional(),
 });
 
 type ProductFormData = z.infer<typeof productFormSchema>;
@@ -99,7 +99,7 @@ interface ProductFormProps {
   product?: SelectProduct;
   onComplete: () => void;
   isWatchlistItem?: boolean;
-  open?: boolean; 
+  open?: boolean;
 }
 
 const conditionOptions = [
@@ -151,7 +151,7 @@ export default function ProductForm({
   product,
   onComplete,
   isWatchlistItem = false,
-  open = false, 
+  open = false,
 }: ProductFormProps) {
   const [currentStep, setCurrentStep] = useState<FormStep>("basic");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -176,9 +176,7 @@ export default function ProductForm({
     defaultValues: {
       name: product?.name ?? "",
       description: product?.description ?? "",
-      sku: product?.sku ?? "",
       condition: (product?.condition as any) ?? "used_good",
-      brand: product?.brand ?? "",
       category: product?.category ?? "",
       price: product?.price ? Number(product.price) : undefined,
       quantity: isWatchlistItem ? 0 : product?.quantity ?? 0,
@@ -187,6 +185,8 @@ export default function ProductForm({
       ebayPrice: product?.ebayPrice ? Number(product.ebayPrice) : undefined,
       weight: product?.weight ? Number(product.weight) : undefined,
       dimensions: product?.dimensions ?? "",
+      purchasePrice: product?.price ? Number(product.price) : undefined,
+      supplier: "",
     },
   });
 
@@ -223,11 +223,11 @@ export default function ProductForm({
     setIsAnalyzing(true);
     try {
       const tempId = Date.now();
-      const aiResult = await analyzeProduct({ 
-        id: tempId, 
-        name, 
+      const aiResult = await analyzeProduct({
+        id: tempId,
+        name,
         description,
-        condition: form.getValues("condition") 
+        condition: form.getValues("condition")
       });
 
       console.log("[Product Analysis] AI analysis:", aiResult);
@@ -410,10 +410,10 @@ export default function ProductForm({
     try {
       const formData = new FormData();
       formData.append("name", data.name.trim());
-      ["description", "sku", "brand", "category", "dimensions"].forEach((field) => {
+      ["description", "category", "dimensions", "supplier"].forEach((field) => {
         if (data[field]) formData.append(field, data[field].trim());
       });
-      ["price", "quantity", "weight", "ebayPrice"].forEach((field) => {
+      ["price", "quantity", "weight", "ebayPrice", "purchasePrice"].forEach((field) => {
         const value = data[field];
         if (value !== null && value !== undefined && !Number.isNaN(Number(value))) {
           formData.append(field, value.toString());
@@ -819,24 +819,35 @@ export default function ProductForm({
             <div className="grid grid-cols-2 gap-6">
               <FormField
                 control={form.control}
-                name="sku"
+                name="purchasePrice"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>SKU</FormLabel>
+                    <FormLabel>Purchase Price</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter SKU" className="border-gray-300" />
+                      <Input
+                        type="number"
+                        step="0.01"
+                        {...field}
+                        value={field.value ?? ""}
+                        onChange={(e) => {
+                          const val = e.target.value ? Number(e.target.value) : undefined;
+                          field.onChange(val);
+                        }}
+                        placeholder="0.00"
+                        className="border-gray-300"
+                      />
                     </FormControl>
                   </FormItem>
                 )}
               />
               <FormField
                 control={form.control}
-                name="brand"
+                name="supplier"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Brand</FormLabel>
+                    <FormLabel>Supplier</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Enter brand name" className="border-gray-300" />
+                      <Input {...field} placeholder="Enter supplier name" className="border-gray-300" />
                     </FormControl>
                   </FormItem>
                 )}
@@ -859,7 +870,7 @@ export default function ProductForm({
                           const val = e.target.value ? Number(e.target.value) : undefined;
                           field.onChange(val);
                         }}
-                        className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-200"
+                        className="border-gray-300 focus:border-indigo-600 focus:ring focus:ring-indigo-20"
                       />
                     </FormControl>
                   </FormItem>
@@ -1280,24 +1291,35 @@ export default function ProductForm({
                     <div className="grid grid-cols-2 gap-6">
                       <FormField
                         control={form.control}
-                        name="sku"
+                        name="purchasePrice"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>SKU</FormLabel>
+                            <FormLabel>Purchase Price</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter SKU" className="border-gray-300" />
+                              <Input
+                                type="number"
+                                step="0.01"
+                                {...field}
+                                value={field.value ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value ? Number(e.target.value) : undefined;
+                                  field.onChange(val);
+                                }}
+                                placeholder="0.00"
+                                className="border-gray-300"
+                              />
                             </FormControl>
                           </FormItem>
                         )}
                       />
                       <FormField
                         control={form.control}
-                        name="brand"
+                        name="supplier"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel>Brand</FormLabel>
+                            <FormLabel>Supplier</FormLabel>
                             <FormControl>
-                              <Input {...field} placeholder="Enter brand name" className="border-gray-300" />
+                              <Input {...field} placeholder="Enter supplier name" className="border-gray-300" />
                             </FormControl>
                           </FormItem>
                         )}
@@ -1428,7 +1450,7 @@ export default function ProductForm({
                       Cancel
                     </Button>
                     {currentStep === "review" ? (
-                      <Button 
+                      <Button
                         type="submit"
                         disabled={isSubmitting}
                         className="flex items-center gap-2"

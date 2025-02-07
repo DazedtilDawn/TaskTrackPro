@@ -104,12 +104,10 @@ export default function Analytics() {
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [metricType, setMetricType] = useState<'profit' | 'revenue' | 'quantity'>('profit');
 
-  // Fetch revenue data
   const { data: revenueData = [], isLoading: isRevenueLoading } = useQuery<RevenueDataPoint[]>({
     queryKey: ["/api/analytics/revenue", { startDate: startDate.toISOString(), endDate: endDate.toISOString() }],
   });
 
-  // Process revenue data to ensure numeric values
   const processedRevenueData = revenueData.map(point => ({
     ...point,
     revenue: convertToNumber(point.revenue),
@@ -117,7 +115,6 @@ export default function Analytics() {
     profit: convertToNumber(point.profit)
   }));
 
-  // Fetch inventory data
   const { data: inventoryData = [], isLoading: isInventoryLoading } = useQuery<InventoryCategory[]>({
     queryKey: ["/api/analytics/inventory"],
   });
@@ -128,7 +125,6 @@ export default function Analytics() {
     totalCost: convertToNumber(item.totalCost)
   }));
 
-  // Fetch top products
   const { data: topProducts = [], isLoading: isTopProductsLoading } = useQuery<TopProduct[]>({
     queryKey: ["/api/analytics/top-products", { metric: metricType }],
   });
@@ -139,25 +135,23 @@ export default function Analytics() {
     averagePrice: convertToNumber(product.averagePrice)
   }));
 
-  // Fetch inventory aging data
   const { data: agingData, isLoading: isAgingLoading } = useQuery<InventoryAging>({
     queryKey: ["/api/analytics/inventory-aging"],
   });
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex min-h-screen bg-background">
       <Sidebar />
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         <Header />
-        <main className="flex-1 overflow-y-auto p-6">
-          {/* Filters */}
-          <div className="flex gap-4 mb-6">
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+          <div className="grid gap-4 md:flex md:flex-wrap md:items-center">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">From:</span>
+              <span className="text-sm font-medium whitespace-nowrap">From:</span>
               <DatePicker date={startDate} onDateChange={setStartDate} />
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">To:</span>
+              <span className="text-sm font-medium whitespace-nowrap">To:</span>
               <DatePicker date={endDate} onDateChange={setEndDate} />
             </div>
             <Select value={metricType} onValueChange={(value: any) => setMetricType(value)}>
@@ -172,9 +166,8 @@ export default function Analytics() {
             </Select>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Revenue Over Time */}
-            <Card className="hover:shadow-md transition-shadow">
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="hover:shadow-md transition-shadow md:col-span-2">
               <CardHeader>
                 <CardTitle>Revenue & Profit Over Time</CardTitle>
                 <CardDescription>Daily revenue and profit analysis</CardDescription>
@@ -217,7 +210,6 @@ export default function Analytics() {
               </CardContent>
             </Card>
 
-            {/* Inventory Value by Category */}
             <Card className="hover:shadow-md transition-shadow">
               <CardHeader>
                 <CardTitle>Inventory Value by Category</CardTitle>
@@ -256,58 +248,52 @@ export default function Analytics() {
                 )}
               </CardContent>
             </Card>
+
+            <Card className="hover:shadow-md transition-shadow md:col-span-2">
+              <CardHeader>
+                <CardTitle>Top Products by {metricType.charAt(0).toUpperCase() + metricType.slice(1)}</CardTitle>
+                <CardDescription>Performance metrics for top-selling products</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                {isTopProductsLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={processedTopProducts}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="name" className="text-muted-foreground" />
+                      <YAxis className="text-muted-foreground" />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--background))" }}
+                        formatter={(value: any) =>
+                          metricType === "quantity" ? value : formatCurrency(value)
+                        }
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey="metric"
+                        name={metricType.charAt(0).toUpperCase() + metricType.slice(1)}
+                        fill="hsl(var(--primary))"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Inventory Aging Analysis</CardTitle>
+                <CardDescription>Track inventory age and identify slow-moving items</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <InventoryAgingAnalysis
+                  data={agingData}
+                  isLoading={isAgingLoading}
+                />
+              </CardContent>
+            </Card>
           </div>
-
-          {/* Top Products */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader>
-              <CardTitle>Top Products by {metricType.charAt(0).toUpperCase() + metricType.slice(1)}</CardTitle>
-              <CardDescription>
-                Performance metrics for top-selling products
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="h-[400px]">
-              {isTopProductsLoading ? (
-                <Skeleton className="w-full h-full" />
-              ) : (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={processedTopProducts}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis dataKey="name" className="text-muted-foreground" />
-                    <YAxis className="text-muted-foreground" />
-                    <Tooltip
-                      contentStyle={{ background: "hsl(var(--background))" }}
-                      formatter={(value: any) =>
-                        metricType === "quantity" ? value : formatCurrency(value)
-                      }
-                    />
-                    <Legend />
-                    <Bar
-                      dataKey="metric"
-                      name={metricType.charAt(0).toUpperCase() + metricType.slice(1)}
-                      fill="hsl(var(--primary))"
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Inventory Aging Analysis */}
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle>Inventory Aging Analysis</CardTitle>
-              <CardDescription>
-                Track inventory age and identify slow-moving items
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <InventoryAgingAnalysis
-                data={agingData}
-                isLoading={isAgingLoading}
-              />
-            </CardContent>
-          </Card>
         </main>
       </div>
     </div>

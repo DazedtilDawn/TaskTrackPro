@@ -987,6 +987,77 @@ Do not include any additional text.`;
     }
   });
 
+  // Add this endpoint after the generate-sale-price endpoint
+  app.post("/api/generate-purchase-price", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { currentPrice, condition, category, ebayData } = req.body;
+
+      // Use the existing Gemini AI model
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash-001",
+        generationConfig: {
+          maxOutputTokens: 100,
+          temperature: 0.2,
+        },
+      });
+
+      const prompt = `As an expert reseller, analyze this product's market data and suggest an optimal purchase price:
+
+Market Data:
+${ebayData ? `
+- Current eBay Price Range: $${ebayData.lowestPrice} - $${ebayData.highestPrice}
+- Average Price: $${ebayData.averagePrice}
+- Number of Active Listings: ${ebayData.activeListing}
+- Total Sales: ${ebayData.soldCount}` : `
+- Current Market Price: ${currentPrice ? `$${currentPrice}` : 'not available'}`}
+- Product Condition: ${condition || "unspecified"}
+- Category: ${category || "unspecified"}
+
+Provide a strategic purchase price that would allow for a healthy profit margin (aim for at least 30-40% ROI) while remaining competitive in the market. Consider the current market dynamics, competition level, and potential for price fluctuations.
+
+Format your response strictly as valid JSON with this structure:
+{
+  "suggestedPurchasePrice": number,
+  "confidence": number,
+  "reasoning": string,
+  "estimatedROI": number
+}
+
+Do not include any additional text outside the JSON object.`;
+
+      const result = await model.generateContent(prompt);
+      const text = await result.response.text();
+
+      // Extract JSON from the response
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+          throw new Error("No JSON object found in response");
+        }
+        const jsonStr = jsonMatch[0];
+        const recommendation = JSON.parse(jsonStr);
+
+        res.json(recommendation);
+      } catch (parseError) {
+        console.error("Failed to parse AI response:", parseError);
+        res.status(500).json({
+          error: "Failed to generate purchase price suggestion",
+          details: parseError instanceof Error ? parseError.message : "Unknown error"
+        });
+      }
+    } catch (error) {
+      console.error("Error generating purchase price:", error);
+      res.status(500).json({
+        error: "Failed to generate purchase price suggestion",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // API routes for watchlist
   app.post("/api/watchlist", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });

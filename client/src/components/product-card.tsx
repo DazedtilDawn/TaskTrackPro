@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -89,6 +89,12 @@ function ProductCard({
   const [isGeneratingListing, setIsGeneratingListing] = useState(false)
   const [imageError, setImageError] = useState(false)
   const [activeTab, setActiveTab] = useState("details")
+  const [purchasePriceSuggestion, setPurchasePriceSuggestion] = useState<{
+    suggestedPurchasePrice: number
+    confidence: number
+    reasoning: string
+    estimatedROI: number
+  } | null>(null)
 
   const parseAIAnalysis = (data: unknown) => {
     try {
@@ -103,6 +109,28 @@ function ProductCard({
       return DEFAULT_AI_ANALYSIS
     }
   }
+
+  useEffect(() => {
+    const fetchPurchasePriceSuggestion = async () => {
+      if (!inWatchlist) return
+
+      try {
+        const response = await apiRequest("POST", "/api/generate-purchase-price", {
+          currentPrice: product.price,
+          condition: product.condition,
+          category: product.category,
+          ebayData: product.aiAnalysis ? JSON.parse(product.aiAnalysis).ebayData : null
+        })
+        const suggestion = await response.json()
+        setPurchasePriceSuggestion(suggestion)
+      } catch (error) {
+        console.error("Failed to fetch purchase price suggestion:", error)
+      }
+    }
+
+    fetchPurchasePriceSuggestion()
+  }, [inWatchlist, product.price, product.condition, product.category, product.aiAnalysis])
+
 
   const aiAnalysis = parseAIAnalysis(product.aiAnalysis)
   const hasAnalysis = aiAnalysis !== DEFAULT_AI_ANALYSIS
@@ -453,6 +481,35 @@ function ProductCard({
                           </div>
                         )}
                       </div>
+
+                      {inWatchlist && purchasePriceSuggestion && (
+                        <div className="space-y-4">
+                          <h4 className="text-sm font-medium">Purchase Price Analysis</h4>
+                          <div className="p-6 rounded-lg bg-secondary/10 space-y-4">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">Suggested Purchase Price</span>
+                              <span className="text-lg font-semibold text-primary">
+                                ${purchasePriceSuggestion.suggestedPurchasePrice.toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm">Estimated ROI</span>
+                              <span className="text-lg font-semibold text-green-600">
+                                {purchasePriceSuggestion.estimatedROI.toFixed(1)}%
+                              </span>
+                            </div>
+                            <div className="mt-4 text-sm text-muted-foreground">
+                              <p className="italic">{purchasePriceSuggestion.reasoning}</p>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm mt-2">
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">
+                                Confidence: {(purchasePriceSuggestion.confidence * 100).toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {hasAnalysis && aiAnalysis?.marketAnalysis?.priceSuggestion && (
                         <div className="space-y-4">

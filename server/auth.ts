@@ -114,25 +114,37 @@ export function setupAuth(app: Express) {
     })
   );
 
-  passport.serializeUser((user, done) => done(null, user.id));
+  passport.serializeUser((user, done) => {
+    console.log("[Auth] Serializing user:", user.id);
+    done(null, user.id);
+  });
+
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log("[Auth] Attempting to deserialize user:", id);
       const [user] = await db
         .select()
         .from(users)
         .where(eq(users.id, id))
         .limit(1);
+
       if (!user) {
-        throw new AuthenticationError("User not found");
+        console.log("[Auth] User not found during deserialization:", id);
+        // Clear the session when user not found
+        return done(null, false);
       }
+
+      console.log("[Auth] Successfully deserialized user:", id);
       done(null, user);
     } catch (error) {
+      console.error("[Auth] Error during user deserialization:", error);
       done(error);
     }
   });
 
   app.post("/api/register", csrfProtection, async (req: Request, res, next) => {
     try {
+      console.log("[Auth] Processing registration request");
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
         throw new ValidationError("Invalid registration data", fromZodError(result.error).toString());
@@ -151,6 +163,7 @@ export function setupAuth(app: Express) {
         })
         .returning();
 
+      console.log("[Auth] User registered successfully:", user.id);
       req.login(user, (err) => {
         if (err) return next(err);
         res.status(201).json(user);
@@ -162,6 +175,7 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", csrfProtection, async (req: Request, res, next) => {
     try {
+      console.log("[Auth] Processing login request");
       const result = loginCredentialsSchema.safeParse(req.body);
       if (!result.success) {
         throw new ValidationError("Invalid credentials format", fromZodError(result.error).toString());
@@ -169,15 +183,19 @@ export function setupAuth(app: Express) {
 
       passport.authenticate("local", (err: any, user: Express.User | false) => {
         if (err) {
+          console.error("[Auth] Login error:", err);
           return next(err);
         }
         if (!user) {
+          console.log("[Auth] Login failed: Invalid credentials");
           return next(new AuthenticationError("Invalid credentials"));
         }
         req.logIn(user, (err) => {
           if (err) {
+            console.error("[Auth] Login error:", err);
             return next(err);
           }
+          console.log("[Auth] User logged in successfully:", user.id);
           return res.json(user);
         });
       })(req, res, next);
@@ -187,6 +205,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/logout", csrfProtection, (req, res, next) => {
+    console.log("[Auth] Processing logout request");
     req.logout((err) => {
       if (err) return next(err);
       res.sendStatus(200);
@@ -195,8 +214,10 @@ export function setupAuth(app: Express) {
 
   app.get("/api/user", (req, res, next) => {
     if (!req.isAuthenticated()) {
+      console.log("[Auth] Unauthorized access to /api/user");
       return next(new AuthenticationError());
     }
+    console.log("[Auth] User data requested:", req.user!.id);
     res.json(req.user);
   });
 }

@@ -33,7 +33,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format, subDays } from "date-fns";
 import { InventoryAgingAnalysis } from "@/components/inventory-aging-analysis";
 
@@ -88,6 +88,7 @@ type InventoryAging = {
 const convertToNumber = (value: string | number | null | undefined): number => {
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
+    // Remove currency symbols and other non-numeric characters except decimal points and negative signs
     const parsed = parseFloat(value.replace(/[^0-9.-]+/g, ''));
     return isNaN(parsed) ? 0 : parsed;
   }
@@ -100,14 +101,18 @@ const formatCurrency = (value: string | number | null | undefined): string => {
 };
 
 export default function Analytics() {
+  console.log('[Analytics] Component mounted');
+
   const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 30));
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [metricType, setMetricType] = useState<'profit' | 'revenue' | 'quantity'>('profit');
 
+  // Revenue Data Query
   const { data: revenueData = [], isLoading: isRevenueLoading } = useQuery<RevenueDataPoint[]>({
-    queryKey: ["/api/analytics/revenue", { startDate: startDate.toISOString(), endDate: endDate.toISOString() }],
+    queryKey: ["/api/analytics/revenue", { startDate: startDate.toISOString(), endDate: endDate.toISOString() }]
   });
 
+  // Process revenue data
   const processedRevenueData = revenueData.map(point => ({
     ...point,
     revenue: convertToNumber(point.revenue),
@@ -115,8 +120,9 @@ export default function Analytics() {
     profit: convertToNumber(point.profit)
   }));
 
+  // Inventory Data Query
   const { data: inventoryData = [], isLoading: isInventoryLoading } = useQuery<InventoryCategory[]>({
-    queryKey: ["/api/analytics/inventory"],
+    queryKey: ["/api/analytics/inventory"]
   });
 
   const processedInventoryData = inventoryData.map(item => ({
@@ -125,8 +131,9 @@ export default function Analytics() {
     totalCost: convertToNumber(item.totalCost)
   }));
 
+  // Top Products Query
   const { data: topProducts = [], isLoading: isTopProductsLoading } = useQuery<TopProduct[]>({
-    queryKey: ["/api/analytics/top-products", { metric: metricType }],
+    queryKey: ["/api/analytics/top-products", { metric: metricType }]
   });
 
   const processedTopProducts = topProducts.map(product => ({
@@ -135,8 +142,9 @@ export default function Analytics() {
     averagePrice: convertToNumber(product.averagePrice)
   }));
 
+  // Aging Data Query
   const { data: agingData, isLoading: isAgingLoading } = useQuery<InventoryAging>({
-    queryKey: ["/api/analytics/inventory-aging"],
+    queryKey: ["/api/analytics/inventory-aging"]
   });
 
   return (

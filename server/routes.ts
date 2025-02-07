@@ -1202,23 +1202,29 @@ Do not include any additional text outside the JSON object.`;
   // Analytics endpoints
   app.get("/api/analytics/revenue", async (req, res) => {
     if (!req.isAuthenticated()) {
+      console.log("[Analytics API] Unauthorized request to revenue endpoint");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
+      console.log("[Analytics API] Processing revenue request with query params:", req.query);
       const { startDate, endDate } = req.query;
       const startDateTime = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       const endDateTime = endDate ? new Date(String(endDate)) : new Date();
 
-      console.log("[Analytics] Fetching revenue data between", startDateTime, "and", endDateTime);
+      console.log("[Analytics API] Date range:", { startDateTime, endDateTime });
 
       // Fetch orders with products and calculate revenue
       const revenueData = await db
         .select({
-          date: sql`to_char(date_trunc('day', ${orders.createdAt}), 'YYYY-MM-DD')`,
+          date: sql`date_trunc('day', ${orders.createdAt})::date::text`,
           revenue: sql`COALESCE(SUM(${orderItems.price}::decimal * ${orderItems.quantity}), 0)`,
           cost: sql`COALESCE(SUM(COALESCE(${products.purchasePrice}::decimal, 0) * ${orderItems.quantity}), 0)`,
-          profit: sql`COALESCE(SUM(${orderItems.price}::decimal * ${orderItems.quantity}) - SUM(COALESCE(${products.purchasePrice}::decimal, 0) * ${orderItems.quantity}), 0)`
+          profit: sql`COALESCE(
+            SUM(${orderItems.price}::decimal * ${orderItems.quantity}) - 
+            SUM(COALESCE(${products.purchasePrice}::decimal, 0) * ${orderItems.quantity}), 
+            0
+          )`
         })
         .from(orders)
         .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
@@ -1232,6 +1238,8 @@ Do not include any additional text outside the JSON object.`;
         )
         .groupBy(sql`date_trunc('day', ${orders.createdAt})`)
         .orderBy(sql`date_trunc('day', ${orders.createdAt})`);
+
+      console.log("[Analytics API] Raw revenue data:", revenueData);
 
       // Fill in missing dates with zero values
       const filledData = [];
@@ -1255,29 +1263,33 @@ Do not include any additional text outside the JSON object.`;
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      console.log("[Analytics] Sending filled revenue data");
+      console.log("[Analytics API] Final revenue data:", filledData);
       res.json(filledData);
     } catch (error) {
-      console.error("[Analytics] Error fetching revenue analytics:", error);
+      console.error("[Analytics API] Error in revenue endpoint:", error);
       res.status(500).json({
         error: "Failed to fetch revenue analytics",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
+
   app.get("/api/analytics/inventory", async (req, res) => {
     if (!req.isAuthenticated()) {
+      console.log("[Analytics API] Unauthorized request to inventory endpoint");
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
+      console.log("[Analytics API] Fetching inventory analytics for user:", req.user!.id);
+
       const inventoryData = await db
         .select({
           category: products.category,
-          totalValue: sql`SUM(${products.price} * ${products.quantity})::numeric`,
-          totalCost: sql`SUM(${products.purchasePrice} * ${products.quantity})::numeric`,
-          itemCount: sql`COUNT(*)::integer`,
-          totalQuantity: sql`SUM(${products.quantity})::integer`
+          totalValue: sql`SUM(${products.price}::decimal * ${products.quantity})`,
+          totalCost: sql`SUM(COALESCE(${products.purchasePrice}::decimal, 0) * ${products.quantity})`,
+          itemCount: sql`COUNT(*)`,
+          totalQuantity: sql`SUM(${products.quantity})`
         })
         .from(products)
         .where(
@@ -1288,9 +1300,10 @@ Do not include any additional text outside the JSON object.`;
         )
         .groupBy(products.category);
 
+      console.log("[Analytics API] Inventory analytics data:", inventoryData);
       res.json(inventoryData);
     } catch (error) {
-      console.error("Error fetching inventory analytics:", error);
+      console.error("[Analytics API] Error in inventory endpoint:", error);
       res.status(500).json({
         error: "Failed to fetch inventory analytics",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -1298,6 +1311,7 @@ Do not include any additional text outside the JSON object.`;
     }
   });
 
+  // Rest of the file remains unchanged...
   app.get("/api/analytics/top-products", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Unauthorized" });
@@ -1364,8 +1378,8 @@ Do not include any additional text outside the JSON object.`;
               ELSE 'Over 90 days'
             END
           `,
-          totalValue: sql`SUM(${products.price} * ${products.quantity})::numeric`,
-          totalCost: sql`SUM(${products.purchasePrice} * ${products.quantity})::numeric`,
+          totalValue: sql`SUM(${products.price}::numeric * ${products.quantity})::numeric`,
+          totalCost: sql`SUM(${products.purchasePrice}::numeric * ${products.quantity})::numeric`,
           itemCount: sql`COUNT(*)::integer`,
           totalQuantity: sql`SUM(${products.quantity})::integer`,
           averagePrice: sql`AVG(${products.price})::numeric`,

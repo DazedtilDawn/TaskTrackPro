@@ -814,6 +814,8 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
 
     try {
+      console.log("[Orders API] Fetching orders for user:", req.user!.id);
+
       // First fetch all orders for the user
       const userOrders = await db.select({
         id: orders.id,
@@ -829,6 +831,12 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       .where(eq(orders.userId, req.user!.id))
       .orderBy(desc(orders.createdAt));
 
+      console.log("[Orders API] Found orders:", userOrders.length);
+
+      if (!userOrders.length) {
+        return res.json([]);
+      }
+
       // Then fetch items for these orders with a different variable name
       const orderItemsList = await db.select({
         orderId: orderItems.orderId,
@@ -838,7 +846,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
           id: products.id,
           name: products.name,
           description: products.description,
-          sku: products.sku,
           imageUrl: products.imageUrl
         }
       })
@@ -846,15 +853,28 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
       .leftJoin(products, eq(orderItems.productId, products.id))
       .where(inArray(orderItems.orderId, userOrders.map(o => o.id)));
 
-      // Combine orders with their items
+      console.log("[Orders API] Found order items:", orderItemsList.length);
+
+      // Combine orders with their items, ensuring null safety
       const ordersWithItems = userOrders.map(order => ({
         ...order,
-        items: orderItemsList.filter(item => item.orderId === order.id)
+        items: orderItemsList
+          .filter(item => item.orderId === order.id)
+          .map(item => ({
+            ...item,
+            product: item.product || {
+              id: null,
+              name: "Product Unavailable",
+              description: null,
+              imageUrl: null
+            }
+          }))
       }));
 
+      console.log("[Orders API] Successfully processed orders with items");
       res.json(ordersWithItems);
     } catch (error) {
-      console.error("Error fetching orders:", error);
+      console.error("[Orders API] Error fetching orders:", error);
       res.status(500).json({
         error: "Failed to fetch orders",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -869,8 +889,10 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
 
     try {
+      console.log("[Order Delete] Starting deletion process for order ID:", req.params.id);
       const orderId = parseInt(req.params.id);
       if (isNaN(orderId)) {
+        console.log("[Order Delete] Invalid order ID:", req.params.id);
         return res.status(400).json({ error: "Invalid order ID" });
       }
 
@@ -886,24 +908,28 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
         .limit(1);
 
       if (!existingOrder) {
+        console.log("[Order Delete] Order not found or unauthorized:", orderId);
         return res.status(404).json({ error: "Order not found" });
       }
 
+      console.log("[Order Delete] Deleting order items for order:", orderId);
       // Delete associated order items first
       await db.delete(orderItems)
-        .where(eq(orderItems.id, orderId));
+        .where(eq(orderItems.orderId, orderId));
 
+      console.log("[Order Delete] Deleting order:", orderId);
       // Delete the order
       const [deletedOrder] = await db.delete(orders)
         .where(eq(orders.id, orderId))
         .returning();
 
+      console.log("[Order Delete] Successfully deleted order:", deletedOrder);
       res.json({
         message: "Order deleted successfully",
         deletedOrder
       });
     } catch (error) {
-      console.error("Error deleting order:", error);
+      console.error("[Order Delete] Error deleting order:", error);
       res.status(500).json({
         error: "Failed to delete order",
         details: error instanceof Error ? error.message : "Unknown error"

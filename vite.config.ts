@@ -8,11 +8,6 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const REPLIT_DB_URL = process.env.REPLIT_DB_URL;
-const REPLIT_DOMAIN = process.env.REPL_SLUG && process.env.REPL_OWNER
-  ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-  : undefined;
-
 export default defineConfig({
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
@@ -26,32 +21,10 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
-  server: {
-    host: '0.0.0.0',
-    port: 3000,
-    strictPort: true,
-    hmr: {
-      clientPort: 443,
-      protocol: 'wss',
-      host: REPLIT_DOMAIN,
-      timeout: 120000
-    },
-    proxy: {
-      '/api': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-        secure: false,
-        ws: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
-      }
-    },
-    headers: {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-      'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization'
-    },
-    allowedHosts: [
-      '1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev'
-    ]
+    server: {
+        host: '0.0.0.0', // Listen on all addresses, including LAN and public IPs
+        port: 5173,     // Explicitly set Vite's dev server port
+        hmr: false,      // disables hot reloading
+        origin: `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
   },
 });

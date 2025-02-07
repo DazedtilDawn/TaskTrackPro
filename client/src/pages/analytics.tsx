@@ -144,160 +144,155 @@ export default function Analytics() {
       <Sidebar />
       <div className="flex-1 flex flex-col">
         <Header />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6 xl:p-8">
-          <div className="max-w-full mx-auto space-y-6">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium whitespace-nowrap">From:</span>
-                <DatePicker date={startDate} onDateChange={setStartDate} />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium whitespace-nowrap">To:</span>
-                <DatePicker date={endDate} onDateChange={setEndDate} />
-              </div>
-              <Select value={metricType} onValueChange={(value: any) => setMetricType(value)}>
-                <SelectTrigger className="w-[180px]">
-                  <SelectValue placeholder="Select metric" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="profit">Profit</SelectItem>
-                  <SelectItem value="revenue">Revenue</SelectItem>
-                  <SelectItem value="quantity">Quantity Sold</SelectItem>
-                </SelectContent>
-              </Select>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-6">
+          <div className="grid gap-4 md:flex md:flex-wrap md:items-center">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium whitespace-nowrap">From:</span>
+              <DatePicker date={startDate} onDateChange={setStartDate} />
             </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium whitespace-nowrap">To:</span>
+              <DatePicker date={endDate} onDateChange={setEndDate} />
+            </div>
+            <Select value={metricType} onValueChange={(value: any) => setMetricType(value)}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Select metric" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="profit">Profit</SelectItem>
+                <SelectItem value="revenue">Revenue</SelectItem>
+                <SelectItem value="quantity">Quantity Sold</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card className="hover:shadow-md transition-shadow md:col-span-2">
-                <CardHeader>
-                  <CardTitle>Revenue & Profit Over Time</CardTitle>
-                  <CardDescription>Daily revenue and profit analysis</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[400px]">
-                  {isRevenueLoading ? (
-                    <Skeleton className="w-full h-full" />
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={processedRevenueData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis
-                          dataKey="date"
-                          tickFormatter={(date) => format(new Date(date), 'MM/dd')}
-                          className="text-muted-foreground"
-                        />
-                        <YAxis className="text-muted-foreground" />
-                        <Tooltip
-                          contentStyle={{ background: "hsl(var(--background))" }}
-                          formatter={(value: any) => formatCurrency(value)}
-                        />
-                        <Legend />
-                        <Line
-                          type="monotone"
-                          dataKey="revenue"
-                          name="Revenue"
-                          stroke="hsl(var(--primary))"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          type="monotone"
-                          dataKey="profit"
-                          name="Profit"
-                          stroke="hsl(var(--success))"
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card className="hover:shadow-md transition-shadow md:col-span-2">
+              <CardHeader>
+                <CardTitle>Revenue & Profit Over Time</CardTitle>
+                <CardDescription>Daily revenue and profit analysis</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                {isRevenueLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={processedRevenueData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis
+                        dataKey="date"
+                        tickFormatter={(date) => format(new Date(date), 'MM/dd')}
+                        className="text-muted-foreground"
+                      />
+                      <YAxis className="text-muted-foreground" />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--background))" }}
+                        formatter={(value: any) => formatCurrency(value)}
+                      />
+                      <Legend />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        name="Revenue"
+                        stroke="hsl(var(--primary))"
+                        strokeWidth={2}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="profit"
+                        name="Profit"
+                        stroke="hsl(var(--success))"
+                        strokeWidth={2}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
 
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle>Inventory Value by Category</CardTitle>
-                  <CardDescription>Distribution of inventory value</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[350px]">
-                  {isInventoryLoading ? (
-                    <Skeleton className="w-full h-full" />
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <PieChart margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                        <Pie
-                          data={processedInventoryData}
-                          dataKey="totalValue"
-                          nameKey="category"
-                          cx="50%"
-                          cy="50%"
-                          outerRadius={120}
-                          label={({ category, percent }) =>
-                            `${category}: ${(percent * 100).toFixed(0)}%`
-                          }
-                        >
-                          {processedInventoryData.map((_, index) => (
-                            <Cell
-                              key={`cell-${index}`}
-                              fill={COLORS[index % COLORS.length]}
-                            />
-                          ))}
-                        </Pie>
-                        <Tooltip
-                          contentStyle={{ background: "hsl(var(--background))" }}
-                          formatter={(value: any) => formatCurrency(value)}
-                        />
-                      </PieChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
-
-              <Card className="hover:shadow-md transition-shadow">
-                <CardHeader>
-                  <CardTitle>Top Products by {metricType.charAt(0).toUpperCase() + metricType.slice(1)}</CardTitle>
-                  <CardDescription>Performance metrics for top-selling products</CardDescription>
-                </CardHeader>
-                <CardContent className="h-[350px]">
-                  {isTopProductsLoading ? (
-                    <Skeleton className="w-full h-full" />
-                  ) : (
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart
-                        data={processedTopProducts}
-                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+            <Card className="hover:shadow-md transition-shadow">
+              <CardHeader>
+                <CardTitle>Inventory Value by Category</CardTitle>
+                <CardDescription>Distribution of inventory value</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[300px]">
+                {isInventoryLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={processedInventoryData}
+                        dataKey="totalValue"
+                        nameKey="category"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={100}
+                        label={({ category, percent }) =>
+                          `${category}: ${(percent * 100).toFixed(0)}%`
+                        }
                       >
-                        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                        <XAxis dataKey="name" className="text-muted-foreground" />
-                        <YAxis className="text-muted-foreground" />
-                        <Tooltip
-                          contentStyle={{ background: "hsl(var(--background))" }}
-                          formatter={(value: any) =>
-                            metricType === "quantity" ? value : formatCurrency(value)
-                          }
-                        />
-                        <Legend />
-                        <Bar
-                          dataKey="metric"
-                          name={metricType.charAt(0).toUpperCase() + metricType.slice(1)}
-                          fill="hsl(var(--primary))"
-                        />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  )}
-                </CardContent>
-              </Card>
+                        {processedInventoryData.map((_, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={COLORS[index % COLORS.length]}
+                          />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--background))" }}
+                        formatter={(value: any) => formatCurrency(value)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
 
-              <Card className="hover:shadow-md transition-shadow md:col-span-2">
-                <CardHeader>
-                  <CardTitle>Inventory Aging Analysis</CardTitle>
-                  <CardDescription>Track inventory age and identify slow-moving items</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <InventoryAgingAnalysis
-                    data={agingData}
-                    isLoading={isAgingLoading}
-                  />
-                </CardContent>
-              </Card>
-            </div>
+            <Card className="hover:shadow-md transition-shadow md:col-span-2">
+              <CardHeader>
+                <CardTitle>Top Products by {metricType.charAt(0).toUpperCase() + metricType.slice(1)}</CardTitle>
+                <CardDescription>Performance metrics for top-selling products</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[400px]">
+                {isTopProductsLoading ? (
+                  <Skeleton className="w-full h-full" />
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={processedTopProducts}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <XAxis dataKey="name" className="text-muted-foreground" />
+                      <YAxis className="text-muted-foreground" />
+                      <Tooltip
+                        contentStyle={{ background: "hsl(var(--background))" }}
+                        formatter={(value: any) =>
+                          metricType === "quantity" ? value : formatCurrency(value)
+                        }
+                      />
+                      <Legend />
+                      <Bar
+                        dataKey="metric"
+                        name={metricType.charAt(0).toUpperCase() + metricType.slice(1)}
+                        fill="hsl(var(--primary))"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="md:col-span-2">
+              <CardHeader>
+                <CardTitle>Inventory Aging Analysis</CardTitle>
+                <CardDescription>Track inventory age and identify slow-moving items</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <InventoryAgingAnalysis
+                  data={agingData}
+                  isLoading={isAgingLoading}
+                />
+              </CardContent>
+            </Card>
           </div>
         </main>
       </div>

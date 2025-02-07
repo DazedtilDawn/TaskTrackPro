@@ -35,13 +35,7 @@ export async function setupVite(app: Express, server: Server) {
     },
     server: {
       middlewareMode: true,
-      hmr: {
-        server,
-        clientPort: 443,
-        protocol: 'wss',
-        path: '/hmr/',
-        timeout: 120000
-      },
+      hmr: { server },
     },
     appType: "custom",
   });

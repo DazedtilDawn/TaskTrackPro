@@ -80,9 +80,9 @@ app.use((req, res, next) => {
 // Initialize server with proper error handling
 async function initializeServer() {
     try {
-        // Always use port 5000 as specified in .replit file
-        const port = 5000;
-        console.log(`[Server] Attempting to start server on port ${port}`);
+        // Use environment variable PORT with fallback to 3000
+        const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+        console.log(`[Server] Using port ${port} (${process.env.PORT ? 'from environment' : 'default'})`);
 
         const server = createServer(app);
 

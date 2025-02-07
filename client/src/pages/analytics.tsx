@@ -86,6 +86,7 @@ type InventoryAging = {
 };
 
 const convertToNumber = (value: string | number | null | undefined): number => {
+  if (value === null || value === undefined) return 0;
   if (typeof value === 'number') return value;
   if (typeof value === 'string') {
     // Remove currency symbols and other non-numeric characters except decimal points and negative signs
@@ -96,8 +97,12 @@ const convertToNumber = (value: string | number | null | undefined): number => {
 };
 
 const formatCurrency = (value: string | number | null | undefined): string => {
+  if (value === null || value === undefined) return '$0.00';
   const num = convertToNumber(value);
-  return `$${num.toFixed(2)}`;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+  }).format(num);
 };
 
 export default function Analytics() {
@@ -107,14 +112,19 @@ export default function Analytics() {
   const [endDate, setEndDate] = useState<Date>(new Date());
   const [metricType, setMetricType] = useState<'profit' | 'revenue' | 'quantity'>('profit');
 
-  // Revenue Data Query
-  const { data: revenueData = [], isLoading: isRevenueLoading } = useQuery<RevenueDataPoint[]>({
-    queryKey: ["/api/analytics/revenue", { startDate: startDate.toISOString(), endDate: endDate.toISOString() }]
+  // Revenue Data Query with proper error handling
+  const { data: revenueData = [], isLoading: isRevenueLoading, error: revenueError } = useQuery<RevenueDataPoint[]>({
+    queryKey: ["/api/analytics/revenue", { 
+      startDate: startDate.toISOString(), 
+      endDate: endDate.toISOString() 
+    }],
+    enabled: !!startDate && !!endDate,
   });
 
-  // Process revenue data
+  // Process revenue data safely
   const processedRevenueData = revenueData.map(point => ({
     ...point,
+    date: point.date || new Date().toISOString(),
     revenue: convertToNumber(point.revenue),
     cost: convertToNumber(point.cost),
     profit: convertToNumber(point.profit)
@@ -183,6 +193,8 @@ export default function Analytics() {
               <CardContent className="h-[300px]">
                 {isRevenueLoading ? (
                   <Skeleton className="w-full h-full" />
+                ) : revenueError ? (
+                  <p>Error fetching revenue data</p>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={processedRevenueData}>

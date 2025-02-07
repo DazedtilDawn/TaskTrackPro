@@ -10,6 +10,7 @@ import path from 'path';
 import express from 'express';
 import { fileURLToPath } from 'url';
 import { checkEbayAuth } from "./middleware/ebay-auth";
+import cors from 'cors';
 
 // Get directory name in ESM
 const __filename = fileURLToPath(import.meta.url);
@@ -51,6 +52,12 @@ const upload = multer({
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
 export function registerRoutes(app: Express): Express {
+  // Add CORS configuration
+  app.use(cors({
+    origin: true,
+    credentials: true
+  }));
+
   setupAuth(app);
 
   // Add health check endpoint
@@ -1311,55 +1318,6 @@ Do not include any additional text outside the JSON object.`;
     }
   });
 
-  // Rest of the file remains unchanged...
-  app.get("/api/analytics/top-products", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    try {
-      const { metric = 'profit', limit = 10 } = req.query;
-
-      let orderMetric;
-      switch (String(metric)) {
-        case 'revenue':
-          orderMetric = sql`SUM(${orderItems.price} * ${orderItems.quantity})`;
-          break;
-        case 'quantity':
-          orderMetric = sql`SUM(${orderItems.quantity})`;
-          break;
-        case 'profit':
-        default:
-          orderMetric = sql`(SUM(${orderItems.price} * ${orderItems.quantity}) - SUM(${products.purchasePrice} * ${orderItems.quantity}))`;
-          break;
-      }
-
-      const topProducts = await db
-        .select({
-          productId: products.id,
-          name: products.name,
-          metric: sql`${orderMetric}::numeric`,
-          totalQuantity: sql`SUM(${orderItems.quantity})::integer`,
-          averagePrice: sql`AVG(${orderItems.price})::numeric`
-        })
-        .from(products)
-        .innerJoin(orderItems, eq(products.id, orderItems.productId))
-        .innerJoin(orders, eq(orderItems.orderId, orders.id))
-        .where(eq(products.userId, req.user!.id))
-        .groupBy(products.id, products.name)
-        .orderBy(sql`${orderMetric}`, "desc")
-        .limit(Number(limit));
-
-      res.json(topProducts);
-    } catch (error) {
-      console.error("Error fetching top products:", error);
-      res.status(500).json({
-        error: "Failed to fetch top products",
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-
   // Add new endpoint after the existing analytics endpoints
   app.get("/api/analytics/inventory-aging", async (req, res) => {
     if (!req.isAuthenticated()) {
@@ -1447,6 +1405,54 @@ Do not include any additional text outside the JSON object.`;
       console.error("Error fetching inventory aging analytics:", error);
       res.status(500).json({
         error: "Failed to fetch inventory aging analytics",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  app.get("/api/analytics/top-products", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      const { metric = 'profit', limit = 10 } = req.query;
+
+      let orderMetric;
+      switch (String(metric)) {
+        case 'revenue':
+          orderMetric = sql`SUM(${orderItems.price} * ${orderItems.quantity})`;
+          break;
+        case 'quantity':
+          orderMetric = sql`SUM(${orderItems.quantity})`;
+          break;
+        case 'profit':
+        default:
+          orderMetric = sql`(SUM(${orderItems.price} * ${orderItems.quantity}) - SUM(${products.purchasePrice} * ${orderItems.quantity}))`;
+          break;
+      }
+
+      const topProducts = await db
+        .select({
+          productId: products.id,
+          name: products.name,
+          metric: sql`${orderMetric}::numeric`,
+          totalQuantity: sql`SUM(${orderItems.quantity})::integer`,
+          averagePrice: sql`AVG(${orderItems.price})::numeric`
+        })
+        .from(products)
+        .innerJoin(orderItems, eq(products.id, orderItems.productId))
+        .innerJoin(orders, eq(orderItems.orderId, orders.id))
+        .where(eq(products.userId, req.user!.id))
+        .groupBy(products.id, products.name)
+        .orderBy(sql`${orderMetric}`, "desc")
+        .limit(Number(limit));
+
+      res.json(topProducts);
+    } catch (error) {
+      console.error("Error fetching top products:", error);
+      res.status(500).json({
+        error: "Failed to fetch top products",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }

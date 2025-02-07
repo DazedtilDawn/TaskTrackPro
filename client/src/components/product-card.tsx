@@ -37,7 +37,7 @@ interface ProductCardProps {
   }
   onEdit: (product: any) => void
   inWatchlist?: boolean
-  view?: "grid" | "list" | "table"
+  view?: "grid" | "list" | "compact"
   watchlistId?: number
 }
 
@@ -180,6 +180,125 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
     } finally {
       if (action === "generateEbayListing") setIsGeneratingListing(false)
     }
+  }
+
+  // Render different layouts based on view type
+  if (view === "compact") {
+    return (
+      <div className="flex items-center gap-4 p-4 hover:bg-secondary/5 rounded-lg transition-colors group relative">
+        <div className="w-16 h-16 rounded-md overflow-hidden flex-shrink-0 bg-secondary/20">
+          {product.imageUrl && !imageError ? (
+            <img
+              src={getImageUrl(product.imageUrl)}
+              alt={`Image of ${product.name}`}
+              className="w-full h-full object-cover"
+              onError={() => setImageError(true)}
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <ImageIcon className="w-6 h-6 text-muted-foreground" />
+            </div>
+          )}
+        </div>
+
+        <div className="flex-1 min-w-0">
+          <h3 className="font-medium truncate">{product.name}</h3>
+          <p className="text-sm text-muted-foreground truncate">
+            {product.description}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="text-right">
+            <div className="font-medium">${Number(product.price).toFixed(2)}</div>
+            <div className="text-sm text-muted-foreground">
+              {product.quantity} in stock
+            </div>
+          </div>
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => onEdit(product)}
+            className="h-8 w-8"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  if (view === "list") {
+    return (
+      <Card className="overflow-hidden">
+        <div className="flex gap-6 p-4">
+          <div className="w-32 h-24 rounded-md overflow-hidden flex-shrink-0 bg-secondary/20">
+            {product.imageUrl && !imageError ? (
+              <img
+                src={getImageUrl(product.imageUrl)}
+                alt={`Image of ${product.name}`}
+                className="w-full h-full object-cover"
+                onError={() => setImageError(true)}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center">
+                <ImageIcon className="w-8 h-8 text-muted-foreground" />
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-semibold">{product.name}</h3>
+                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                  {product.description}
+                </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => onEdit(product)}
+                  className="h-8 w-8"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => handleAction("toggleWatchlist", e)}
+                  className="h-8 w-8"
+                >
+                  <Heart className="h-4 w-4" fill={inWatchlist ? "currentColor" : "none"} />
+                </Button>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-6 mt-4">
+              <div>
+                <div className="text-sm text-muted-foreground">Price</div>
+                <div className="font-medium">${Number(product.price).toFixed(2)}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">Quantity</div>
+                <div className="font-medium">{product.quantity}</div>
+              </div>
+              <div>
+                <div className="text-sm text-muted-foreground">SKU</div>
+                <div className="font-medium">{product.sku || "N/A"}</div>
+              </div>
+              {product.ebayPrice && (
+                <div>
+                  <div className="text-sm text-muted-foreground">eBay Price</div>
+                  <div className="font-medium">${Number(product.ebayPrice).toFixed(2)}</div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </Card>
+    )
   }
 
   return (
@@ -338,9 +457,7 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                           <div className="flex items-center gap-3">
                             <Info className="h-5 w-5 text-primary" />
                             <span className="font-medium min-w-[80px]">Condition:</span>
-                            <span className="capitalize">
-                              {(product.condition || "").replace(/_/g, " ")}
-                            </span>
+                            <span className="capitalize">{(product.condition || "").replace(/_/g, " ")}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <Boxes className="h-5 w-5 text-primary" />

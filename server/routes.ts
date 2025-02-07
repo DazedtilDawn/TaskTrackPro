@@ -1207,30 +1207,18 @@ Do not include any additional text outside the JSON object.`;
 
     try {
       const { startDate, endDate } = req.query;
-      const start = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const end = endDate ? new Date(String(endDate)) : new Date();
+      const startDateTime = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const endDateTime = endDate ? new Date(String(endDate)) : new Date();
 
-      console.log("[Analytics] Fetching revenue data between", start, "and", end);
+      console.log("[Analytics] Fetching revenue data between", startDateTime, "and", endDateTime);
 
       // Fetch orders with products and calculate revenue
       const revenueData = await db
         .select({
-          date: sql`to_char(${orders.createdAt}::date, 'YYYY-MM-DD')`,
-          revenue: sql`COALESCE(SUM(CAST(${orderItems.price} AS decimal) * ${orderItems.quantity}), 0)`,
-          cost: sql`COALESCE(SUM(CASE 
-            WHEN ${products.purchasePrice} IS NOT NULL 
-            THEN CAST(${products.purchasePrice} AS decimal) 
-            ELSE 0 
-          END * ${orderItems.quantity}), 0)`,
-          profit: sql`COALESCE(
-            SUM(CAST(${orderItems.price} AS decimal) * ${orderItems.quantity}) -
-            SUM(CASE 
-              WHEN ${products.purchasePrice} IS NOT NULL 
-              THEN CAST(${products.purchasePrice} AS decimal) 
-              ELSE 0 
-            END * ${orderItems.quantity}), 
-            0
-          )`
+          date: sql`to_char(date_trunc('day', ${orders.createdAt}), 'YYYY-MM-DD')`,
+          revenue: sql`COALESCE(SUM(${orderItems.price}::decimal * ${orderItems.quantity}), 0)`,
+          cost: sql`COALESCE(SUM(COALESCE(${products.purchasePrice}::decimal, 0) * ${orderItems.quantity}), 0)`,
+          profit: sql`COALESCE(SUM(${orderItems.price}::decimal * ${orderItems.quantity}) - SUM(COALESCE(${products.purchasePrice}::decimal, 0) * ${orderItems.quantity}), 0)`
         })
         .from(orders)
         .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
@@ -1238,24 +1226,22 @@ Do not include any additional text outside the JSON object.`;
         .where(
           and(
             eq(orders.userId, req.user!.id),
-            gte(orders.createdAt, start),
-            lte(orders.createdAt, end)
+            gte(orders.createdAt, startDateTime),
+            lte(orders.createdAt, endDateTime)
           )
         )
-        .groupBy(sql`${orders.createdAt}::date`)
-        .orderBy(sql`${orders.createdAt}::date`);
-
-      console.log("[Analytics] Raw revenue data:", revenueData);
+        .groupBy(sql`date_trunc('day', ${orders.createdAt})`)
+        .orderBy(sql`date_trunc('day', ${orders.createdAt})`);
 
       // Fill in missing dates with zero values
       const filledData = [];
-      const currentDate = new Date(start);
+      const currentDate = new Date(startDateTime);
       currentDate.setHours(0, 0, 0, 0);
 
-      const endDate = new Date(end);
-      endDate.setHours(23, 59, 59, 999);
+      const finalEndDate = new Date(endDateTime);
+      finalEndDate.setHours(23, 59, 59, 999);
 
-      while (currentDate <= endDate) {
+      while (currentDate <= finalEndDate) {
         const dateStr = currentDate.toISOString().split('T')[0];
         const existingData = revenueData.find(d => d.date === dateStr);
 
@@ -1269,7 +1255,7 @@ Do not include any additional text outside the JSON object.`;
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      console.log("[Analytics] Filled revenue data:", filledData);
+      console.log("[Analytics] Sending filled revenue data");
       res.json(filledData);
     } catch (error) {
       console.error("[Analytics] Error fetching revenue analytics:", error);
@@ -1279,7 +1265,6 @@ Do not include any additional text outside the JSON object.`;
       });
     }
   });
-
   app.get("/api/analytics/inventory", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Unauthorized" });

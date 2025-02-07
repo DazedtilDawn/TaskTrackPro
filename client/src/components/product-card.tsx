@@ -651,17 +651,17 @@ function ProductCard({
                   className="bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <ArrowUpRight className="h-4 w-4 mr-2" />
-                  Send to Inventory
+                  Add to Inventory
                 </Button>
               ) : (
                 <Button
                   size="default"
                   variant="ghost"
                   onClick={(e) => handleAction("markAsSold", e)}
-                  className="h-10 text-green-600 hover:text-green-700 hover:bg-green-50"
+                  className="h-10 text-green-600 hover:text-green-700"
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Mark as Sold
+                  Mark Sold
                 </Button>
               )}
             </div>

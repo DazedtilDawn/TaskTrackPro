@@ -1210,13 +1210,15 @@ Do not include any additional text outside the JSON object.`;
       const start = startDate ? new Date(String(startDate)) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // Default to last 30 days
       const end = endDate ? new Date(String(endDate)) : new Date();
 
+      console.log("[Analytics] Fetching revenue data between", start, "and", end);
+
       // Fetch orders with products and calculate revenue
       const revenueData = await db
         .select({
-          date: sql`DATE(${orders.createdAt})`,
-          revenue: sql`SUM(${orderItems.price} * ${orderItems.quantity})::numeric`,
-          cost: sql`SUM(${products.purchasePrice} * ${orderItems.quantity})::numeric`,
-          profit: sql`(SUM(${orderItems.price} * ${orderItems.quantity}) - SUM(${products.purchasePrice} * ${orderItems.quantity}))::numeric`
+          date: sql`DATE(${orders.createdAt})::text`,
+          revenue: sql`COALESCE(SUM(${orderItems.price} * ${orderItems.quantity}), 0)::numeric`,
+          cost: sql`COALESCE(SUM(COALESCE(${products.purchasePrice}, 0) * ${orderItems.quantity}), 0)::numeric`,
+          profit: sql`(COALESCE(SUM(${orderItems.price} * ${orderItems.quantity}), 0) - COALESCE(SUM(COALESCE(${products.purchasePrice}, 0) * ${orderItems.quantity}), 0))::numeric`
         })
         .from(orders)
         .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
@@ -1231,9 +1233,28 @@ Do not include any additional text outside the JSON object.`;
         .groupBy(sql`DATE(${orders.createdAt})`)
         .orderBy(sql`DATE(${orders.createdAt})`);
 
-      res.json(revenueData);
+      console.log("[Analytics] Revenue data:", revenueData);
+
+      // Fill in missing dates with zero values
+      const filledData = [];
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        const dateStr = currentDate.toISOString().split('T')[0];
+        const existingData = revenueData.find(d => d.date === dateStr);
+
+        filledData.push(existingData || {
+          date: dateStr,
+          revenue: 0,
+          cost: 0,
+          profit: 0
+        });
+
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      res.json(filledData);
     } catch (error) {
-      console.error("Error fetching revenue analytics:", error);
+      console.error("[Analytics] Error fetching revenue analytics:", error);
       res.status(500).json({
         error: "Failed to fetch revenue analytics",
         details: error instanceof Error ? error.message : "Unknown error"

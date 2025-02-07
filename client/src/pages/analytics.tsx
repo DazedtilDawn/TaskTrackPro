@@ -160,7 +160,12 @@ export default function Analytics() {
                       <YAxis className="text-muted-foreground" />
                       <Tooltip
                         contentStyle={{ background: "hsl(var(--background))" }}
-                        formatter={(value: number) => `$${value.toFixed(2)}`}
+                        formatter={(value: any) => {
+                          if (typeof value === 'number') {
+                            return `$${value.toFixed(2)}`;
+                          }
+                          return '$0.00';
+                        }}
                       />
                       <Legend />
                       <Line

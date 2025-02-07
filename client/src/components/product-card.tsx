@@ -673,6 +673,7 @@ function ProductCard({
         product={product}
         open={showConvertDialog}
         onOpenChange={setShowConvertDialog}
+        suggestedPurchasePrice={suggestedPurchasePrice}
       />
     </>
   );

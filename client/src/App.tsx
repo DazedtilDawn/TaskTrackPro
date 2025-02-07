@@ -6,6 +6,7 @@ import { AuthProvider } from "./hooks/use-auth";
 import { ProtectedRoute } from "./lib/protected-route";
 import { getFlattenedRoutes, ROUTES } from "./lib/routes";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { OnboardingTutorial } from "@/components/onboarding-tutorial";
 
 function Router() {
   const routes = getFlattenedRoutes();
@@ -32,6 +33,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <AuthProvider>
           <Router />
+          <OnboardingTutorial />
           <Toaster />
         </AuthProvider>
       </QueryClientProvider>

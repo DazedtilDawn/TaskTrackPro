@@ -27,21 +27,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-  } = useQuery<SelectUser | undefined, Error>({
+  } = useQuery<SelectUser | null>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    onSuccess: (data) => {
-      console.log("[Auth] User data received:", data);
-    },
-    onError: (error) => {
-      console.error("[Auth] Error fetching user:", error);
-    }
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      console.log("[Auth] Attempting login...");
+      console.log("[Auth] Attempting login...", { username: credentials.username, hasPassword: !!credentials.password });
       const res = await apiRequest("POST", "/api/login", credentials);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Login failed");
+      }
       const data = await res.json();
       console.log("[Auth] Login response:", data);
       return data;
@@ -68,6 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: async (newUser: InsertUser) => {
       console.log("[Auth] Attempting registration...");
       const res = await apiRequest("POST", "/api/register", newUser);
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.message || "Registration failed");
+      }
       const data = await res.json();
       console.log("[Auth] Registration response:", data);
       return data;
@@ -113,7 +115,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
-  // Debug effect for auth state changes
   useEffect(() => {
     console.log("[Auth] Auth state changed:", {
       user: user ?? null,

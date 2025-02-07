@@ -23,34 +23,51 @@ const scryptAsync = promisify(scrypt);
 const PostgresSessionStore = connectPg(session);
 
 async function hashPassword(password: string) {
+  console.log("[Auth] Hashing password...");
   // For blank passwords, store a special hash that can't be bruteforced
   if (!password) {
+    console.warn("[Auth] Warning: Attempting to hash empty password");
     return 'BLANK';
   }
   const salt = randomBytes(16).toString("hex");
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
+  const hashedPassword = `${buf.toString("hex")}.${salt}`;
+  console.log("[Auth] Password hashed successfully");
+  return hashedPassword;
 }
 
 async function comparePasswords(supplied: string, stored: string) {
+  console.log("[Auth] Comparing passwords...");
   // Handle blank password case
   if (stored === 'BLANK' && !supplied) {
+    console.warn("[Auth] Warning: Empty password comparison");
     return true;
   }
   if (stored === 'BLANK' || !supplied) {
+    console.warn("[Auth] Warning: Invalid password comparison scenario");
     return false;
   }
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    const [hashed, salt] = stored.split(".");
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    const match = timingSafeEqual(hashedBuf, suppliedBuf);
+    console.log("[Auth] Password comparison result:", match);
+    return match;
+  } catch (error) {
+    console.error("[Auth] Error comparing passwords:", error);
+    return false;
+  }
 }
 
 async function getUserByUsername(username: string) {
+  console.log("[Auth] Looking up user by username:", username);
   try {
     const [user] = await db.select().from(users).where(eq(users.username, username)).limit(1);
+    console.log("[Auth] User lookup result:", user ? "Found" : "Not found");
     return user;
   } catch (error) {
+    console.error("[Auth] Database error during user lookup:", error);
     throw new DatabaseError("Error fetching user", error);
   }
 }
@@ -103,12 +120,24 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        console.log("[Auth] Starting authentication process for username:", username);
         const user = await getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
+
+        if (!user) {
+          console.log("[Auth] Authentication failed: User not found");
           return done(null, false);
         }
+
+        const isValidPassword = await comparePasswords(password, user.password);
+        if (!isValidPassword) {
+          console.log("[Auth] Authentication failed: Invalid password");
+          return done(null, false);
+        }
+
+        console.log("[Auth] Authentication successful for user:", user.id);
         return done(null, user);
       } catch (error) {
+        console.error("[Auth] Authentication error:", error);
         return done(error);
       }
     })
@@ -130,7 +159,6 @@ export function setupAuth(app: Express) {
 
       if (!user) {
         console.log("[Auth] User not found during deserialization:", id);
-        // Clear the session when user not found
         return done(null, false);
       }
 
@@ -144,14 +172,16 @@ export function setupAuth(app: Express) {
 
   app.post("/api/register", csrfProtection, async (req: Request, res, next) => {
     try {
-      console.log("[Auth] Processing registration request");
+      console.log("[Auth] Processing registration request:", req.body);
       const result = insertUserSchema.safeParse(req.body);
       if (!result.success) {
+        console.log("[Auth] Registration validation failed:", result.error);
         throw new ValidationError("Invalid registration data", fromZodError(result.error).toString());
       }
 
       const existingUser = await getUserByUsername(result.data.username);
       if (existingUser) {
+        console.log("[Auth] Registration failed: Username already exists");
         throw new ValidationError("Username already exists");
       }
 
@@ -175,9 +205,14 @@ export function setupAuth(app: Express) {
 
   app.post("/api/login", csrfProtection, async (req: Request, res, next) => {
     try {
-      console.log("[Auth] Processing login request");
+      console.log("[Auth] Processing login request. Body:", { 
+        username: req.body.username,
+        hasPassword: !!req.body.password 
+      });
+
       const result = loginCredentialsSchema.safeParse(req.body);
       if (!result.success) {
+        console.log("[Auth] Login validation failed:", result.error);
         throw new ValidationError("Invalid credentials format", fromZodError(result.error).toString());
       }
 

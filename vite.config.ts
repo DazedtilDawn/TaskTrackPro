@@ -8,6 +8,11 @@ import { fileURLToPath } from "url";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Get the Replit domain from environment variables
+const REPLIT_DOMAIN = process.env.REPL_SLUG && process.env.REPL_OWNER
+  ? `${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+  : undefined;
+
 export default defineConfig({
   plugins: [react(), runtimeErrorOverlay(), themePlugin()],
   resolve: {
@@ -21,10 +26,27 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
-    server: {
-        host: '0.0.0.0', // Listen on all addresses, including LAN and public IPs
-        port: 5173,     // Explicitly set Vite's dev server port
-        hmr: false,      // disables hot reloading
-        origin: `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+  server: {
+    host: true, // Listen on all addresses
+    port: 3000,
+    strictPort: true, // Fail if port is in use
+    hmr: {
+      clientPort: 443, // Force HMR through HTTPS
+      host: REPLIT_DOMAIN
+    },
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3001',
+        changeOrigin: true,
+        secure: false,
+        ws: true
+      }
+    },
+    cors: true,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'Access-Control-Allow-Headers': 'X-Requested-With, content-type, Authorization'
+    }
   },
 });

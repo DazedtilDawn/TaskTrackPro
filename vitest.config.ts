@@ -22,9 +22,9 @@ export default defineConfig({
     sequence: { shuffle: false }
   },
   resolve: {
-    alias: [
-      { find: '@', replacement: resolve(__dirname, './server') },
-      { find: '@db', replacement: resolve(__dirname, './db') }
-    ]
+    alias: {
+      '@': resolve(__dirname, 'server'),
+      '@db': resolve(__dirname, 'db')
+    }
   }
 }); 

@@ -47,10 +47,10 @@ describe("Analytics Endpoints", () => {
 
             // Clear existing test data
             console.log('Cleaning up existing test data...');
-            await db.delete(orderItems).where(eq(orderItems.orderId, 1)).execute();
-            await db.delete(orders).where(eq(orders.userId, dummyUser.id)).execute();
-            await db.delete(products).where(eq(products.userId, dummyUser.id)).execute();
-            await db.delete(users).where(eq(users.id, dummyUser.id)).execute();
+            await db.delete(orderItems).execute();
+            await db.delete(orders).execute();
+            await db.delete(products).execute();
+            await db.delete(users).execute();
             console.log('Existing test data cleaned up');
 
             // Insert test user
@@ -157,10 +157,10 @@ describe("Analytics Endpoints", () => {
     afterAll(async () => {
         try {
             console.log('Cleaning up test data...');
-            await db.delete(orderItems).where(eq(orderItems.orderId, 1)).execute();
-            await db.delete(orders).where(eq(orders.userId, dummyUser.id)).execute();
-            await db.delete(products).where(eq(products.userId, dummyUser.id)).execute();
-            await db.delete(users).where(eq(users.id, dummyUser.id)).execute();
+            await db.delete(orderItems).execute();
+            await db.delete(orders).execute();
+            await db.delete(products).execute();
+            await db.delete(users).execute();
             console.log('Test data cleanup completed successfully');
         } catch (error) {
             console.error('Error in test cleanup:', error);

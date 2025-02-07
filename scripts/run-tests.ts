@@ -24,15 +24,7 @@ async function runTests() {
             include: testFile ? [testFile] : ['server/tests/**/*.test.ts'],
             reporters: ['verbose'],
             testTimeout: 10000,
-            hookTimeout: 10000,
-            config: {
-                resolve: {
-                    alias: {
-                        '@': resolve(process.cwd(), './server'),
-                        '@db': resolve(process.cwd(), './db'),
-                    },
-                },
-            },
+            hookTimeout: 10000
         });
 
         await vitest?.close();

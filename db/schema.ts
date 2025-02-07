@@ -78,6 +78,7 @@ export const products = pgTable("products", {
   description: text("description"),
   sku: text("sku").unique(),
   price: decimal("price", { precision: 10, scale: 2 }),
+  purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }),
   quantity: integer("quantity").default(0).notNull(),
   imageUrl: text("image_url"),
   aiAnalysis: jsonb("ai_analysis"),
@@ -90,6 +91,9 @@ export const products = pgTable("products", {
   category: text("category"),
   weight: decimal("weight", { precision: 10, scale: 2 }),
   dimensions: text("dimensions"),
+  supplier: text("supplier"),
+  supplierUrl: text("supplier_url"),
+  purchaseDate: timestamp("purchase_date"),
   ebayListingId: text("ebay_listing_id"),
   ebayListingStatus: text("ebay_listing_status"),
   ebayListingUrl: text("ebay_listing_url"),
@@ -216,6 +220,7 @@ export const productCreateSchema = z.object({
   description: z.string().optional(),
   sku: z.string().optional(),
   price: z.number().positive("Price must be greater than 0").optional(),
+  purchasePrice: z.number().positive("Purchase price must be greater than 0").optional(),
   quantity: z.number().int().min(0, "Quantity cannot be negative"),
   condition: z.enum(['New', 'Open Box', 'Used - Like New', 'Used - Good', 'Used - Fair'])
     .default('Used - Good'),
@@ -223,6 +228,9 @@ export const productCreateSchema = z.object({
   category: z.string().optional(),
   weight: z.number().positive().optional(),
   dimensions: z.string().optional(),
+  supplier: z.string().optional(),
+  supplierUrl: z.string().url().optional(),
+  purchaseDate: z.string().datetime().optional(),
 });
 
 export const productUpdateSchema = productCreateSchema.partial();

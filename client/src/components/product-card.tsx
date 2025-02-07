@@ -10,11 +10,33 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast"
 import { useLocation } from "wouter"
 import { apiRequest, queryClient } from "@/lib/queryClient"
-import { Heart, Edit, Trash2, Sparkles, CheckCircle2, ArrowUpRight, Share2, Package, Box, Tag, Info, Calendar, Boxes, TrendingUp, BarChart, PackageOpen, ImageIcon } from "lucide-react"
+import {
+  Heart,
+  Edit,
+  Trash2,
+  Sparkles,
+  CheckCircle2,
+  ArrowUpRight,
+  Share2,
+  Package,
+  Box,
+  Tag,
+  Info,
+  Calendar,
+  Boxes,
+  TrendingUp,
+  BarChart,
+  PackageOpen,
+  ImageIcon,
+} from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import { cn } from "@/lib/utils"
 import { format } from "date-fns"
 import ConvertWatchlistDialog from "./convert-watchlist-dialog"
+
+// Fallback image for missing or invalid URLs
+const FALLBACK_IMAGE_URL =
+  "https://images.unsplash.com/photo-1602526212718-681c0a7fa6f4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1400&q=80"
 
 interface ProductCardProps {
   product: {
@@ -53,7 +75,13 @@ const DEFAULT_AI_ANALYSIS = {
   ebayData: undefined,
 }
 
-function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watchlistId }: ProductCardProps) {
+function ProductCard({
+  product,
+  onEdit,
+  inWatchlist = false,
+  view = "grid",
+  watchlistId,
+}: ProductCardProps) {
   const { toast } = useToast()
   const [, setLocation] = useLocation()
   const [showConvertDialog, setShowConvertDialog] = useState(false)
@@ -78,12 +106,14 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
   const aiAnalysis = parseAIAnalysis(product.aiAnalysis)
   const hasAnalysis = aiAnalysis !== DEFAULT_AI_ANALYSIS
   const currentPrice = Number(product.price) || 0
-  const isUnderpriced = hasAnalysis && currentPrice < (aiAnalysis.marketAnalysis.priceSuggestion.min ?? 0)
-  const isOverpriced = hasAnalysis && currentPrice > (aiAnalysis.marketAnalysis.priceSuggestion.max ?? 0)
+  const isUnderpriced =
+    hasAnalysis && currentPrice < (aiAnalysis.marketAnalysis.priceSuggestion.min ?? 0)
+  const isOverpriced =
+    hasAnalysis && currentPrice > (aiAnalysis.marketAnalysis.priceSuggestion.max ?? 0)
   const isPricedRight = hasAnalysis && !isUnderpriced && !isOverpriced
 
   const getImageUrl = (url?: string) => {
-    if (!url) return undefined
+    if (!url) return FALLBACK_IMAGE_URL
     if (url.startsWith("http://") || url.startsWith("https://")) return url
     if (url.startsWith("/uploads/")) return url
     return `/uploads/${url.replace(/^\/+/, "")}`
@@ -184,22 +214,26 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
 
   return (
     <>
-      <Card className="overflow-hidden flex flex-col">
-        {/* Image Section */}
-        <div className="relative aspect-[16/9] bg-secondary/20">
-          {product.imageUrl && !imageError ? (
+      <Card className="overflow-hidden flex flex-col rounded-md shadow-lg border bg-background">
+        <div className="relative w-full h-64 bg-secondary/10 flex items-center justify-center overflow-hidden rounded-t-md">
+          {(!imageError && product.imageUrl) ? (
             <img
               src={getImageUrl(product.imageUrl)}
               alt={`Image of ${product.name}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               onError={() => setImageError(true)}
             />
           ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <ImageIcon className="w-16 h-16 text-muted-foreground" />
+            <div className="w-full h-full flex items-center justify-center bg-secondary/10">
+              <img
+                src={FALLBACK_IMAGE_URL}
+                alt="Fallback"
+                className="w-full h-full object-contain opacity-70"
+              />
             </div>
           )}
-          <div className="absolute top-4 right-4 flex gap-2">
+
+          <div className="absolute top-3 right-3 flex gap-2">
             <Button
               size="icon"
               variant="secondary"
@@ -222,27 +256,28 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                 <PopoverContent className="w-96 p-0" side="left">
                   <ScrollArea className="h-[500px]">
                     <div className="p-6 space-y-6">
-                      {/* Market Analysis Header */}
                       <div className="flex items-center justify-between border-b pb-4 sticky top-0 bg-background z-10">
                         <h4 className="font-medium text-lg">Market Analysis</h4>
                         <span className="text-sm text-muted-foreground">{aiAnalysis.category}</span>
                       </div>
 
-                      {/* Demand Score */}
                       <div className="space-y-6">
                         <div className="p-4 rounded-lg bg-secondary/10 space-y-4">
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">Market Demand</span>
-                            <span className="text-sm font-medium">{aiAnalysis.marketAnalysis.demandScore}/100</span>
+                            <span className="text-sm font-medium">
+                              {aiAnalysis.marketAnalysis.demandScore}/100
+                            </span>
                           </div>
                           <Progress value={aiAnalysis.marketAnalysis.demandScore} className="h-2" />
                           <div className="flex items-center gap-2">
                             <BarChart className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm">Competition: {aiAnalysis.marketAnalysis.competitionLevel}</span>
+                            <span className="text-sm">
+                              Competition: {aiAnalysis.marketAnalysis.competitionLevel}
+                            </span>
                           </div>
                         </div>
 
-                        {/* eBay Market Data */}
                         {aiAnalysis.ebayData && (
                           <div className="space-y-4">
                             <div className="flex items-center gap-2">
@@ -252,29 +287,37 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                             <div className="grid grid-cols-2 gap-4">
                               <div className="p-4 rounded-lg bg-secondary/10">
                                 <div className="text-sm text-muted-foreground">Sales Volume</div>
-                                <div className="mt-2 text-lg font-semibold">{aiAnalysis.ebayData.soldCount}</div>
+                                <div className="mt-2 text-lg font-semibold">
+                                  {aiAnalysis.ebayData.soldCount}
+                                </div>
                               </div>
                               <div className="p-4 rounded-lg bg-secondary/10">
-                                <div className="text-sm text-muted-foreground">Active Listings</div>
-                                <div className="mt-2 text-lg font-semibold">{aiAnalysis.ebayData.activeListing}</div>
+                                <div className="text-sm text-muted-foreground">
+                                  Active Listings
+                                </div>
+                                <div className="mt-2 text-lg font-semibold">
+                                  {aiAnalysis.ebayData.activeListing}
+                                </div>
                               </div>
                             </div>
                             <div className="p-4 rounded-lg bg-secondary/10 space-y-3">
                               <div className="flex justify-between text-sm">
                                 <span>Average Price</span>
-                                <span className="font-medium">${aiAnalysis.ebayData.averagePrice}</span>
+                                <span className="font-medium">
+                                  ${aiAnalysis.ebayData.averagePrice}
+                                </span>
                               </div>
                               <div className="flex justify-between text-sm">
                                 <span>Price Range</span>
                                 <span className="font-medium">
-                                  ${aiAnalysis.ebayData.lowestPrice} - ${aiAnalysis.ebayData.highestPrice}
+                                  ${aiAnalysis.ebayData.lowestPrice} - $
+                                  {aiAnalysis.ebayData.highestPrice}
                                 </span>
                               </div>
                             </div>
                           </div>
                         )}
 
-                        {/* Optimization Tips */}
                         <div className="space-y-4">
                           <div className="flex items-center gap-2">
                             <TrendingUp className="h-4 w-4" />
@@ -300,14 +343,19 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
           </div>
         </div>
 
-        {/* Content Section */}
         <div className="flex-1 flex flex-col min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
             <div className="px-6 pt-6">
               <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="details" className="py-2.5">Details</TabsTrigger>
-                <TabsTrigger value="pricing" className="py-2.5">Pricing</TabsTrigger>
-                <TabsTrigger value="metrics" className="py-2.5">Metrics</TabsTrigger>
+                <TabsTrigger value="details" className="py-2.5">
+                  Details
+                </TabsTrigger>
+                <TabsTrigger value="pricing" className="py-2.5">
+                  Pricing
+                </TabsTrigger>
+                <TabsTrigger value="metrics" className="py-2.5">
+                  Metrics
+                </TabsTrigger>
               </TabsList>
             </div>
 
@@ -318,7 +366,9 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-2xl font-semibold mb-3">{product.name}</h3>
-                        <p className="text-muted-foreground text-base leading-relaxed">{product.description}</p>
+                        <p className="text-muted-foreground text-base leading-relaxed">
+                          {product.description}
+                        </p>
                       </div>
 
                       <div className="grid grid-cols-2 gap-8">
@@ -409,12 +459,14 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                           <div className="p-6 rounded-lg bg-secondary/10 space-y-4">
                             <div className="flex justify-between items-center">
                               <span className="text-sm">Current Price</span>
-                              <span className={cn(
-                                "text-lg font-semibold",
-                                isUnderpriced && "text-yellow-600",
-                                isOverpriced && "text-red-600",
-                                isPricedRight && "text-green-600"
-                              )}>
+                              <span
+                                className={cn(
+                                  "text-lg font-semibold",
+                                  isUnderpriced && "text-yellow-600",
+                                  isOverpriced && "text-red-600",
+                                  isPricedRight && "text-green-600"
+                                )}
+                              >
                                 ${currentPrice}
                               </span>
                             </div>
@@ -455,7 +507,9 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                               />
                               <div className="flex items-center gap-2 text-sm mt-2">
                                 <BarChart className="h-4 w-4 text-muted-foreground" />
-                                <span>Competition Level: {aiAnalysis.marketAnalysis.competitionLevel}</span>
+                                <span>
+                                  Competition Level: {aiAnalysis.marketAnalysis.competitionLevel}
+                                </span>
                               </div>
                             </div>
                           </div>
@@ -465,14 +519,26 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                               <h4 className="text-sm font-medium">eBay Performance</h4>
                               <div className="grid grid-cols-2 gap-4">
                                 <div className="p-6 rounded-lg bg-secondary/10">
-                                  <div className="text-sm text-muted-foreground mb-2">Sales Volume</div>
-                                  <div className="text-2xl font-semibold">{aiAnalysis.ebayData.soldCount}</div>
-                                  <div className="text-sm text-muted-foreground mt-2">Items Sold</div>
+                                  <div className="text-sm text-muted-foreground mb-2">
+                                    Sales Volume
+                                  </div>
+                                  <div className="text-2xl font-semibold">
+                                    {aiAnalysis.ebayData.soldCount}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground mt-2">
+                                    Items Sold
+                                  </div>
                                 </div>
                                 <div className="p-6 rounded-lg bg-secondary/10">
-                                  <div className="text-sm text-muted-foreground mb-2">Competition</div>
-                                  <div className="text-2xl font-semibold">{aiAnalysis.ebayData.activeListing}</div>
-                                  <div className="text-sm text-muted-foreground mt-2">Active Listings</div>
+                                  <div className="text-sm text-muted-foreground mb-2">
+                                    Competition
+                                  </div>
+                                  <div className="text-2xl font-semibold">
+                                    {aiAnalysis.ebayData.activeListing}
+                                  </div>
+                                  <div className="text-sm text-muted-foreground mt-2">
+                                    Active Listings
+                                  </div>
                                 </div>
                               </div>
                             </div>
@@ -487,7 +553,6 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
           </Tabs>
         </div>
 
-        {/* Actions Section */}
         <div className="flex-none p-6 border-t bg-muted/5">
           <div className="flex items-center justify-between gap-4">
             <div className="flex gap-2">
@@ -509,7 +574,17 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </Button>
-              {!inWatchlist && (
+              {inWatchlist ? (
+                <Button
+                  size="default"
+                  variant="default"
+                  onClick={() => setShowConvertDialog(true)}
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <ArrowUpRight className="h-4 w-4 mr-2" />
+                  Add to Inventory
+                </Button>
+              ) : (
                 <>
                   <Button
                     size="default"
@@ -545,17 +620,6 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
                 </>
               )}
             </div>
-            {inWatchlist ? (
-              <Button
-                size="lg"
-                variant="default"
-                onClick={() => setShowConvertDialog(true)}
-                className="bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                <ArrowUpRight className="h-5 w-5 mr-2" />
-                Add to Inventory
-              </Button>
-            ) : null}
           </div>
         </div>
       </Card>
@@ -566,7 +630,7 @@ function ProductCard({ product, onEdit, inWatchlist = false, view = "grid", watc
         onOpenChange={setShowConvertDialog}
       />
     </>
-  )
+  );
 }
 
-export default ProductCard
+export default ProductCard;

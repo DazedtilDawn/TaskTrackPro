@@ -38,16 +38,17 @@ import ConvertWatchlistDialog from "./convert-watchlist-dialog"
 const FALLBACK_IMAGE_URL =
   "https://images.unsplash.com/photo-1602526212718-681c0a7fa6f4?ixlib=rb-1.2.1&auto=format&fit=crop&w=1400&q=80"
 
+// Update the ProductCard interface
 interface ProductCardProps {
   product: {
     id: number
     name: string
     description: string | null
     price: string | null
+    purchasePrice?: string
     imageUrl?: string
     condition?: string
-    sku?: string
-    brand?: string
+    supplier?: string
     category?: string
     quantity: number
     createdAt: string
@@ -375,13 +376,13 @@ function ProductCard({
                         <div className="space-y-4">
                           <div className="flex items-center gap-3">
                             <Package className="h-5 w-5 text-primary" />
-                            <span className="font-medium min-w-[80px]">SKU:</span>
-                            <span>{product.sku || "N/A"}</span>
+                            <span className="font-medium min-w-[80px]">Supplier:</span>
+                            <span>{product.supplier || "N/A"}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <Box className="h-5 w-5 text-primary" />
-                            <span className="font-medium min-w-[80px]">Brand:</span>
-                            <span>{product.brand || "N/A"}</span>
+                            <span className="font-medium min-w-[80px]">Purchase:</span>
+                            <span>${product.purchasePrice || "N/A"}</span>
                           </div>
                           <div className="flex items-center gap-3">
                             <Tag className="h-5 w-5 text-primary" />

@@ -21,14 +21,18 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // Configure CORS
 const allowedOrigins = [
   'https://1437b402-c753-46c4-ab96-0e0234bae53b-00-1vlomg3cflyir.spock.replit.dev',
-  'http://localhost:5000'
+  'http://localhost:5000',
+  'http://localhost:5173',
+  `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
 ];
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
+      console.log('[CORS] Rejected Origin:', origin);
       callback(new Error('Not allowed by CORS'))
     }
   },

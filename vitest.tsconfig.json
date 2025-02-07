@@ -1,0 +1,25 @@
+{
+    "extends": "./tsconfig.json",
+    "compilerOptions": {
+        "types": [
+            "vitest/globals",
+            "node"
+        ],
+        "moduleResolution": "node16",
+        "module": "ESNext",
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "server/*"
+            ],
+            "@db/*": [
+                "db/*"
+            ]
+        }
+    },
+    "include": [
+        "server/tests/**/*.ts",
+        "server/**/*.ts",
+        "db/**/*.ts"
+    ]
+}

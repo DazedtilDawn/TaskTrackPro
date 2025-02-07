@@ -1,10 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import request from "supertest";
 import express, { Express } from "express";
-import { registerRoutes } from "../routes";
-import { db } from "../../db";
-import { products, orders, orderItems, users } from "../../db/schema";
-import { eq } from "drizzle-orm";
+import { registerRoutes } from "@/routes";
+import { db } from "@db/index";
+import { products, orders, orderItems, users } from "@db/schema";
+import { eq, sql } from "drizzle-orm";
+
+console.log('Starting analytics test file...');
 
 // Dummy user for authentication tests
 const dummyUser = {
@@ -18,138 +20,164 @@ const dummyUser = {
 describe("Analytics Endpoints", () => {
     let app: Express;
 
+    console.log('Setting up test suite...');
+
     // Before all tests, create an Express app, install a fake auth middleware,
     // register routes, and seed test data
     beforeAll(async () => {
-        // Create a new Express application for testing
-        app = express();
-        app.use(express.json());
+        console.log('beforeAll hook starting...');
+        try {
+            // Create a new Express application for testing
+            app = express();
+            app.use(express.json());
+            console.log('Express app created');
 
-        // Fake authentication middleware: mark every request as authenticated
-        // and assign dummyUser
-        app.use((req, _res, next) => {
-            req.isAuthenticated = () => true;
-            req.user = dummyUser;
-            next();
-        });
+            // Fake authentication middleware: mark every request as authenticated
+            // and assign dummyUser
+            app.use((req: any, _res, next) => {
+                req.isAuthenticated = () => true;
+                req.user = dummyUser;
+                next();
+            });
+            console.log('Auth middleware installed');
 
-        // Register our routes
-        registerRoutes(app);
+            // Register our routes
+            registerRoutes(app);
+            console.log('Routes registered');
 
-        // Clear existing test data
-        await db.delete(orderItems).where(eq(orderItems.orderId, 1)).execute();
-        await db.delete(orders).where(eq(orders.userId, dummyUser.id)).execute();
-        await db.delete(products).where(eq(products.userId, dummyUser.id)).execute();
-        await db.delete(users).where(eq(users.id, dummyUser.id)).execute();
+            // Clear existing test data
+            console.log('Cleaning up existing test data...');
+            await db.delete(orderItems).where(eq(orderItems.orderId, 1)).execute();
+            await db.delete(orders).where(eq(orders.userId, dummyUser.id)).execute();
+            await db.delete(products).where(eq(products.userId, dummyUser.id)).execute();
+            await db.delete(users).where(eq(users.id, dummyUser.id)).execute();
+            console.log('Existing test data cleaned up');
 
-        // Insert test user
-        await db.insert(users).values(dummyUser).execute();
+            // Insert test user
+            console.log('Inserting test user...');
+            await db.insert(users).values(dummyUser).execute();
+            console.log('Test user inserted');
 
-        // Insert test products
-        const testProducts = [
-            {
-                userId: dummyUser.id,
-                name: "Test Product 1",
-                description: "A test product",
-                price: "100.00",
-                purchasePrice: "60.00",
-                quantity: 2,
-                sold: false,
-                createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
-                updatedAt: new Date(),
-                category: "Electronics",
-            },
-            {
-                userId: dummyUser.id,
-                name: "Test Product 2",
-                description: "Another test product",
-                price: "150.00",
-                purchasePrice: "90.00",
-                quantity: 1,
-                sold: false,
-                createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
-                updatedAt: new Date(),
-                category: "Clothing",
-            },
-            {
-                userId: dummyUser.id,
-                name: "Test Product 3",
-                description: "A third test product",
-                price: "200.00",
-                purchasePrice: "120.00",
-                quantity: 3,
-                sold: false,
-                createdAt: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000), // 75 days ago
-                updatedAt: new Date(),
-                category: "Electronics",
+            // Insert test products
+            console.log('Inserting test products...');
+            const testProducts = [
+                {
+                    userId: dummyUser.id,
+                    name: "Test Product 1",
+                    description: "A test product",
+                    price: "100.00",
+                    purchasePrice: "60.00",
+                    quantity: 2,
+                    sold: false,
+                    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000), // 15 days ago
+                    updatedAt: new Date(),
+                    category: "Electronics",
+                },
+                {
+                    userId: dummyUser.id,
+                    name: "Test Product 2",
+                    description: "Another test product",
+                    price: "150.00",
+                    purchasePrice: "90.00",
+                    quantity: 1,
+                    sold: false,
+                    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000), // 45 days ago
+                    updatedAt: new Date(),
+                    category: "Clothing",
+                },
+                {
+                    userId: dummyUser.id,
+                    name: "Test Product 3",
+                    description: "A third test product",
+                    price: "200.00",
+                    purchasePrice: "120.00",
+                    quantity: 3,
+                    sold: false,
+                    createdAt: new Date(Date.now() - 75 * 24 * 60 * 60 * 1000), // 75 days ago
+                    updatedAt: new Date(),
+                    category: "Electronics",
+                }
+            ];
+
+            for (const product of testProducts) {
+                await db.insert(products).values(product).execute();
             }
-        ];
 
-        for (const product of testProducts) {
-            await db.insert(products).values(product).execute();
-        }
-
-        // Create test orders and order items
-        const testOrder = {
-            userId: dummyUser.id,
-            status: "completed",
-            total: "200.00",
-            createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
-            updatedAt: new Date(),
-        };
-
-        const [order] = await db.insert(orders).values(testOrder).returning().execute();
-
-        // Get the inserted products
-        const insertedProducts = await db
-            .select()
-            .from(products)
-            .where(eq(products.userId, dummyUser.id))
-            .execute();
-
-        // Create order items for the products
-        const orderItemsData = [
-            {
-                orderId: order.id,
-                productId: insertedProducts[0].id,
-                quantity: 1,
-                price: "100.00",
-            },
-            {
-                orderId: order.id,
-                productId: insertedProducts[1].id,
-                quantity: 1,
-                price: "150.00",
-            }
-        ];
-
-        for (const item of orderItemsData) {
-            await db.insert(orderItems).values({
-                ...item,
-                createdAt: new Date(),
+            // Create test orders and order items
+            console.log('Creating test orders and order items...');
+            const testOrder = {
+                userId: dummyUser.id,
+                status: "completed",
+                total: "200.00",
+                createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
                 updatedAt: new Date(),
-            }).execute();
+            };
+
+            const [order] = await db.insert(orders).values(testOrder).returning().execute();
+
+            // Get the inserted products
+            const insertedProducts = await db
+                .select()
+                .from(products)
+                .where(eq(products.userId, dummyUser.id))
+                .execute();
+
+            // Create order items for the products
+            const orderItemsData = [
+                {
+                    orderId: order.id,
+                    productId: insertedProducts[0].id,
+                    quantity: 1,
+                    price: "100.00",
+                },
+                {
+                    orderId: order.id,
+                    productId: insertedProducts[1].id,
+                    quantity: 1,
+                    price: "150.00",
+                }
+            ];
+
+            for (const item of orderItemsData) {
+                await db.insert(orderItems).values({
+                    ...item,
+                    createdAt: new Date(),
+                    updatedAt: new Date(),
+                }).execute();
+            }
+
+            console.log('Test data setup completed successfully');
+        } catch (error) {
+            console.error('Error in test setup:', error);
+            throw error;
         }
     });
 
     // After all tests, clean up the test data
     afterAll(async () => {
-        await db.delete(orderItems).where(eq(orderItems.orderId, 1)).execute();
-        await db.delete(orders).where(eq(orders.userId, dummyUser.id)).execute();
-        await db.delete(products).where(eq(products.userId, dummyUser.id)).execute();
-        await db.delete(users).where(eq(users.id, dummyUser.id)).execute();
+        try {
+            console.log('Cleaning up test data...');
+            await db.delete(orderItems).where(eq(orderItems.orderId, 1)).execute();
+            await db.delete(orders).where(eq(orders.userId, dummyUser.id)).execute();
+            await db.delete(products).where(eq(products.userId, dummyUser.id)).execute();
+            await db.delete(users).where(eq(users.id, dummyUser.id)).execute();
+            console.log('Test data cleanup completed successfully');
+        } catch (error) {
+            console.error('Error in test cleanup:', error);
+            throw error;
+        }
     });
 
     // Test the revenue analytics endpoint
-    test("GET /api/analytics/revenue returns daily revenue data", async () => {
+    it("GET /api/analytics/revenue returns daily revenue data", async () => {
         const response = await request(app)
             .get("/api/analytics/revenue")
             .query({
                 startDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
                 endDate: new Date().toISOString(),
-            })
-            .expect(200);
+            });
 
+        expect(response.status).toBe(200);
         expect(Array.isArray(response.body)).toBe(true);
         response.body.forEach((data: any) => {
             expect(data).toHaveProperty("date");
@@ -174,11 +202,11 @@ describe("Analytics Endpoints", () => {
     });
 
     // Test the inventory analytics endpoint
-    test("GET /api/analytics/inventory returns aggregated inventory by category", async () => {
+    it("GET /api/analytics/inventory returns aggregated inventory by category", async () => {
         const response = await request(app)
-            .get("/api/analytics/inventory")
-            .expect(200);
+            .get("/api/analytics/inventory");
 
+        expect(response.status).toBe(200);
         expect(Array.isArray(response.body)).toBe(true);
         response.body.forEach((item: any) => {
             expect(item).toHaveProperty("category");
@@ -202,12 +230,12 @@ describe("Analytics Endpoints", () => {
     });
 
     // Test the top products analytics endpoint
-    test("GET /api/analytics/top-products returns sorted top products", async () => {
+    it("GET /api/analytics/top-products returns sorted top products", async () => {
         const response = await request(app)
             .get("/api/analytics/top-products")
-            .query({ metric: "profit", limit: 5 })
-            .expect(200);
+            .query({ metric: "profit", limit: 5 });
 
+        expect(response.status).toBe(200);
         expect(Array.isArray(response.body)).toBe(true);
         response.body.forEach((item: any) => {
             expect(item).toHaveProperty("productId");
@@ -234,11 +262,11 @@ describe("Analytics Endpoints", () => {
     });
 
     // Test the inventory aging analytics endpoint
-    test("GET /api/analytics/inventory-aging returns aging summary and slow-moving items", async () => {
+    it("GET /api/analytics/inventory-aging returns aging summary and slow-moving items", async () => {
         const response = await request(app)
-            .get("/api/analytics/inventory-aging")
-            .expect(200);
+            .get("/api/analytics/inventory-aging");
 
+        expect(response.status).toBe(200);
         expect(response.body).toHaveProperty("agingSummary");
         expect(response.body).toHaveProperty("slowMovingItems");
         expect(Array.isArray(response.body.agingSummary)).toBe(true);

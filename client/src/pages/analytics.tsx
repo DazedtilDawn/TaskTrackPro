@@ -145,8 +145,8 @@ export default function Analytics() {
       <div className="flex-1 flex flex-col">
         <Header />
         <main className="flex-1 overflow-y-auto p-4 lg:p-6 xl:p-8">
-          <div className="max-w-[2000px] mx-auto space-y-6">
-            <div className="grid gap-4 sm:flex sm:flex-wrap sm:items-center">
+          <div className="max-w-full mx-auto space-y-6">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium whitespace-nowrap">From:</span>
                 <DatePicker date={startDate} onDateChange={setStartDate} />
@@ -168,17 +168,17 @@ export default function Analytics() {
             </div>
 
             <div className="grid gap-6 md:grid-cols-2">
-              <Card className="hover:shadow-md transition-shadow col-span-full">
+              <Card className="hover:shadow-md transition-shadow md:col-span-2">
                 <CardHeader>
                   <CardTitle>Revenue & Profit Over Time</CardTitle>
                   <CardDescription>Daily revenue and profit analysis</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[300px]">
+                <CardContent className="h-[400px]">
                   {isRevenueLoading ? (
                     <Skeleton className="w-full h-full" />
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={processedRevenueData}>
+                      <LineChart data={processedRevenueData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis
                           dataKey="date"
@@ -216,19 +216,19 @@ export default function Analytics() {
                   <CardTitle>Inventory Value by Category</CardTitle>
                   <CardDescription>Distribution of inventory value</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[300px]">
+                <CardContent className="h-[350px]">
                   {isInventoryLoading ? (
                     <Skeleton className="w-full h-full" />
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <PieChart>
+                      <PieChart margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                         <Pie
                           data={processedInventoryData}
                           dataKey="totalValue"
                           nameKey="category"
                           cx="50%"
                           cy="50%"
-                          outerRadius={100}
+                          outerRadius={120}
                           label={({ category, percent }) =>
                             `${category}: ${(percent * 100).toFixed(0)}%`
                           }
@@ -255,12 +255,15 @@ export default function Analytics() {
                   <CardTitle>Top Products by {metricType.charAt(0).toUpperCase() + metricType.slice(1)}</CardTitle>
                   <CardDescription>Performance metrics for top-selling products</CardDescription>
                 </CardHeader>
-                <CardContent className="h-[300px]">
+                <CardContent className="h-[350px]">
                   {isTopProductsLoading ? (
                     <Skeleton className="w-full h-full" />
                   ) : (
                     <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={processedTopProducts}>
+                      <BarChart
+                        data={processedTopProducts}
+                        margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
+                      >
                         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                         <XAxis dataKey="name" className="text-muted-foreground" />
                         <YAxis className="text-muted-foreground" />
@@ -282,7 +285,7 @@ export default function Analytics() {
                 </CardContent>
               </Card>
 
-              <Card className="col-span-full">
+              <Card className="hover:shadow-md transition-shadow md:col-span-2">
                 <CardHeader>
                   <CardTitle>Inventory Aging Analysis</CardTitle>
                   <CardDescription>Track inventory age and identify slow-moving items</CardDescription>

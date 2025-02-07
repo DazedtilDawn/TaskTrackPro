@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { resolve } from 'path';
 
 export default defineConfig({
   test: {
@@ -7,10 +8,23 @@ export default defineConfig({
     setupFiles: ['./server/tests/setup.ts'],
     include: ['server/tests/**/*.test.ts'],
     deps: {
-      inline: ['vitest-environment-node'],
+      optimizer: {
+        web: {
+          include: []
+        }
+      }
     },
-    typecheck: {
-      tsconfig: './tsconfig.test.json',
-    },
+    testTimeout: 10000,
+    hookTimeout: 10000,
+    passWithNoTests: false,
+    logHeapUsage: true,
+    reporters: ['verbose'],
+    sequence: { shuffle: false }
   },
+  resolve: {
+    alias: [
+      { find: '@', replacement: resolve(__dirname, './server') },
+      { find: '@db', replacement: resolve(__dirname, './db') }
+    ]
+  }
 }); 

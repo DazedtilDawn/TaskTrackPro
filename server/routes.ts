@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { db } from "@db";
 import { products, watchlist, orders, orderItems, users } from "@db/schema";
-import { eq, and, desc, gte, lte, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, sql, inArray } from "drizzle-orm";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import multer from 'multer';
 import path from 'path';
@@ -700,7 +700,6 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-
   // Mark product as sold endpoint
   app.post("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
@@ -808,55 +807,52 @@ Important: Ensure the response is valid JSON that can be parsed with JSON.parse(
     }
   });
 
-  // Get orders endpoint
+  // Update the GET /api/orders endpoint to fix the recursive data structure
   app.get("/api/orders", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
     try {
+      // First fetch all orders for the user
       const userOrders = await db.select({
         id: orders.id,
+        userId: orders.userId,
         status: orders.status,
         total: orders.total,
         createdAt: orders.createdAt,
         updatedAt: orders.updatedAt,
-        items: {
-          id: orderItems.id,
-          quantity: orderItems.quantity,
-          price: orderItems.price,
-          product: {
-            id: products.id,
-            name: products.name.toString(),
-            description: products.description?.toString() || null,
-            sku: products.sku?.toString() || null,
-            imageUrl: products.imageUrl?.toString() || null
-          }
+        ebayOrderId: orders.ebayOrderId,
+        ebayOrderData: orders.ebayOrderData
+      })
+      .from(orders)
+      .where(eq(orders.userId, req.user!.id))
+      .orderBy(desc(orders.createdAt));
+
+      // Then fetch items for these orders
+      const orderItems = await db.select({
+        orderId: orderItems.orderId,
+        quantity: orderItems.quantity,
+        price: orderItems.price,
+        product: {
+          id: products.id,
+          name: products.name,
+          description: products.description,
+          sku: products.sku,
+          imageUrl: products.imageUrl
         }
       })
-        .from(orders)
-        .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
-        .leftJoin(products, eq(orderItems.productId, products.id))
-        .where(eq(orders.userId, req.user!.id))
-        .orderBy(desc(orders.createdAt));
+      .from(orderItems)
+      .leftJoin(products, eq(orderItems.productId, products.id))
+      .where(inArray(orderItems.orderId, userOrders.map(o => o.id)));
 
-      // Group items by order with proper type checking
-      const groupedOrders = userOrders.reduce((acc: typeof userOrders, order) => {
-        const existingOrder = acc.find(o => o.id === order.id);
-        if (existingOrder) {
-          if (order.items?.id) {
-            existingOrder.items = order.items;
-          }
-        } else {
-          acc.push({
-            ...order,
-            items: order.items?.id ? order.items : null
-          });
-        }
-        return acc;
-      }, []);
+      // Combine orders with their items
+      const ordersWithItems = userOrders.map(order => ({
+        ...order,
+        items: orderItems.filter(item => item.orderId === order.id)
+      }));
 
-      res.json(groupedOrders);
+      res.json(ordersWithItems);
     } catch (error) {
       console.error("Error fetching orders:", error);
       res.status(500).json({

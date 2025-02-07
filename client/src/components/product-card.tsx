@@ -586,39 +586,15 @@ function ProductCard({
                   Add to Inventory
                 </Button>
               ) : (
-                <>
-                  <Button
-                    size="default"
-                    variant="ghost"
-                    onClick={(e) => handleAction("markAsSold", e)}
-                    className="h-10 text-green-600 hover:text-green-700"
-                  >
-                    <CheckCircle2 className="h-4 w-4 mr-2" />
-                    Mark Sold
-                  </Button>
-                  {!product.ebayListingUrl ? (
-                    <Button
-                      size="default"
-                      variant="ghost"
-                      onClick={(e) => handleAction("generateEbayListing", e)}
-                      disabled={isGeneratingListing}
-                      className="h-10 text-blue-600 hover:text-blue-700"
-                    >
-                      <Share2 className="h-4 w-4 mr-2" />
-                      List on eBay
-                    </Button>
-                  ) : (
-                    <Button
-                      size="default"
-                      variant="ghost"
-                      onClick={() => window.open(product.ebayListingUrl, "_blank")}
-                      className="h-10 text-green-600 hover:text-green-700"
-                    >
-                      <ArrowUpRight className="h-4 w-4 mr-2" />
-                      View on eBay
-                    </Button>
-                  )}
-                </>
+                <Button
+                  size="default"
+                  variant="ghost"
+                  onClick={(e) => handleAction("markAsSold", e)}
+                  className="h-10 text-green-600 hover:text-green-700"
+                >
+                  <CheckCircle2 className="h-4 w-4 mr-2" />
+                  Mark Sold
+                </Button>
               )}
             </div>
           </div>

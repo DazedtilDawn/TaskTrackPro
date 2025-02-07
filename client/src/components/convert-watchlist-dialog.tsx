@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, DollarSign, TrendingUp } from "lucide-react";
+import { Loader2, DollarSign, TrendingUp, Info } from "lucide-react";
 import type { SelectProduct } from "@db/schema";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,13 @@ interface ConvertWatchlistDialogProps {
   product: SelectProduct;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+}
+
+interface PurchasePriceSuggestion {
+  suggestedPurchasePrice: number;
+  confidence: number;
+  reasoning: string;
+  estimatedROI: number;
 }
 
 export default function ConvertWatchlistDialog({
@@ -42,6 +49,8 @@ export default function ConvertWatchlistDialog({
   });
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [purchaseSuggestion, setPurchaseSuggestion] = useState<PurchasePriceSuggestion | null>(null);
+  const [isLoadingSuggestion, setIsLoadingSuggestion] = useState(false);
 
   // Watch form values for real-time calculations
   const buyPrice = watch("buyPrice") || 0;
@@ -50,6 +59,43 @@ export default function ConvertWatchlistDialog({
   // Calculate potential profit
   const potentialProfit = recommendedSalePrice - buyPrice;
   const profitMargin = buyPrice > 0 ? (potentialProfit / buyPrice) * 100 : 0;
+
+  useEffect(() => {
+    const fetchPurchasePriceSuggestion = async () => {
+      if (!open) return;
+
+      setIsLoadingSuggestion(true);
+      try {
+        const response = await apiRequest("POST", "/api/generate-purchase-price", {
+          currentPrice: product.price,
+          condition: product.condition,
+          category: product.category,
+          ebayData: product.aiAnalysis ? JSON.parse(product.aiAnalysis).ebayData : null
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to get purchase price suggestion");
+        }
+
+        const suggestion = await response.json();
+        setPurchaseSuggestion(suggestion);
+
+        // Set the suggested purchase price as the default buy price
+        setValue("buyPrice", suggestion.suggestedPurchasePrice);
+      } catch (error) {
+        console.error("Error fetching purchase price suggestion:", error);
+        toast({
+          title: "Error",
+          description: "Failed to get purchase price suggestion",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoadingSuggestion(false);
+      }
+    };
+
+    fetchPurchasePriceSuggestion();
+  }, [open, product, setValue, toast]);
 
   const generateRecommendation = async () => {
     setIsGenerating(true);
@@ -160,6 +206,38 @@ export default function ConvertWatchlistDialog({
               <span className="text-primary">${Number(product.price).toFixed(2)}</span>
             </div>
           </div>
+
+          {/* AI Purchase Price Suggestion */}
+          {isLoadingSuggestion ? (
+            <div className="flex items-center justify-center p-4">
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              <span className="text-sm">Getting price suggestion...</span>
+            </div>
+          ) : purchaseSuggestion && (
+            <div className="p-4 rounded-lg bg-secondary/10 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Suggested Purchase Price:</span>
+                <span className="text-lg font-semibold text-primary">
+                  ${purchaseSuggestion.suggestedPurchasePrice.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm">Estimated ROI:</span>
+                <span className="text-green-600 font-medium">
+                  {purchaseSuggestion.estimatedROI.toFixed(1)}%
+                </span>
+              </div>
+              <p className="text-sm text-muted-foreground italic">
+                {purchaseSuggestion.reasoning}
+              </p>
+              <div className="flex items-center gap-2 text-sm">
+                <Info className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">
+                  Confidence: {(purchaseSuggestion.confidence * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          )}
 
           {/* Buy Price Input */}
           <div className="space-y-2">

@@ -1,0 +1,47 @@
+1. Database Schema Update:
+
+db/schema.ts: Add purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).notNull(), to the products table.
+
+2. Product Card Logic (client/src/components/product-card.tsx):
+
+Calculate Suggested Purchase Price:
+
+Add a const suggestedPurchasePrice = calculateSuggestedPurchasePrice(aiAnalysis); before the return statement. Use the logic provided in the previous response (35% discount from AI's minimum suggested selling price). Handle cases where aiAnalysis is null or incomplete.
+
+Conditional Display (Table View): Inside the if (view === "table") block, add a new div to display suggestedPurchasePrice, only if inWatchlist is true. Include appropriate labeling (e.g., "Suggested Purchase").
+
+Conditional Display (Grid/List View): Inside the else block (for grid/list views), add a new div below the product description, again only if inWatchlist is true, to show the suggestedPurchasePrice.
+
+3. Convert Watchlist Dialog (client/src/components/convert-watchlist-dialog.tsx):
+
+Remove Pre-population: In useForm, change recommendedSalePrice default value to 0 instead of product.price.
+
+Update onSubmit:
+
+Change price: data.recommendedSalePrice to price: product.price.
+
+Add purchasePrice: data.buyPrice, to the data sent in the PATCH request.Okay, here's a concise checklist to implement the "Suggested Purchase Price" feature for watchlist items:
+
+db/schema.ts: Add purchasePrice: decimal("purchase_price", { precision: 10, scale: 2 }).notNull(), to the products table.
+
+2. Product Card Logic (client/src/components/product-card.tsx):
+
+Calculate Suggested Purchase Price:
+
+Add a const suggestedPurchasePrice = calculateSuggestedPurchasePrice(aiAnalysis); before the return statement. Use the logic provided in the previous response (35% discount from AI's minimum suggested selling price). Handle cases where aiAnalysis is null or incomplete.
+
+Conditional Display (Table View): Inside the if (view === "table") block, add a new div to display suggestedPurchasePrice, only if inWatchlist is true. Include appropriate labeling (e.g., "Suggested Purchase").
+
+Conditional Display (Grid/List View): Inside the else block (for grid/list views), add a new div below the product description, again only if inWatchlist is true, to show the suggestedPurchasePrice.
+
+Make sure that you are displaying the correct pricing and that there are no errors.
+
+3. Convert Watchlist Dialog (client/src/components/convert-watchlist-dialog.tsx):
+
+Remove Pre-population: In useForm, change recommendedSalePrice default value to 0 instead of product.price.
+
+Update onSubmit:
+
+Change price: data.recommendedSalePrice to price: product.price.
+
+Add purchasePrice: data.buyPrice, to the data sent in the PATCH request.

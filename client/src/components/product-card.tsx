@@ -241,6 +241,23 @@ function ProductCard({
     }
   }
 
+  const calculateSuggestedPurchasePrice = (aiAnalysis: any) => {
+    if (!aiAnalysis || !aiAnalysis.marketAnalysis || !aiAnalysis.marketAnalysis.priceSuggestion) {
+      return null;
+    }
+
+    const minSellPrice = aiAnalysis.marketAnalysis.priceSuggestion.min;
+    if (typeof minSellPrice !== 'number' || isNaN(minSellPrice)) {
+      return null;
+    }
+
+    const discount = 0.35; // 35% discount
+    const suggestedPurchasePrice = minSellPrice * (1 - discount);
+    return suggestedPurchasePrice;
+  };
+
+  const suggestedPurchasePrice = calculateSuggestedPurchasePrice(aiAnalysis);
+
   return (
     <>
       <Card className="overflow-hidden flex flex-col rounded-md shadow-lg border bg-background">
@@ -482,30 +499,24 @@ function ProductCard({
                         )}
                       </div>
 
-                      {inWatchlist && purchasePriceSuggestion && (
+                      {inWatchlist && suggestedPurchasePrice !== null && (
                         <div className="space-y-4">
                           <h4 className="text-sm font-medium">Purchase Price Analysis</h4>
                           <div className="p-6 rounded-lg bg-secondary/10 space-y-4">
                             <div className="flex justify-between items-center">
-                              <span className="text-sm">Suggested Purchase Price</span>
+                              <span className="text-sm">Calculated Purchase Price</span>
                               <span className="text-lg font-semibold text-primary">
-                                ${purchasePriceSuggestion.suggestedPurchasePrice.toFixed(2)}
+                                ${suggestedPurchasePrice.toFixed(2)}
                               </span>
                             </div>
                             <div className="flex justify-between items-center">
                               <span className="text-sm">Estimated ROI</span>
                               <span className="text-lg font-semibold text-green-600">
-                                {purchasePriceSuggestion.estimatedROI.toFixed(1)}%
+                                {((Number(product.price) - suggestedPurchasePrice) / suggestedPurchasePrice * 100).toFixed(1)}%
                               </span>
                             </div>
-                            <div className="mt-4 text-sm text-muted-foreground">
-                              <p className="italic">{purchasePriceSuggestion.reasoning}</p>
-                            </div>
-                            <div className="flex items-center gap-2 text-sm mt-2">
-                              <Info className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                Confidence: {(purchasePriceSuggestion.confidence * 100).toFixed(0)}%
-                              </span>
+                            <div className="text-sm text-muted-foreground">
+                              <p>Based on minimum market price with 35% margin for profit</p>
                             </div>
                           </div>
                         </div>

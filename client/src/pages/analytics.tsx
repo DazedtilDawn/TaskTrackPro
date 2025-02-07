@@ -35,6 +35,7 @@ import {
 } from "recharts";
 import { useState } from "react";
 import { format, subDays } from "date-fns";
+import { InventoryAgingAnalysis } from "@/components/inventory-aging-analysis";
 
 const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))"];
 
@@ -61,6 +62,29 @@ type TopProduct = {
   averagePrice: number;
 };
 
+type InventoryAging = {
+  agingSummary: {
+    ageGroup: string;
+    totalValue: number;
+    totalCost: number;
+    itemCount: number;
+    totalQuantity: number;
+    averagePrice: number;
+    categories: string[];
+  }[];
+  slowMovingItems: {
+    id: number;
+    name: string;
+    category: string;
+    price: number;
+    purchasePrice: number | null;
+    quantity: number;
+    createdAt: string;
+    daysInStock: number;
+    potentialLoss: number;
+  }[];
+};
+
 export default function Analytics() {
   const [startDate, setStartDate] = useState<Date>(subDays(new Date(), 30));
   const [endDate, setEndDate] = useState<Date>(new Date());
@@ -79,6 +103,11 @@ export default function Analytics() {
   // Fetch top products
   const { data: topProducts = [], isLoading: isTopProductsLoading } = useQuery<TopProduct[]>({
     queryKey: ["/api/analytics/top-products", { metric: metricType }],
+  });
+
+  // Fetch inventory aging data
+  const { data: agingData, isLoading: isAgingLoading } = useQuery<InventoryAging>({
+    queryKey: ["/api/analytics/inventory-aging"],
   });
 
   return (
@@ -227,6 +256,22 @@ export default function Analytics() {
                   </BarChart>
                 </ResponsiveContainer>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Inventory Aging Analysis */}
+          <Card className="mt-6">
+            <CardHeader>
+              <CardTitle>Inventory Aging Analysis</CardTitle>
+              <CardDescription>
+                Track inventory age and identify slow-moving items
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InventoryAgingAnalysis
+                data={agingData}
+                isLoading={isAgingLoading}
+              />
             </CardContent>
           </Card>
         </main>

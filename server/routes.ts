@@ -1229,6 +1229,98 @@ Do not include any additional text.`;
     }
   });
 
+  // Add new endpoint after the existing analytics endpoints
+  app.get("/api/analytics/inventory-aging", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    try {
+      // Calculate age buckets from createdAt date
+      const agingData = await db
+        .select({
+          ageGroup: sql`
+            CASE 
+              WHEN NOW() - ${products.createdAt} < INTERVAL '30 days' THEN '0-30 days'
+              WHEN NOW() - ${products.createdAt} < INTERVAL '60 days' THEN '31-60 days'
+              WHEN NOW() - ${products.createdAt} < INTERVAL '90 days' THEN '61-90 days'
+              ELSE 'Over 90 days'
+            END
+          `,
+          totalValue: sql`SUM(${products.price} * ${products.quantity})::numeric`,
+          totalCost: sql`SUM(${products.purchasePrice} * ${products.quantity})::numeric`,
+          itemCount: sql`COUNT(*)::integer`,
+          totalQuantity: sql`SUM(${products.quantity})::integer`,
+          averagePrice: sql`AVG(${products.price})::numeric`,
+          categories: sql`array_agg(DISTINCT ${products.category})`
+        })
+        .from(products)
+        .where(
+          and(
+            eq(products.userId, req.user!.id),
+            eq(products.sold, false)
+          )
+        )
+        .groupBy(sql`
+          CASE 
+            WHEN NOW() - ${products.createdAt} < INTERVAL '30 days' THEN '0-30 days'
+            WHEN NOW() - ${products.createdAt} < INTERVAL '60 days' THEN '31-60 days'
+            WHEN NOW() - ${products.createdAt} < INTERVAL '90 days' THEN '61-90 days'
+            ELSE 'Over 90 days'
+          END
+        `)
+        .orderBy(sql`
+          CASE ageGroup 
+            WHEN '0-30 days' THEN 1
+            WHEN '31-60 days' THEN 2
+            WHEN '61-90 days' THEN 3
+            ELSE 4
+          END
+        `);
+
+      // Get detailed slow-moving items (over 60 days)
+      const slowMovingItems = await db
+        .select({
+          id: products.id,
+          name: products.name,
+          category: products.category,
+          price: products.price,
+          purchasePrice: products.purchasePrice,
+          quantity: products.quantity,
+          createdAt: products.createdAt,
+          daysInStock: sql`EXTRACT(DAY FROM NOW() - ${products.createdAt})::integer`,
+          potentialLoss: sql`
+            CASE 
+              WHEN ${products.purchasePrice} IS NOT NULL 
+              THEN (${products.purchasePrice} * ${products.quantity})::numeric 
+              ELSE (${products.price} * 0.5 * ${products.quantity})::numeric 
+            END
+          `
+        })
+        .from(products)
+        .where(
+          and(
+            eq(products.userId, req.user!.id),
+            eq(products.sold, false),
+            sql`NOW() - ${products.createdAt} >= INTERVAL '60 days'`
+          )
+        )
+        .orderBy(sql`NOW() - ${products.createdAt}`, "desc")
+        .limit(10);
+
+      res.json({
+        agingSummary: agingData,
+        slowMovingItems
+      });
+    } catch (error) {
+      console.error("Error fetching inventory aging analytics:", error);
+      res.status(500).json({
+        error: "Failed to fetch inventory aging analytics",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return app;
 }
